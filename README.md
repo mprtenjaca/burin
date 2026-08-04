@@ -1,6 +1,6 @@
 # Burin
 
-Minimalistička vremenska aplikacija za Hrvatsku — React Native + Expo (dev build).
+Minimalistička vremenska aplikacija za Hrvatsku — React Native + Expo SDK 54.
 Velika brojka, puno bjeline, jedna mint boja. Bez šarenila — jedina "šarena"
 površina je radar na karti.
 
@@ -23,14 +23,30 @@ copy .env.example .env   # pa upiši ključeve
 
 `.env`:
 
-- `GOOGLE_MAPS_API_KEY` — Google Maps Android SDK ključ. **Bez njega je ekran
-  karte na Androidu neupotrebljiv**: podloga je prazna, a zbog poznatog
-  ponašanja react-native-maps (#5156) ne prikazuju se ni radarske pločice.
-  Ostatak aplikacije radi normalno.
+- `GOOGLE_MAPS_API_KEY` — Google Maps Android SDK ključ, potreban samo za
+  **vlastiti Android dev build**. Bez njega je tamo ekran karte neupotrebljiv:
+  podloga je prazna, a zbog poznatog ponašanja react-native-maps (#5156) ne
+  prikazuju se ni radarske pločice. U Expo Go i na iOS-u (Apple Maps) ne treba;
+  ostatak aplikacije radi normalno.
 - `EXPO_PUBLIC_OWM_API_KEY` — opcionalno; bez njega su OWM slojevi na karti
   jednostavno skriveni (ostaje samo Radar).
 
-## Pokretanje (dev build, ne Expo Go)
+## Pokretanje
+
+Projekt je na **Expo SDK 54** — namjerno, da radi u **Expo Go** aplikaciji
+(iOS bez Maca i bez Apple Developer računa).
+
+### iOS / brzo testiranje — Expo Go
+
+```bash
+npx expo start
+```
+
+Skeniraj QR kamerom (iOS) ili iz Expo Go aplikacije (Android). Mobitel i PC
+moraju biti na istoj Wi-Fi mreži. U Expo Go karta na iOS-u koristi Apple Maps
+podlogu, pa `GOOGLE_MAPS_API_KEY` tamo nije potreban.
+
+### Android — vlastiti dev build (puni nativni moduli)
 
 ```bash
 npx expo prebuild --platform android   # generira android/ (briše i regenerira!)
@@ -78,6 +94,9 @@ npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 11. Animacija radara: montirane dvije `UrlTile` (aktivna 0.7 + sljedeća 0.01
     za predučitavanje), nikad zamjena `urlTemplate` na živom sloju (treperenje
     na Androidu).
+12. **SDK 54, ne 57** — svjesno spušteno da projekt radi u Expo Go aplikaciji,
+    jer se iOS build na Windowsima ne može napraviti lokalno (treba macOS/Xcode),
+    a Expo Go podržava SDK 54. Sve funkcionalnosti su ostale iste.
 
 ## Što radi
 
@@ -94,7 +113,8 @@ npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 
 ## Što treba API ključ
 
-- Radar karta na Androidu → `GOOGLE_MAPS_API_KEY`
+- Radar karta u vlastitom **Android** dev buildu → `GOOGLE_MAPS_API_KEY`
+  (u Expo Go i na iOS-u nije potreban)
 - Slojevi Temperatura/Naoblaka/Vjetar/Oborine → `EXPO_PUBLIC_OWM_API_KEY`
 
 ## Sljedeći koraci (v1.1)
