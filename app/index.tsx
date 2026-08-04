@@ -19,7 +19,7 @@ import { t } from "@/i18n";
 import { useCities } from "@/store/cities";
 import { useSettings } from "@/store/settings";
 import { colors } from "@/theme/colors";
-import { clockTime } from "@/utils/format";
+import { clockTime, convertTemp, tempUnitLabel } from "@/utils/format";
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
@@ -71,6 +71,12 @@ export default function HomeScreen() {
   }
 
   const today = bundle.daily[0];
+  // "Noću" iz korigirane satne krivulje (noćni sati u sljedeća 24 h), da
+  // se poklapa s trakom; daily minimum je nekorigiran i zna biti pretopao.
+  const nightHours = bundle.hourly.filter((h) => !h.isDay);
+  const nightMin = nightHours.length
+    ? Math.min(...nightHours.map((h) => h.temp))
+    : today?.tMin;
   const uvNow = bundle.hourly[0]?.uv;
   const visibilityKm = bundle.hourly[0]
     ? Math.round(bundle.hourly[0].visibility / 1000)
@@ -94,7 +100,7 @@ export default function HomeScreen() {
       <Hero
         placeName={bundle.place.name}
         current={bundle.current}
-        nightMin={today?.tMin}
+        nightMin={nightMin}
         tempUnit={tempUnit}
       />
       {isStale && (
@@ -113,7 +119,7 @@ export default function HomeScreen() {
       <RadarPreviewCard lat={bundle.place.lat} lon={bundle.place.lon} />
       {bundle.dhmz && (
         <Section title={t.home.nearbyMeasurements}>
-          <DhmzCard obs={bundle.dhmz} windUnit={windUnit} />
+          <DhmzCard obs={bundle.dhmz} tempUnit={tempUnit} windUnit={windUnit} />
         </Section>
       )}
       <Section title={t.home.details}>
@@ -128,6 +134,20 @@ export default function HomeScreen() {
           />
           <Detail label={t.metrics.precipitation} value={`${precipNext24} mm`} />
         </View>
+        {bundle.seaTemp !== undefined && (
+          <>
+            <Hairline />
+            <View className="flex-row items-center justify-between py-2">
+              <Text className="text-sm text-ink/60 dark:text-paper/60">
+                {t.home.seaTemp}
+              </Text>
+              <Text className="text-[15px] text-ink dark:text-paper">
+                {Math.round(convertTemp(bundle.seaTemp, tempUnit))}
+                {tempUnitLabel(tempUnit)}
+              </Text>
+            </View>
+          </>
+        )}
         {bundle.aqi !== undefined && (
           <>
             <Hairline />

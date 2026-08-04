@@ -68,4 +68,28 @@ describe("findNearestStation", () => {
       findNearestStation(45.8, 16, { stations: [], measuredAt: "" }),
     ).toBeNull();
   });
+
+  it("preferira gradsku postaju pred aerodromom (stvarni Split, 4.8.2026.)", () => {
+    // Aerodrom je čak neznatno bliži centru, ali mjeri 1.6 °C manje jer je
+    // u ravnici izvan grada — Vrijeme&Radar zato koristi gradsku postaju.
+    const report = {
+      measuredAt: "04.08.2026. 23:00",
+      stations: [
+        { name: "Split-aerodrom", lat: 43.539, lon: 16.301, temp: 28.0 },
+        { name: "Split-Marjan", lat: 43.508, lon: 16.426, temp: 29.6 },
+      ],
+    };
+    const obs = findNearestStation(43.508, 16.44, report);
+    expect(obs!.stationName).toBe("Split-Marjan");
+    expect(obs!.temp).toBe(29.6);
+  });
+
+  it("aerodrom se koristi kad je jedina postaja u blizini", () => {
+    const report = {
+      measuredAt: "04.08.2026. 23:00",
+      stations: [{ name: "Zadar-aerodrom", lat: 44.097, lon: 15.363, temp: 22.4 }],
+    };
+    const obs = findNearestStation(43.95, 15.72, report);
+    expect(obs!.stationName).toBe("Zadar-aerodrom");
+  });
 });

@@ -2,9 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 
 import { fetchDhmzObservations, findNearestStation } from "@/api/dhmz";
-import { fetchAirQuality, fetchCurrent, fetchForecast } from "@/api/openMeteo";
+import {
+  fetchAirQuality,
+  fetchCurrent,
+  fetchForecast,
+  fetchSeaTemperature,
+} from "@/api/openMeteo";
 import type { Place, WeatherBundle } from "@/api/types";
-import { buildBundle } from "@/api/weather";
+import {
+  buildBundle,
+  correctHourly,
+  correctWithObservation,
+  observationDelta,
+} from "@/api/weather";
 import { useLastWeather } from "@/store/lastWeather";
 
 const MIN = 60 * 1000;
@@ -40,6 +50,15 @@ export function useWeatherBundle(place: Place | null) {
     retry: 1,
   });
 
+  // Temperatura mora — undefined za kopnena mjesta, tada se ne prikazuje.
+  const seaTemp = useQuery({
+    queryKey: ["om-sea", place?.id],
+    queryFn: () => fetchSeaTemperature(place!.lat, place!.lon),
+    enabled: !!place,
+    staleTime: 60 * MIN,
+    retry: 0,
+  });
+
   // Globalni DHMZ feed (sve postaje); greška vraća null — tihi fallback.
   const dhmz = useQuery({
     queryKey: ["dhmz"],
@@ -59,19 +78,23 @@ export function useWeatherBundle(place: Place | null) {
     const nearest = dhmz.data
       ? findNearestStation(place.lat, place.lon, dhmz.data)
       : null;
+    const dhmzObs =
+      nearest && nearest.distanceKm <= DHMZ_MAX_DISTANCE_KM ? nearest : undefined;
+    // Ista greška modela ispravlja se i na heroju i na satnoj krivulji,
+    // inače hero i prvi sat u traci pokazuju različit broj.
+    const delta = observationDelta(current.data, dhmzObs);
     return buildBundle({
       place,
-      current: current.data,
-      hourly: forecast.data.hourly,
+      current: correctWithObservation(current.data, dhmzObs),
+      hourly: correctHourly(forecast.data.hourly, delta),
+      hourlyAll: correctHourly(forecast.data.hourlyAll, delta),
       daily: forecast.data.daily,
-      dhmz:
-        nearest && nearest.distanceKm <= DHMZ_MAX_DISTANCE_KM
-          ? nearest
-          : undefined,
+      dhmz: dhmzObs,
       aqi: aqi.data,
+      seaTemp: seaTemp.data,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [place?.id, current.data, forecast.data, aqi.data, dhmz.data]);
+  }, [place?.id, current.data, forecast.data, aqi.data, dhmz.data, seaTemp.data]);
 
   useEffect(() => {
     if (fresh) save(fresh);
@@ -93,6 +116,7 @@ export function useWeatherBundle(place: Place | null) {
       void current.refetch();
       void forecast.refetch();
       void aqi.refetch();
+      void seaTemp.refetch();
     },
   };
 }

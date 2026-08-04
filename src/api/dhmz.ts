@@ -100,17 +100,37 @@ export async function fetchDhmzObservations(): Promise<DhmzReport | null> {
   }
 }
 
-/** Najbliža postaja danoj točki, s udaljenošću u km. */
+const AIRPORT_RE = /aerodrom|zra[čc]na luka/i;
+
+/**
+ * Mala kazna aerodromskim postajama pri odabiru. Aerodromi su u ravnici
+ * izvan grada i noću mjere niže od naselja (Split 4.8.2026.: grad 29.6 °C
+ * vs aerodrom 28.0 °C), pa kad je gradska postaja podjednako blizu želimo
+ * nju. Kazna je namjerno malena — leave-one-out test je pokazao da veće
+ * vrijednosti ne poboljšavaju točnost, a DHMZ u međuterminima objavi
+ * skraćeni set postaja pa je aerodrom često jedina u blizini.
+ */
+const AIRPORT_PENALTY_KM = 3;
+
+/**
+ * Najbliža postaja danoj točki, s udaljenošću u km. Aerodromske postaje
+ * su blago kažnjene jer nisu reprezentativne za naselje.
+ */
 export function findNearestStation(
   lat: number,
   lon: number,
   report: DhmzReport,
 ): DhmzObservation | null {
   let best: DhmzStation | null = null;
+  let bestScore = Infinity;
   let bestDist = Infinity;
   for (const station of report.stations) {
     const d = haversineKm({ lat, lon }, { lat: station.lat, lon: station.lon });
-    if (d < bestDist) {
+    // Aerodromske postaje su u ravnici izvan grada i noću se hlade više od
+    // naselja, pa im dajemo kaznu da gradska postaja pobijedi kad postoji.
+    const score = d + (AIRPORT_RE.test(station.name) ? AIRPORT_PENALTY_KM : 0);
+    if (score < bestScore) {
+      bestScore = score;
       bestDist = d;
       best = station;
     }

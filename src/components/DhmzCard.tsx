@@ -2,8 +2,8 @@ import { Text, View } from "react-native";
 
 import type { DhmzObservation } from "@/api/types";
 import { t } from "@/i18n";
-import type { WindUnit } from "@/utils/format";
-import { windUnitLabel } from "@/utils/format";
+import type { TempUnit, WindUnit } from "@/utils/format";
+import { convertTemp, tempUnitLabel, windUnitLabel } from "@/utils/format";
 
 /** DHMZ međunarodne kratice smjera -> hrvatske. */
 const DIR_HR: Record<string, string> = {
@@ -27,14 +27,18 @@ function Value({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Izmjerene vrijednosti najbliže DHMZ postaje ("Mjerenja u blizini").
+ * Izmjerene vrijednosti najbliže DHMZ postaje ("Mjerenja u blizini") —
+ * zaseban blok, odvojen od prognoze na heroju (Open-Meteo). Uvijek se
+ * pošteno navodi postaja, udaljenost, vrijeme mjerenja i izvor.
  * VjetarBrzina iz feeda je u m/s.
  */
 export function DhmzCard({
   obs,
+  tempUnit,
   windUnit,
 }: {
   obs: DhmzObservation;
+  tempUnit: TempUnit;
   windUnit: WindUnit;
 }) {
   const windValue =
@@ -49,17 +53,27 @@ export function DhmzCard({
       ? ` (${obs.pressureTrend > 0 ? "+" : ""}${obs.pressureTrend})`
       : "";
 
+  const tempValue =
+    obs.temp !== undefined
+      ? `${convertTemp(obs.temp, tempUnit).toFixed(1)}${tempUnitLabel(tempUnit)}`
+      : "–";
+
   return (
     <View className="gap-4 rounded-2xl border border-ink/[0.08] px-4 py-4 dark:border-paper/10">
-      <View className="flex-row items-baseline gap-3">
-        <Text className="text-3xl font-light text-ink dark:text-paper">
-          {obs.temp !== undefined ? `${obs.temp.toFixed(1)}°` : "–"}
-        </Text>
-        {obs.conditionText && (
-          <Text className="text-sm text-ink/60 dark:text-paper/60">
-            {obs.conditionText}
+      <View className="flex-row items-baseline justify-between">
+        <View className="flex-row items-baseline gap-3">
+          <Text className="text-3xl font-light text-ink dark:text-paper">
+            {tempValue}
           </Text>
-        )}
+          {obs.conditionText && (
+            <Text className="text-sm text-ink/60 dark:text-paper/60">
+              {obs.conditionText}
+            </Text>
+          )}
+        </View>
+        <Text className="text-xs text-ink/50 dark:text-paper/50">
+          {obs.distanceKm} km
+        </Text>
       </View>
       <View className="flex-row">
         <Value

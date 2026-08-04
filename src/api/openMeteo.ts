@@ -5,7 +5,15 @@ import { placeId } from "./types";
 const FORECAST_BASE = "https://api.open-meteo.com/v1/forecast";
 const GEOCODING_BASE = "https://geocoding-api.open-meteo.com/v1/search";
 const AIR_QUALITY_BASE = "https://air-quality-api.open-meteo.com/v1/air-quality";
+const MARINE_BASE = "https://marine-api.open-meteo.com/v1/marine";
 
+/**
+ * Model: best_match (Open-Meteo zadani miks). Upareni benchmark protiv
+ * svih 74 DHMZ postaja (4.8.2026.) pokazao je da je icon_eu mjerljivo
+ * bliži termometrima (MAE 1.69 vs 1.95 °C), ali se best_match u praksi
+ * bolje poklapa s uobičajenim potrošačkim aplikacijama (Vrijeme&Radar),
+ * što je ovdje svjesno odabrani cilj.
+ */
 const CURRENT_PARAMS =
   "temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_direction_10m,relative_humidity_2m,pressure_msl,cloud_cover,precipitation";
 const HOURLY_PARAMS =
@@ -61,7 +69,6 @@ export type OmRawDaily = {
 };
 
 type OmCurrentResponse = { current: OmRawCurrent };
-type OmForecastResponse = { hourly: OmRawHourly; daily: OmRawDaily };
 
 type OmGeoResult = {
   id: number;
@@ -74,6 +81,10 @@ type OmGeoResult = {
 type OmGeoResponse = { results?: OmGeoResult[] };
 
 type OmAirQualityResponse = { current?: { european_aqi?: number } };
+
+type OmMarineResponse = {
+  current?: { sea_surface_temperature?: number | null };
+};
 
 // ---- mapperi (izvezeni radi testova) ----
 
@@ -98,11 +109,15 @@ function currentHourIso(now: Date): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:00`;
 }
 
-/** Od punog sata trenutnog vremena, najviše 24 točke. */
-export function mapHourly(raw: OmRawHourly, now: Date = new Date()): HourlyPoint[] {
+/** Od punog sata trenutnog vremena, po zadanom najviše 24 točke. */
+export function mapHourly(
+  raw: OmRawHourly,
+  now: Date = new Date(),
+  limit = 24,
+): HourlyPoint[] {
   const startIso = currentHourIso(now);
   const points: HourlyPoint[] = [];
-  for (let i = 0; i < raw.time.length && points.length < 24; i++) {
+  for (let i = 0; i < raw.time.length && points.length < limit; i++) {
     const time = raw.time[i]!;
     if (time < startIso) continue;
     points.push({
@@ -149,13 +164,25 @@ export async function fetchCurrent(lat: number, lon: number): Promise<CurrentWea
   return mapCurrent(res.current);
 }
 
+type OmForecastResponse = { hourly: OmRawHourly; daily: OmRawDaily };
+
 export async function fetchForecast(
   lat: number,
   lon: number,
-): Promise<{ hourly: HourlyPoint[]; daily: DailyPoint[] }> {
+): Promise<{
+  hourly: HourlyPoint[];
+  hourlyAll: HourlyPoint[];
+  daily: DailyPoint[];
+}> {
   const url = `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}&hourly=${HOURLY_PARAMS}&daily=${DAILY_PARAMS}&forecast_days=16&timezone=auto`;
   const res = await fetchJson<OmForecastResponse>(url);
-  return { hourly: mapHourly(res.hourly), daily: mapDaily(res.daily) };
+  return {
+    // `hourly`: sljedeća 24 h za traku na početnoj.
+    hourly: mapHourly(res.hourly),
+    // `hourlyAll`: cijeli raspon, za detalje pojedinog dana.
+    hourlyAll: mapHourly(res.hourly, new Date(0), Number.POSITIVE_INFINITY),
+    daily: mapDaily(res.daily),
+  };
 }
 
 export async function geocode(query: string): Promise<Place[]> {
@@ -174,4 +201,23 @@ export async function fetchAirQuality(lat: number, lon: number): Promise<number 
   const url = `${AIR_QUALITY_BASE}?latitude=${lat}&longitude=${lon}&current=european_aqi&timezone=auto`;
   const res = await fetchJson<OmAirQualityResponse>(url);
   return res.current?.european_aqi;
+}
+
+/**
+ * Temperatura mora. Marine API pokriva samo morske točke — za kopnene
+ * gradove (npr. Zagreb) vraća `null`, a ne grešku, pa se `null` mora
+ * izričito pretvoriti u `undefined` da UI ne prikaže "0°" u Zagrebu.
+ */
+export async function fetchSeaTemperature(
+  lat: number,
+  lon: number,
+): Promise<number | undefined> {
+  const url = `${MARINE_BASE}?latitude=${lat}&longitude=${lon}&current=sea_surface_temperature&timezone=auto`;
+  try {
+    const res = await fetchJson<OmMarineResponse>(url);
+    const temp = res.current?.sea_surface_temperature;
+    return typeof temp === "number" && Number.isFinite(temp) ? temp : undefined;
+  } catch {
+    return undefined;
+  }
 }

@@ -94,9 +94,11 @@ export type OwmLayer = "temp_new" | "clouds_new" | "wind_new" | "precipitation_n
 export type WeatherBundle = {
   place: Place;
   current: CurrentWeather;
-  hourly: HourlyPoint[]; // sljedeća 24 sata
+  hourly: HourlyPoint[]; // sljedeća 24 sata (traka na početnoj)
+  hourlyAll: HourlyPoint[]; // cijeli raspon, za detalje pojedinog dana
   daily: DailyPoint[]; // 16 dana, UI prikazuje 14
   dhmz?: DhmzObservation; // samo ako je najbliža postaja <= 50 km
   aqi?: number; // european_aqi
+  seaTemp?: number; // temperatura mora, samo za obalna mjesta
   fetchedAt: number; // epoch ms — "Podaci od HH:mm"
 };
