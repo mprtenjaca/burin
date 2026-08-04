@@ -1,12 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 
+import { fetchDhmzObservations, findNearestStation } from "@/api/dhmz";
 import { fetchAirQuality, fetchCurrent, fetchForecast } from "@/api/openMeteo";
 import type { Place, WeatherBundle } from "@/api/types";
 import { buildBundle } from "@/api/weather";
 import { useLastWeather } from "@/store/lastWeather";
 
 const MIN = 60 * 1000;
+
+/** DHMZ mjerenja vrijede samo ako je najbliža postaja unutar 50 km. */
+const DHMZ_MAX_DISTANCE_KM = 50;
 
 /**
  * Sastavlja WeatherBundle iz odvojenih upita (svaki sa svojim staleTime):
@@ -36,6 +40,15 @@ export function useWeatherBundle(place: Place | null) {
     retry: 1,
   });
 
+  // Globalni DHMZ feed (sve postaje); greška vraća null — tihi fallback.
+  const dhmz = useQuery({
+    queryKey: ["dhmz"],
+    queryFn: fetchDhmzObservations,
+    enabled: !!place,
+    staleTime: 10 * MIN,
+    retry: 1,
+  });
+
   const save = useLastWeather((s) => s.save);
   const cached: WeatherBundle | undefined = useLastWeather((s) =>
     place ? s.byPlaceId[place.id] : undefined,
@@ -43,15 +56,22 @@ export function useWeatherBundle(place: Place | null) {
 
   const fresh = useMemo(() => {
     if (!place || !current.data || !forecast.data) return undefined;
+    const nearest = dhmz.data
+      ? findNearestStation(place.lat, place.lon, dhmz.data)
+      : null;
     return buildBundle({
       place,
       current: current.data,
       hourly: forecast.data.hourly,
       daily: forecast.data.daily,
+      dhmz:
+        nearest && nearest.distanceKm <= DHMZ_MAX_DISTANCE_KM
+          ? nearest
+          : undefined,
       aqi: aqi.data,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [place?.id, current.data, forecast.data, aqi.data]);
+  }, [place?.id, current.data, forecast.data, aqi.data, dhmz.data]);
 
   useEffect(() => {
     if (fresh) save(fresh);

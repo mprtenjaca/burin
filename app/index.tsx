@@ -2,13 +2,15 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 
+import { AqiRow } from "@/components/AqiRow";
 import { DailyList } from "@/components/DailyList";
+import { DhmzCard } from "@/components/DhmzCard";
 import { ErrorView } from "@/components/ErrorView";
 import { Hero } from "@/components/Hero";
 import { HourlyStrip } from "@/components/HourlyStrip";
 import { MetricsRow } from "@/components/MetricsRow";
 import { RadarPreviewCard } from "@/components/RadarPreviewCard";
-import { Section } from "@/components/Section";
+import { Hairline, Section } from "@/components/Section";
 import { HomeSkeleton } from "@/components/Skeleton";
 import { SunCycle } from "@/components/SunCycle";
 import { useLocation } from "@/hooks/useLocation";
@@ -109,6 +111,11 @@ export default function HomeScreen() {
         <DailyList days={bundle.daily.slice(0, 14)} tempUnit={tempUnit} />
       </Section>
       <RadarPreviewCard lat={bundle.place.lat} lon={bundle.place.lon} />
+      {bundle.dhmz && (
+        <Section title={t.home.nearbyMeasurements}>
+          <DhmzCard obs={bundle.dhmz} windUnit={windUnit} />
+        </Section>
+      )}
       <Section title={t.home.details}>
         <View className="flex-row py-1">
           <Detail
@@ -121,6 +128,12 @@ export default function HomeScreen() {
           />
           <Detail label={t.metrics.precipitation} value={`${precipNext24} mm`} />
         </View>
+        {bundle.aqi !== undefined && (
+          <>
+            <Hairline />
+            <AqiRow aqi={bundle.aqi} />
+          </>
+        )}
       </Section>
     </ScrollView>
   );

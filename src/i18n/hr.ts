@@ -131,6 +131,18 @@ export const hr = {
 
   /** Kratice smjerova vjetra, indeks = kut/45° (S = sjever). */
   windDirs: ["S", "SI", "I", "JI", "J", "JZ", "Z", "SZ"],
+
+  /** Imena dana, indeks = Date.getDay() (0 = nedjelja). */
+  dayNames: [
+    "nedjelja",
+    "ponedjeljak",
+    "utorak",
+    "srijeda",
+    "četvrtak",
+    "petak",
+    "subota",
+  ],
+  dayNamesShort: ["ned", "pon", "uto", "sri", "čet", "pet", "sub"],
 };
 
 export type Dict = typeof hr;

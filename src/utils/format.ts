@@ -3,16 +3,6 @@ import { t } from "@/i18n";
 export type TempUnit = "C" | "F";
 export type WindUnit = "kmh" | "ms";
 
-const DAY_NAMES = [
-  "nedjelja",
-  "ponedjeljak",
-  "utorak",
-  "srijeda",
-  "četvrtak",
-  "petak",
-  "subota",
-] as const;
-
 /**
  * Open-Meteo vraća lokalne ISO stringove bez zone ("2026-08-04T16:00").
  * Parsiramo ih ručno da izbjegnemo UTC interpretaciju date-only stringova.
@@ -31,15 +21,13 @@ function pad2(n: number): string {
 /** "utorak, 4.8." */
 export function formatDay(iso: string): string {
   const dt = parseLocal(iso);
-  return `${DAY_NAMES[dt.getDay()]}, ${dt.getDate()}.${dt.getMonth() + 1}.`;
+  return `${t.dayNames[dt.getDay()]}, ${dt.getDate()}.${dt.getMonth() + 1}.`;
 }
-
-const DAY_NAMES_SHORT = ["ned", "pon", "uto", "sri", "čet", "pet", "sub"] as const;
 
 /** "uto 4.8." — za retke 14-dnevne liste */
 export function formatDayShort(iso: string): string {
   const dt = parseLocal(iso);
-  return `${DAY_NAMES_SHORT[dt.getDay()]} ${dt.getDate()}.${dt.getMonth() + 1}.`;
+  return `${t.dayNamesShort[dt.getDay()]} ${dt.getDate()}.${dt.getMonth() + 1}.`;
 }
 
 /** "16:00" (24-satni) */
