@@ -7,6 +7,7 @@ import { ErrorView } from "@/components/ErrorView";
 import { Hero } from "@/components/Hero";
 import { HourlyStrip } from "@/components/HourlyStrip";
 import { MetricsRow } from "@/components/MetricsRow";
+import { RadarPreviewCard } from "@/components/RadarPreviewCard";
 import { Section } from "@/components/Section";
 import { HomeSkeleton } from "@/components/Skeleton";
 import { SunCycle } from "@/components/SunCycle";
@@ -107,6 +108,7 @@ export default function HomeScreen() {
       <Section title={t.home.daily}>
         <DailyList days={bundle.daily.slice(0, 14)} tempUnit={tempUnit} />
       </Section>
+      <RadarPreviewCard lat={bundle.place.lat} lon={bundle.place.lon} />
       <Section title={t.home.details}>
         <View className="flex-row py-1">
           <Detail
