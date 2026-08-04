@@ -11,11 +11,12 @@ import {
 } from "react-native";
 import MapView, { PROVIDER_GOOGLE, UrlTile } from "react-native-maps";
 
-import { owmTileSource } from "@/api/owm";
+import { OWM_MAX_NATIVE_Z, owmTileSource } from "@/api/owm";
 import { rainviewerTileSource } from "@/api/rainviewer";
 import { ErrorView } from "@/components/ErrorView";
 import type { LayerId } from "@/components/LayerChips";
 import { LayerChips } from "@/components/LayerChips";
+import { LayerLegend } from "@/components/LayerLegend";
 import { TimelinePlayer } from "@/components/TimelinePlayer";
 import { useRadarFrames } from "@/hooks/useRadarFrames";
 import { useCities } from "@/store/cities";
@@ -98,6 +99,8 @@ export default function MapScreen() {
           longitudeDelta: 3.6,
         }}
         toolbarEnabled={false}
+        minZoomLevel={4}
+        maxZoomLevel={11}
       >
         {layer === "radar" && host && activeFrame && (
           <UrlTile
@@ -105,6 +108,7 @@ export default function MapScreen() {
             urlTemplate={rainviewerTileSource(host, activeFrame).urlTemplate}
             opacity={0.7}
             maximumNativeZ={10}
+            maximumZ={19}
             zIndex={2}
           />
         )}
@@ -114,6 +118,7 @@ export default function MapScreen() {
             urlTemplate={rainviewerTileSource(host, preloadFrame).urlTemplate}
             opacity={0.01}
             maximumNativeZ={10}
+            maximumZ={19}
             zIndex={1}
           />
         )}
@@ -122,6 +127,8 @@ export default function MapScreen() {
             key={owmSource.id}
             urlTemplate={owmSource.urlTemplate}
             opacity={owmSource.opacity}
+            maximumNativeZ={OWM_MAX_NATIVE_Z}
+            maximumZ={19}
             zIndex={2}
           />
         )}
@@ -146,6 +153,7 @@ export default function MapScreen() {
       </Pressable>
 
       <View className="absolute bottom-4 left-4 right-4 gap-2">
+        <LayerLegend layer={layer} />
         <Pressable
           hitSlop={8}
           onPress={() => Linking.openURL(attribution.url)}

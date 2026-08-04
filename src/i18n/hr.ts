@@ -28,6 +28,8 @@ export const hr = {
     feelsLike: "Osjet",
     night: "Noću",
     hourly: "Prognoza po satima",
+    precipChanceHint: "Mint stupić = vjerojatnost oborina",
+    noPrecipNext24: "Bez oborina u sljedeća 24 sata",
     daily: "Prognoza za 14 dana",
     details: "Detalji",
     sunrise: "Izlazak sunca",
@@ -79,6 +81,10 @@ export const hr = {
     forecastLabel: "prognoza",
     radarAttribution: "Radar: RainViewer",
     locateMe: "Moja lokacija",
+    legendWeak: "slabo",
+    legendStrong: "jako",
+    legendWindArrows: "Strelice pokazuju smjer vjetra",
+    zoomHint: "Detaljniji prikaz nije dostupan na ovom sloju",
   },
 
   search: {
