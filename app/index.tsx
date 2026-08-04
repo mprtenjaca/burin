@@ -1,7 +1,7 @@
+import { router } from "expo-router";
+import { useEffect } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 
-import type { Place } from "@/api/types";
-import { placeId } from "@/api/types";
 import { DailyList } from "@/components/DailyList";
 import { ErrorView } from "@/components/ErrorView";
 import { Hero } from "@/components/Hero";
@@ -10,20 +10,13 @@ import { MetricsRow } from "@/components/MetricsRow";
 import { Section } from "@/components/Section";
 import { HomeSkeleton } from "@/components/Skeleton";
 import { SunCycle } from "@/components/SunCycle";
+import { useLocation } from "@/hooks/useLocation";
 import { useWeatherBundle } from "@/hooks/useWeatherBundle";
 import { t } from "@/i18n";
+import { useCities } from "@/store/cities";
 import { useSettings } from "@/store/settings";
 import { colors } from "@/theme/colors";
 import { clockTime } from "@/utils/format";
-
-// Privremeno zadano mjesto — Task 4 uvodi GPS i odabir grada.
-const ZAGREB: Place = {
-  id: placeId(45.815, 15.982),
-  name: "Zagreb",
-  country: "Hrvatska",
-  lat: 45.815,
-  lon: 15.982,
-};
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
@@ -35,12 +28,36 @@ function Detail({ label, value }: { label: string; value: string }) {
 }
 
 export default function HomeScreen() {
-  const place = ZAGREB;
+  const selected = useCities((s) => s.selected);
+  const gps = useLocation(selected === null);
+  const place =
+    selected ?? (gps.status === "granted" ? gps.place : null);
+
   const { bundle, isLoading, isError, isStale, isRefreshing, refetch } =
     useWeatherBundle(place);
   const tempUnit = useSettings((s) => s.tempUnit);
   const windUnit = useSettings((s) => s.windUnit);
 
+  // Bez odabranog grada i bez dozvole za lokaciju -> odabir grada.
+  useEffect(() => {
+    if (selected === null && gps.status === "denied") {
+      router.replace("/search");
+    }
+  }, [selected, gps.status]);
+
+  if (selected === null && gps.status === "loading") {
+    return (
+      <View className="flex-1 bg-paper dark:bg-night">
+        <HomeSkeleton />
+        <Text className="px-8 pb-10 text-center text-xs text-ink/40 dark:text-paper/40">
+          {t.location.rationale}
+        </Text>
+      </View>
+    );
+  }
+  if (selected === null && gps.status === "denied") {
+    return <View className="flex-1 bg-paper dark:bg-night" />;
+  }
   if (isLoading) return <HomeSkeleton />;
   if (isError || !bundle) {
     return (
