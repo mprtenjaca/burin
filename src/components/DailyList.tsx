@@ -1,27 +1,36 @@
-import { Fragment } from "react";
-import { Text, View } from "react-native";
+import { ChevronDown } from "lucide-react-native";
+import { Fragment, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 
-import type { DailyPoint } from "@/api/types";
+import type { DailyPoint, HourlyPoint } from "@/api/types";
 import { t } from "@/i18n";
+import { colors } from "@/theme/colors";
 import { useThemeColors } from "@/theme/useThemeColors";
-import type { TempUnit } from "@/utils/format";
+import type { TempUnit, WindUnit } from "@/utils/format";
 import { convertTemp, formatDayShort } from "@/utils/format";
 import { codeToCondition } from "@/utils/weatherCodes";
 
+import { DayDetails } from "./DayDetails";
 import { Hairline } from "./Section";
 
 /**
  * 14 dana: dan, ikona, % oborina, min–max s malom trakom raspona
- * (raspon dana unutar raspona svih 14 dana).
+ * (raspon dana unutar raspona svih 14 dana). Dodir na red otvara
+ * razdoblja dana s pojedinostima.
  */
 export function DailyList({
   days,
+  hourly,
   tempUnit,
+  windUnit,
 }: {
   days: DailyPoint[];
+  hourly: HourlyPoint[];
   tempUnit: TempUnit;
+  windUnit: WindUnit;
 }) {
   const { fg } = useThemeColors();
+  const [openDate, setOpenDate] = useState<string | null>(null);
   const allMin = Math.min(...days.map((d) => d.tMin));
   const allMax = Math.max(...days.map((d) => d.tMax));
   const span = Math.max(1, allMax - allMin);
@@ -50,13 +59,26 @@ export function DailyList({
         const width = Math.max(4, ((d.tMax - d.tMin) / span) * 100);
         const dayLabel =
           i === 0 ? t.common.today : i === 1 ? t.common.tomorrow : formatDayShort(d.date);
+        const isOpen = openDate === d.date;
         return (
           <Fragment key={d.date}>
             {i > 0 && <Hairline />}
-            <View className="flex-row items-center gap-3 py-2.5">
-              <Text className="w-[72px] text-[15px] text-ink dark:text-paper">
-                {dayLabel}
-              </Text>
+            <Pressable
+              onPress={() => setOpenDate(isOpen ? null : d.date)}
+              className="flex-row items-center gap-3 py-2.5"
+            >
+              <View className="w-[72px] flex-row items-center gap-1">
+                <Text className="text-[15px] text-ink dark:text-paper">
+                  {dayLabel}
+                </Text>
+                <ChevronDown
+                  size={13}
+                  strokeWidth={1.5}
+                  color={isOpen ? colors.mint : fg}
+                  opacity={isOpen ? 1 : 0.3}
+                  style={{ transform: [{ rotate: isOpen ? "180deg" : "0deg" }] }}
+                />
+              </View>
               <Icon size={18} strokeWidth={1.5} color={fg} opacity={0.7} />
               <Text
                 className={`w-10 text-right text-xs ${
@@ -77,7 +99,15 @@ export function DailyList({
               <Text className="w-8 text-right text-[15px] text-ink dark:text-paper">
                 {deg(d.tMax)}
               </Text>
-            </View>
+            </Pressable>
+            {isOpen && (
+              <DayDetails
+                day={d}
+                hourly={hourly}
+                tempUnit={tempUnit}
+                windUnit={windUnit}
+              />
+            )}
           </Fragment>
         );
       })}

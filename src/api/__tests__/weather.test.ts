@@ -155,6 +155,35 @@ describe("correctHourly (prijenos korekcije na traku po satima)", () => {
   });
 });
 
+describe("observationDelta s više postaja", () => {
+  it("jedna čudna postaja se ublaži ostalima", () => {
+    const m = { ...model, temp: 27 };
+    // Sama Zemunik-tip postaja (5° niža) daje velik pomak...
+    const alone = observationDelta(m, [obs(22, 10)]);
+    // ...ali s dvije normalne postaje u prosjeku je pomak manji.
+    const averaged = observationDelta(m, [obs(22, 10), obs(26.5, 12), obs(27, 15)]);
+    expect(Math.abs(averaged)).toBeLessThan(Math.abs(alone));
+  });
+
+  it("kad se sve postaje slažu, pomak ostaje pun", () => {
+    const m = { ...model, temp: 27 };
+    const d = observationDelta(m, [obs(24, 5), obs(24, 8), obs(24, 10)]);
+    expect(d).toBeLessThan(-1.5);
+  });
+
+  it("prazan popis -> 0", () => {
+    expect(observationDelta(model, [])).toBe(0);
+  });
+
+  it("postaje bez temperature se ignoriraju", () => {
+    expect(observationDelta(model, [obs(undefined, 5), obs(undefined, 9)])).toBe(0);
+  });
+
+  it("predaleke postaje se ne broje", () => {
+    expect(observationDelta(model, [obs(20, 50), obs(20, 60)])).toBe(0);
+  });
+});
+
 describe("observationDelta", () => {
   it("nema postaje -> 0", () => {
     expect(observationDelta(model, undefined)).toBe(0);

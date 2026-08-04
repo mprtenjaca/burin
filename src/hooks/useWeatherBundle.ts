@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 
-import { fetchDhmzObservations, findNearestStation } from "@/api/dhmz";
+import {
+  fetchDhmzObservations,
+  findNearbyStations,
+  findNearestStation,
+} from "@/api/dhmz";
 import {
   fetchAirQuality,
   fetchCurrent,
@@ -80,9 +84,13 @@ export function useWeatherBundle(place: Place | null) {
       : null;
     const dhmzObs =
       nearest && nearest.distanceKm <= DHMZ_MAX_DISTANCE_KM ? nearest : undefined;
-    // Ista greška modela ispravlja se i na heroju i na satnoj krivulji,
-    // inače hero i prvi sat u traci pokazuju različit broj.
-    const delta = observationDelta(current.data, dhmzObs);
+    // Korekcija se računa iz nekoliko okolnih postaja (točnije od jedne),
+    // a ista greška se primjenjuje na hero i na satnu krivulju — inače
+    // hero i prvi sat u traci pokazuju različit broj.
+    const nearby = dhmz.data
+      ? findNearbyStations(place.lat, place.lon, dhmz.data)
+      : [];
+    const delta = observationDelta(current.data, nearby);
     return buildBundle({
       place,
       current: correctWithObservation(current.data, dhmzObs),

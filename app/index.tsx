@@ -114,7 +114,12 @@ export default function HomeScreen() {
       </Section>
       {today && <SunCycle sunrise={today.sunrise} sunset={today.sunset} />}
       <Section title={t.home.daily}>
-        <DailyList days={bundle.daily.slice(0, 14)} tempUnit={tempUnit} />
+        <DailyList
+          days={bundle.daily.slice(0, 14)}
+          hourly={bundle.hourlyAll}
+          tempUnit={tempUnit}
+          windUnit={windUnit}
+        />
       </Section>
       <RadarPreviewCard lat={bundle.place.lat} lon={bundle.place.lon} />
       {bundle.dhmz && (
