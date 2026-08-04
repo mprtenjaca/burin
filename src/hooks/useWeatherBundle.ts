@@ -13,10 +13,12 @@ import {
   fetchSeaTemperature,
 } from "@/api/openMeteo";
 import type { Place, WeatherBundle } from "@/api/types";
+import { NO_BIAS, learnModelBias } from "@/api/bias";
 import {
   buildBundle,
   correctHourly,
-  correctWithObservation,
+  debiasDaily,
+  debiasHourly,
   observationDelta,
 } from "@/api/weather";
 import { useLastWeather } from "@/store/lastWeather";
@@ -63,6 +65,16 @@ export function useWeatherBundle(place: Place | null) {
     retry: 0,
   });
 
+  // Naučena pristranost modela za ovo mjesto. Mijenja se sporo (klima
+  // lokacije), pa se drži cijeli dan.
+  const bias = useQuery({
+    queryKey: ["model-bias", place?.id],
+    queryFn: () => learnModelBias(place!.lat, place!.lon),
+    enabled: !!place,
+    staleTime: 12 * 60 * MIN,
+    retry: 0,
+  });
+
   // Globalni DHMZ feed (sve postaje); greška vraća null — tihi fallback.
   const dhmz = useQuery({
     queryKey: ["dhmz"],
@@ -90,19 +102,49 @@ export function useWeatherBundle(place: Place | null) {
     const nearby = dhmz.data
       ? findNearbyStations(place.lat, place.lon, dhmz.data)
       : [];
-    const delta = observationDelta(current.data, nearby);
+
+    // Redoslijed je važan: prvo se iz prognoze ukloni naučena pristranost
+    // modela (rješava sutrašnja jutra), pa se tek onda ostatak razlike
+    // pripiše mjerenju (rješava "sada") — inače bi se ista greška
+    // ispravila dva puta.
+    const modelBias = bias.data ?? NO_BIAS;
+    const debiasedHourly = debiasHourly(forecast.data.hourly, modelBias);
+    const debiasedAll = debiasHourly(forecast.data.hourlyAll, modelBias);
+    const debiasedCurrent = {
+      ...current.data,
+      temp: current.data.temp - (current.data.isDay ? modelBias.day : modelBias.night),
+      feelsLike:
+        current.data.feelsLike -
+        (current.data.isDay ? modelBias.day : modelBias.night),
+    };
+    const delta = observationDelta(debiasedCurrent, nearby);
+
     return buildBundle({
       place,
-      current: correctWithObservation(current.data, dhmzObs),
-      hourly: correctHourly(forecast.data.hourly, delta),
-      hourlyAll: correctHourly(forecast.data.hourlyAll, delta),
-      daily: forecast.data.daily,
+      // Isti `delta` kao za satnu krivulju — hero i prva ura moraju se
+      // poklapati, pa se korekcija računa iz istog prosjeka postaja.
+      current: {
+        ...debiasedCurrent,
+        temp: debiasedCurrent.temp + delta,
+        feelsLike: debiasedCurrent.feelsLike + delta,
+      },
+      hourly: correctHourly(debiasedHourly, delta),
+      hourlyAll: correctHourly(debiasedAll, delta),
+      daily: debiasDaily(forecast.data.daily, modelBias),
       dhmz: dhmzObs,
       aqi: aqi.data,
       seaTemp: seaTemp.data,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [place?.id, current.data, forecast.data, aqi.data, dhmz.data, seaTemp.data]);
+  }, [
+    place?.id,
+    current.data,
+    forecast.data,
+    aqi.data,
+    dhmz.data,
+    seaTemp.data,
+    bias.data,
+  ]);
 
   useEffect(() => {
     if (fresh) save(fresh);

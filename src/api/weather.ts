@@ -1,3 +1,4 @@
+import type { ModelBias } from "./bias";
 import type {
   CurrentWeather,
   DailyPoint,
@@ -93,6 +94,36 @@ export function correctWithObservation(
     temp: current.temp + delta,
     feelsLike: current.feelsLike + delta,
   };
+}
+
+/**
+ * Uklanja naučenu pristranost modela iz satne krivulje. Ovo rješava ono
+ * što korekcija mjerenjem ne može: prognozu za sutra i dalje. Model u
+ * kraškom zaleđu sistematski ne dopušta noćno hlađenje (Starigrad:
+ * izmjerena dnevna amplituda 11.7 °C, model daje ~6 °C), pa su jutarnji
+ * minimumi bili nekoliko stupnjeva previsoki.
+ */
+export function debiasHourly(
+  hourly: HourlyPoint[],
+  bias: ModelBias,
+): HourlyPoint[] {
+  if (bias.night === 0 && bias.day === 0) return hourly;
+  return hourly.map((h) => {
+    const hour = Number(h.time.slice(11, 13));
+    const b = hour >= 22 || hour <= 7 ? bias.night : bias.day;
+    if (b === 0) return h;
+    return { ...h, temp: h.temp - b, feelsLike: h.feelsLike - b };
+  });
+}
+
+/** Isto za dnevne min/max — minimum se ravna po noćnoj pristranosti. */
+export function debiasDaily(daily: DailyPoint[], bias: ModelBias): DailyPoint[] {
+  if (bias.night === 0 && bias.day === 0) return daily;
+  return daily.map((d) => ({
+    ...d,
+    tMin: d.tMin - bias.night,
+    tMax: d.tMax - bias.day,
+  }));
 }
 
 function parseLocalIso(iso: string): Date {
