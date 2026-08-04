@@ -1,3 +1,4 @@
+import { biasSlotForHour, isZeroBias } from "./bias";
 import type { ModelBias } from "./bias";
 import type {
   CurrentWeather,
@@ -107,21 +108,23 @@ export function debiasHourly(
   hourly: HourlyPoint[],
   bias: ModelBias,
 ): HourlyPoint[] {
-  if (bias.night === 0 && bias.day === 0) return hourly;
+  if (isZeroBias(bias)) return hourly;
   return hourly.map((h) => {
-    const hour = Number(h.time.slice(11, 13));
-    const b = hour >= 22 || hour <= 7 ? bias.night : bias.day;
+    const b = bias[biasSlotForHour(Number(h.time.slice(11, 13)))];
     if (b === 0) return h;
     return { ...h, temp: h.temp - b, feelsLike: h.feelsLike - b };
   });
 }
 
-/** Isto za dnevne min/max — minimum se ravna po noćnoj pristranosti. */
+/**
+ * Isto za dnevne min/max. Minimum se ravna po jutarnjoj pristranosti
+ * (`dawn`) jer dnevni minimum gotovo uvijek pada u to razdoblje.
+ */
 export function debiasDaily(daily: DailyPoint[], bias: ModelBias): DailyPoint[] {
-  if (bias.night === 0 && bias.day === 0) return daily;
+  if (isZeroBias(bias)) return daily;
   return daily.map((d) => ({
     ...d,
-    tMin: d.tMin - bias.night,
+    tMin: d.tMin - bias.dawn,
     tMax: d.tMax - bias.day,
   }));
 }

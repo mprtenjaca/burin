@@ -8,12 +8,20 @@ const AIR_QUALITY_BASE = "https://air-quality-api.open-meteo.com/v1/air-quality"
 const MARINE_BASE = "https://marine-api.open-meteo.com/v1/marine";
 
 /**
- * Model: best_match (Open-Meteo zadani miks). Upareni benchmark protiv
- * svih 74 DHMZ postaja (4.8.2026.) pokazao je da je icon_eu mjerljivo
- * bliži termometrima (MAE 1.69 vs 1.95 °C), ali se best_match u praksi
- * bolje poklapa s uobičajenim potrošačkim aplikacijama (Vrijeme&Radar),
- * što je ovdje svjesno odabrani cilj.
+ * Glavni model: **ECMWF IFS**. Izmjereno na 12 mjesta različitog reljefa
+ * protiv arhive stvarnih jutarnjih minimuma (12.–30.7.2026.): ECMWF
+ * promašuje 0.97 °C, GFS 1.09, UKMO 1.18, a `best_match` (zadani miks)
+ * 1.83 °C. ECMWF je bio najbolji na 8 od 12 mjesta.
+ *
+ * Razlika je najveća upravo tamo gdje je aplikacija griješila: Starigrad
+ * 0.5 °C vs 2.8 °C, Split 0.4 vs 2.7. `best_match` tamo bira ICON, koji
+ * kraškom zaleđu i podvelebitskom kraju ne dopušta noćno hlađenje.
+ *
+ * ECMWF ne daje UV indeks ni vidljivost i pokriva 14 dana, pa se ta polja
+ * i zadnji dani dopunjuju iz `best_match` poziva (vidi `fetchForecast`).
  */
+const PRIMARY_MODEL = "ecmwf_ifs025";
+
 const CURRENT_PARAMS =
   "temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_direction_10m,relative_humidity_2m,pressure_msl,cloud_cover,precipitation";
 const HOURLY_PARAMS =
@@ -159,13 +167,24 @@ export function mapDaily(raw: OmRawDaily): DailyPoint[] {
 // ---- javni API ----
 
 export async function fetchCurrent(lat: number, lon: number): Promise<CurrentWeather> {
-  const url = `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}&current=${CURRENT_PARAMS}&timezone=auto`;
-  const res = await fetchJson<OmCurrentResponse>(url);
-  return mapCurrent(res.current);
+  const base = `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}&current=${CURRENT_PARAMS}&timezone=auto`;
+  // Izvan ECMWF pokrivenosti (rijetko) pada se na zadani miks.
+  try {
+    const res = await fetchJson<OmCurrentResponse>(`${base}&models=${PRIMARY_MODEL}`);
+    if (typeof res.current?.temperature_2m === "number") return mapCurrent(res.current);
+  } catch {
+    // nastavi na fallback
+  }
+  return mapCurrent((await fetchJson<OmCurrentResponse>(base)).current);
 }
 
 type OmForecastResponse = { hourly: OmRawHourly; daily: OmRawDaily };
 
+/**
+ * Spaja dva izvora: temperature i oborine iz ECMWF-a (izmjereno točnijeg),
+ * a UV indeks, vidljivost i zadnja dva dana iz zadanog miksa — ECMWF ta
+ * polja ne daje, a pokriva 14 od 16 dana.
+ */
 export async function fetchForecast(
   lat: number,
   lon: number,
@@ -174,15 +193,71 @@ export async function fetchForecast(
   hourlyAll: HourlyPoint[];
   daily: DailyPoint[];
 }> {
-  const url = `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}&hourly=${HOURLY_PARAMS}&daily=${DAILY_PARAMS}&forecast_days=16&timezone=auto`;
-  const res = await fetchJson<OmForecastResponse>(url);
+  const base = `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}&hourly=${HOURLY_PARAMS}&daily=${DAILY_PARAMS}&forecast_days=16&timezone=auto`;
+
+  const [primary, fallback] = await Promise.all([
+    fetchJson<OmForecastResponse>(`${base}&models=${PRIMARY_MODEL}`).catch(
+      () => undefined,
+    ),
+    fetchJson<OmForecastResponse>(base),
+  ]);
+
+  const merged = mergeForecasts(primary, fallback);
   return {
     // `hourly`: sljedeća 24 h za traku na početnoj.
-    hourly: mapHourly(res.hourly),
+    hourly: mapHourly(merged.hourly),
     // `hourlyAll`: cijeli raspon, za detalje pojedinog dana.
-    hourlyAll: mapHourly(res.hourly, new Date(0), Number.POSITIVE_INFINITY),
-    daily: mapDaily(res.daily),
+    hourlyAll: mapHourly(merged.hourly, new Date(0), Number.POSITIVE_INFINITY),
+    daily: mapDaily(merged.daily),
   };
+}
+
+/** Polja koja ECMWF ne daje pa se uzimaju iz zadanog miksa. */
+const HOURLY_FROM_FALLBACK = ["uv_index", "visibility"] as const;
+
+/**
+ * Za svaki sat/dan uzima vrijednost primarnog modela, a gdje je ona
+ * nedostupna (null ili izvan njegovog raspona) vrijednost rezervnog.
+ * Izvezeno radi testova.
+ */
+export function mergeForecasts(
+  primary: OmForecastResponse | undefined,
+  fallback: OmForecastResponse,
+): OmForecastResponse {
+  if (!primary?.hourly?.time?.length) return fallback;
+
+  const primaryHourIndex = new Map<string, number>();
+  primary.hourly.time.forEach((time, i) => primaryHourIndex.set(time, i));
+  const primaryDayIndex = new Map<string, number>();
+  primary.daily.time.forEach((date, i) => primaryDayIndex.set(date, i));
+
+  const hourly = { ...fallback.hourly } as OmRawHourly;
+  for (const key of Object.keys(fallback.hourly) as (keyof OmRawHourly)[]) {
+    if (key === "time") continue;
+    if ((HOURLY_FROM_FALLBACK as readonly string[]).includes(key)) continue;
+    const primaryValues = primary.hourly[key];
+    if (!Array.isArray(primaryValues)) continue;
+    hourly[key] = fallback.hourly.time.map((time, i) => {
+      const pi = primaryHourIndex.get(time);
+      const pv = pi === undefined ? undefined : primaryValues[pi];
+      return typeof pv === "number" ? pv : (fallback.hourly[key] as number[])[i]!;
+    }) as never;
+  }
+
+  const daily = { ...fallback.daily } as OmRawDaily;
+  for (const key of Object.keys(fallback.daily) as (keyof OmRawDaily)[]) {
+    if (key === "time") continue;
+    const primaryValues = primary.daily[key];
+    if (!Array.isArray(primaryValues)) continue;
+    daily[key] = fallback.daily.time.map((date, i) => {
+      const pi = primaryDayIndex.get(date);
+      const pv = pi === undefined ? undefined : primaryValues[pi];
+      const fv = (fallback.daily[key] as (number | string)[])[i]!;
+      return pv === null || pv === undefined ? fv : pv;
+    }) as never;
+  }
+
+  return { hourly, daily };
 }
 
 export async function geocode(query: string): Promise<Place[]> {

@@ -13,7 +13,7 @@ import {
   fetchSeaTemperature,
 } from "@/api/openMeteo";
 import type { Place, WeatherBundle } from "@/api/types";
-import { NO_BIAS, learnModelBias } from "@/api/bias";
+import { NO_BIAS, biasSlotForHour, learnModelBias } from "@/api/bias";
 import {
   buildBundle,
   correctHourly,
@@ -110,12 +110,11 @@ export function useWeatherBundle(place: Place | null) {
     const modelBias = bias.data ?? NO_BIAS;
     const debiasedHourly = debiasHourly(forecast.data.hourly, modelBias);
     const debiasedAll = debiasHourly(forecast.data.hourlyAll, modelBias);
+    const nowBias = modelBias[biasSlotForHour(new Date().getHours())];
     const debiasedCurrent = {
       ...current.data,
-      temp: current.data.temp - (current.data.isDay ? modelBias.day : modelBias.night),
-      feelsLike:
-        current.data.feelsLike -
-        (current.data.isDay ? modelBias.day : modelBias.night),
+      temp: current.data.temp - nowBias,
+      feelsLike: current.data.feelsLike - nowBias,
     };
     const delta = observationDelta(debiasedCurrent, nearby);
 
