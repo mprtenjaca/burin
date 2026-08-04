@@ -18,6 +18,7 @@ import type { LayerId } from "@/components/LayerChips";
 import { LayerChips } from "@/components/LayerChips";
 import { LayerLegend } from "@/components/LayerLegend";
 import { TimelinePlayer } from "@/components/TimelinePlayer";
+import { useLocation } from "@/hooks/useLocation";
 import { useRadarFrames } from "@/hooks/useRadarFrames";
 import { useCities } from "@/store/cities";
 import { colors } from "@/theme/colors";
@@ -25,11 +26,18 @@ import { useThemeColors } from "@/theme/useThemeColors";
 
 const FRAME_INTERVAL_MS = 600;
 
+/** RainViewer besplatne pločice postoje do zoom razine 10. */
+const RADAR_MAX_NATIVE_Z = 10;
+
 export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
   const { fg } = useThemeColors();
   const selected = useCities((s) => s.selected);
+  const gps = useLocation(selected === null);
   const radar = useRadarFrames();
+
+  // Karta se centrira na odabrano mjesto, a za "Moja lokacija" na GPS.
+  const focus = selected ?? (gps.status === "granted" ? gps.place : null);
 
   const [layer, setLayer] = useState<LayerId>("radar");
   const [scrubIndex, setScrubIndex] = useState<number | null>(null);
@@ -45,7 +53,6 @@ export default function MapScreen() {
   }, [frames]);
 
   const index = scrubIndex ?? lastPastIdx;
-  const nextIndex = frames.length > 0 ? (index + 1) % frames.length : 0;
 
   useEffect(() => {
     if (!playing || frames.length < 2) return;
@@ -54,6 +61,20 @@ export default function MapScreen() {
     }, FRAME_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [playing, frames.length, lastPastIdx]);
+
+  // Kad se odabrano mjesto promijeni (drugi grad u ladici), pomakni kartu.
+  useEffect(() => {
+    if (!focus) return;
+    mapRef.current?.animateToRegion(
+      {
+        latitude: focus.lat,
+        longitude: focus.lon,
+        latitudeDelta: 1.2,
+        longitudeDelta: 1.2,
+      },
+      600,
+    );
+  }, [focus?.id]);
 
   const locateMe = async () => {
     try {
@@ -79,7 +100,6 @@ export default function MapScreen() {
   };
 
   const activeFrame = frames[index];
-  const preloadFrame = frames[nextIndex];
   const owmSource = layer !== "radar" ? owmTileSource(layer) : null;
   const attribution =
     layer === "radar"
@@ -88,47 +108,42 @@ export default function MapScreen() {
 
   return (
     <View className="flex-1 bg-paper dark:bg-night">
+      {/*
+        `key` po sloju: prebacivanje Radar <-> OWM inače odmontira jedan
+        UrlTile i montira drugi unutar iste karte, što na Androidu ruši
+        nativni view (crash na "Temperatura"). Ovako se karta čisto
+        rekreira po sloju.
+      */}
       <MapView
+        key={`map-${layer}`}
         ref={mapRef}
         style={{ flex: 1 }}
         provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
         initialRegion={{
-          latitude: selected?.lat ?? 45.1,
-          longitude: selected?.lon ?? 16.4,
-          latitudeDelta: 3.6,
-          longitudeDelta: 3.6,
+          latitude: focus?.lat ?? 45.1,
+          longitude: focus?.lon ?? 16.4,
+          latitudeDelta: focus ? 1.2 : 3.6,
+          longitudeDelta: focus ? 1.2 : 3.6,
         }}
         toolbarEnabled={false}
         minZoomLevel={4}
-        maxZoomLevel={11}
+        maxZoomLevel={10}
       >
         {layer === "radar" && host && activeFrame && (
           <UrlTile
-            key={activeFrame.path}
             urlTemplate={rainviewerTileSource(host, activeFrame).urlTemplate}
             opacity={0.7}
-            maximumNativeZ={10}
-            maximumZ={19}
+            maximumNativeZ={RADAR_MAX_NATIVE_Z}
+            maximumZ={RADAR_MAX_NATIVE_Z}
             zIndex={2}
-          />
-        )}
-        {layer === "radar" && host && preloadFrame && preloadFrame !== activeFrame && (
-          <UrlTile
-            key={preloadFrame.path}
-            urlTemplate={rainviewerTileSource(host, preloadFrame).urlTemplate}
-            opacity={0.01}
-            maximumNativeZ={10}
-            maximumZ={19}
-            zIndex={1}
           />
         )}
         {owmSource && (
           <UrlTile
-            key={owmSource.id}
             urlTemplate={owmSource.urlTemplate}
             opacity={owmSource.opacity}
             maximumNativeZ={OWM_MAX_NATIVE_Z}
-            maximumZ={19}
+            maximumZ={OWM_MAX_NATIVE_Z}
             zIndex={2}
           />
         )}

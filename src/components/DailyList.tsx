@@ -29,6 +29,21 @@ export function DailyList({
 
   return (
     <View>
+      {/* Zaglavlje kolona — bez njega se nije znalo što je postotak. */}
+      <View className="flex-row items-center gap-3 pb-1.5">
+        <View className="w-[72px]" />
+        <View style={{ width: 18 }} />
+        <Text className="w-10 text-right text-[10px] uppercase tracking-wider text-ink/40 dark:text-paper/40">
+          {t.home.precipShort}
+        </Text>
+        <View className="flex-1" />
+        <Text className="w-8 text-right text-[10px] uppercase tracking-wider text-ink/40 dark:text-paper/40">
+          {t.home.minShort}
+        </Text>
+        <Text className="w-8 text-right text-[10px] uppercase tracking-wider text-ink/40 dark:text-paper/40">
+          {t.home.maxShort}
+        </Text>
+      </View>
       {days.map((d, i) => {
         const { Icon } = codeToCondition(d.code, true);
         const left = ((d.tMin - allMin) / span) * 100;
@@ -43,8 +58,12 @@ export function DailyList({
                 {dayLabel}
               </Text>
               <Icon size={18} strokeWidth={1.5} color={fg} opacity={0.7} />
-              <Text className="w-10 text-right text-xs text-ink/50 dark:text-paper/50">
-                {d.precipProbMax >= 5 ? `${Math.round(d.precipProbMax)} %` : ""}
+              <Text
+                className={`w-10 text-right text-xs ${
+                  d.precipProbMax >= 1 ? "text-mint" : "text-ink/25 dark:text-paper/25"
+                }`}
+              >
+                {d.precipProbMax >= 1 ? `${Math.round(d.precipProbMax)} %` : "–"}
               </Text>
               <View className="h-1 flex-1 rounded-full bg-ink/10 dark:bg-paper/10">
                 <View

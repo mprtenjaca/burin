@@ -42,6 +42,7 @@ export function RadarPreviewCard({ lat, lon }: { lat: number; lon: number }) {
                 urlTemplate={rainviewerTileSource(data.host, lastPast).urlTemplate}
                 opacity={0.7}
                 maximumNativeZ={10}
+                maximumZ={10}
               />
             )}
           </MapView>
