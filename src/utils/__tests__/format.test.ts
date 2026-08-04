@@ -3,6 +3,7 @@ import {
   convertTemp,
   convertWind,
   formatDay,
+  formatDayShort,
   formatHour,
   formatTime,
   windDirLabel,
@@ -12,6 +13,10 @@ describe("format (hrvatski, 24-satni)", () => {
   it("formatDay: 'utorak, 4.8.'", () => {
     expect(formatDay("2026-08-04T14:00")).toBe("utorak, 4.8.");
     expect(formatDay("2026-08-09")).toBe("nedjelja, 9.8.");
+  });
+
+  it("formatDayShort: 'uto 4.8.'", () => {
+    expect(formatDayShort("2026-08-04")).toBe("uto 4.8.");
   });
 
   it("formatTime: 24-satni s vodećom nulom", () => {

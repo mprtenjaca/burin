@@ -34,6 +34,14 @@ export function formatDay(iso: string): string {
   return `${DAY_NAMES[dt.getDay()]}, ${dt.getDate()}.${dt.getMonth() + 1}.`;
 }
 
+const DAY_NAMES_SHORT = ["ned", "pon", "uto", "sri", "čet", "pet", "sub"] as const;
+
+/** "uto 4.8." — za retke 14-dnevne liste */
+export function formatDayShort(iso: string): string {
+  const dt = parseLocal(iso);
+  return `${DAY_NAMES_SHORT[dt.getDay()]} ${dt.getDate()}.${dt.getMonth() + 1}.`;
+}
+
 /** "16:00" (24-satni) */
 export function formatTime(iso: string): string {
   const dt = parseLocal(iso);
