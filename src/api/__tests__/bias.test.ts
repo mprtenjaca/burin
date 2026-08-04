@@ -1,6 +1,11 @@
-import { NO_BIAS, biasSlotForHour, isZeroBias, shrunkBias } from "../bias";
+import { NO_BIAS, biasSlotForHour, isZeroBias, learnModelBias, shrunkBias } from "../bias";
+import { PRIMARY_MODEL } from "../openMeteo";
 import type { DailyPoint, HourlyPoint } from "../types";
 import { debiasDaily, debiasHourly } from "../weather";
+
+jest.mock("../client", () => ({ fetchJson: jest.fn() }));
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { fetchJson } = require("../client") as { fetchJson: jest.Mock };
 
 const h = (time: string, temp: number): HourlyPoint => ({
   time,
@@ -64,6 +69,47 @@ describe("shrunkBias (prigušenje po dosljednosti)", () => {
 
   it("negativan smjer radi jednako (model prehladan)", () => {
     expect(shrunkBias([-2, -2.2, -1.8, -2])).toBeCloseTo(-2, 1);
+  });
+});
+
+describe("learnModelBias — referentni model", () => {
+  beforeEach(() => fetchJson.mockReset());
+
+  /**
+   * Regresija (5.8.2026.): forecast pozivi su bili bez `&models=`, pa su
+   * vraćali `best_match` dok je aplikacija prikazivala ECMWF. Učila se
+   * pristranost jednog modela i oduzimala od drugog — izmjereno na 13
+   * mjesta kao odmak 2.66 °C od V&R-a umjesto 2.40 °C, s pogrešnim
+   * predznakom u Lici i Istri.
+   */
+  it("prognozu traži iz istog modela koji se prikazuje", async () => {
+    fetchJson.mockResolvedValue({});
+    await learnModelBias(44.296, 15.4387);
+
+    const urls = fetchJson.mock.calls.map((c) => String(c[0]));
+    const forecastUrls = urls.filter((u) => u.includes("api.open-meteo.com/v1/forecast"));
+    expect(forecastUrls.length).toBeGreaterThan(0);
+    for (const url of forecastUrls) {
+      expect(url).toContain(`models=${PRIMARY_MODEL}`);
+    }
+  });
+
+  it("arhivu traži bez modela (arhiva je mjerenje, ne prognoza)", async () => {
+    fetchJson.mockResolvedValue({});
+    await learnModelBias(44.296, 15.4387);
+
+    const archiveUrls = fetchJson.mock.calls
+      .map((c) => String(c[0]))
+      .filter((u) => u.includes("archive-api"));
+    expect(archiveUrls.length).toBeGreaterThan(0);
+    for (const url of archiveUrls) {
+      expect(url).not.toContain("models=");
+    }
+  });
+
+  it("bez podataka vraća nulu, ne baca", async () => {
+    fetchJson.mockRejectedValue(new Error("mreža"));
+    await expect(learnModelBias(44.296, 15.4387)).resolves.toEqual(NO_BIAS);
   });
 });
 

@@ -28,15 +28,27 @@ describe("correctWithObservation (korekcija heroja DHMZ mjerenjem)", () => {
     expect(correctWithObservation(model, obs(23, 0)).temp).toBeCloseTo(23, 5);
   });
 
-  it("postaja na pola radijusa daje pola razlike", () => {
-    // 20 km od 40 km radijusa -> tezina 50 %; razlika -1 -> pomak -0.5
+  it("jedina postaja daje punu razliku, bez obzira na udaljenost", () => {
+    // Udaljenost se kažnjava JEDNOM (kroz težinu i granicu), ne dvaput.
+    // S jednom postajom je vagani prosjek = njena razlika; granica je ono
+    // što daleku postaju sputava.
     const c = correctWithObservation(model, obs(23, 20));
-    expect(c.temp).toBeCloseTo(23.5, 5);
+    expect(c.temp).toBeCloseTo(23, 5);
   });
 
-  it("postaja na granici radijusa (40 km) nema utjecaja", () => {
-    expect(correctWithObservation(model, obs(27, 40)).temp).toBe(24);
-    expect(correctWithObservation(model, obs(27, 45)).temp).toBe(24);
+  it("postaja na granici radijusa (60 km) nema utjecaja", () => {
+    expect(correctWithObservation(model, obs(27, 60)).temp).toBe(24);
+    expect(correctWithObservation(model, obs(27, 65)).temp).toBe(24);
+  });
+
+  it("granica pomaka pada s udaljenošću (daleka postaja je sputana)", () => {
+    // Ista razlika (-4 °C), različita udaljenost: blizu se primijeni gotovo
+    // cijela, na 55 km je granica ~1.3 °C.
+    const m = { ...model, temp: 27.5 };
+    const near = Math.abs(correctWithObservation(m, obs(23.5, 2)).temp - 27.5);
+    const far = Math.abs(correctWithObservation(m, obs(23.5, 55)).temp - 27.5);
+    expect(near).toBeGreaterThan(3.5);
+    expect(far).toBeLessThan(1.5);
   });
 
   it("bliska postaja smije ispraviti veliku grešku modela (Zemunik/Pridraga)", () => {
@@ -49,10 +61,10 @@ describe("correctWithObservation (korekcija heroja DHMZ mjerenjem)", () => {
   });
 
   it("daleka postaja smije samo dotjerati, ne prepisati", () => {
-    // Ista velika razlika, ali postaja je 35 km daleko -> najviše ~1 °C.
+    // Ista velika razlika, ali postaja je 55 km daleko -> granica ~1.3 °C.
     const m = { ...model, temp: 27.5 };
-    const c = correctWithObservation(m, obs(22.4, 35));
-    expect(Math.abs(c.temp - 27.5)).toBeLessThanOrEqual(1.2);
+    const c = correctWithObservation(m, obs(22.4, 55));
+    expect(Math.abs(c.temp - 27.5)).toBeLessThanOrEqual(1.5);
   });
 
   it("osjet se pomiče za istu razliku (ostaje konzistentan)", () => {
@@ -180,7 +192,23 @@ describe("observationDelta s više postaja", () => {
   });
 
   it("predaleke postaje se ne broje", () => {
-    expect(observationDelta(model, [obs(20, 50), obs(20, 60)])).toBe(0);
+    expect(observationDelta(model, [obs(20, 70), obs(20, 80)])).toBe(0);
+  });
+
+  /**
+   * Regresija (5.8.2026.): pomak je bio množen s `bestCloseness`, pa se
+   * udaljenost kažnjavala dvaput i puštalo se npr. 30 % stvarne razlike.
+   * Model je noću pretopao na 25 od 29 postaja (+2.24 °C), a arhiva tu
+   * grešku ne vidi — pa se korekcija mjerenjem ne smije prigušiti.
+   * Leave-one-out na 29 postaja: 1.99 °C bez prigušenja, 2.37 °C s njim.
+   */
+  it("pomak se ne prigušuje dodatno blizinom (dvostruka kazna)", () => {
+    const m = { ...model, temp: 27 };
+    // Tri suglasne postaje na ~30 km, sve 4 °C niže od modela. Granica na
+    // toj udaljenosti je ~3 °C, pa pomak mora biti blizu nje — a ne ~2 °C
+    // koliko bi ostalo nakon množenja s bestCloseness (0.5).
+    const d = observationDelta(m, [obs(23, 30), obs(23, 30), obs(23, 30)]);
+    expect(d).toBeLessThan(-2.5);
   });
 });
 
@@ -194,6 +222,6 @@ describe("observationDelta", () => {
   });
 
   it("predaleka postaja -> 0", () => {
-    expect(observationDelta(model, obs(20, 50))).toBe(0);
+    expect(observationDelta(model, obs(20, 70))).toBe(0);
   });
 });

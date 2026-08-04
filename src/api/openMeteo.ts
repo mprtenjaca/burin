@@ -19,8 +19,14 @@ const MARINE_BASE = "https://marine-api.open-meteo.com/v1/marine";
  *
  * ECMWF ne daje UV indeks ni vidljivost i pokriva 14 dana, pa se ta polja
  * i zadnji dani dopunjuju iz `best_match` poziva (vidi `fetchForecast`).
+ *
+ * IZVEZENO namjerno: `learnModelBias` mora učiti pristranost iz **istog**
+ * modela koji se prikazuje. Dok je to bila zasebna (izostavljena) vrijednost,
+ * bias se učio iz `best_match`-a i oduzimao od ECMWF-a — izmjereno 5.8.2026.
+ * kao odmak od 2.66 °C prema V&R-u umjesto 2.40 °C, s pogrešnim predznakom u
+ * Lici i Istri (Otočac je jutrom grijan 1.6 °C umjesto hlađen).
  */
-const PRIMARY_MODEL = "ecmwf_ifs025";
+export const PRIMARY_MODEL = "ecmwf_ifs025";
 
 const CURRENT_PARAMS =
   "temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_direction_10m,relative_humidity_2m,pressure_msl,cloud_cover,precipitation";

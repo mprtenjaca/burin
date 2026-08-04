@@ -1,7 +1,16 @@
 import { fetchJson } from "./client";
+import { PRIMARY_MODEL } from "./openMeteo";
 
 const ARCHIVE_BASE = "https://archive-api.open-meteo.com/v1/archive";
 const FORECAST_BASE = "https://api.open-meteo.com/v1/forecast";
+
+/**
+ * Pristranost se MORA učiti iz istog modela koji se prikazuje — inače se
+ * ispravlja greška koje u prikazanim brojevima nema. Zato se `PRIMARY_MODEL`
+ * uvozi iz `openMeteo`, a ne drži zasebno: da izmjena modela na jednom
+ * mjestu ne može razdvojiti prikaz od učenja.
+ */
+const MODEL_PARAM = `&models=${PRIMARY_MODEL}`;
 
 /**
  * Naučena pristranost modela za jedno mjesto: koliko je model sustavno
@@ -117,9 +126,9 @@ export function shrunkBias(diffs: number[]): number {
  * minimuma je 2.69 °C i dosljedan je (pozitivan u 18 od 20 dana, do
  * +5.4 °C) — model ne dopušta da se kraška udolina ohladi do dna.
  *
- * OGRANIČENJE: arhiva dijeli grubu mrežu s prognozom, pa ne vidi grešku
- * uzrokovanu pogrešnom ćelijom (Starigrad). Za to služi
- * `learnBiasFromStations`, koje uči iz stvarnih mjerenja.
+ * OGRANIČENJE: arhiva i prognoza dijele istu grubu mrežu, pa se ovime mjeri
+ * pristranost *modela*, ne greška zbog reljefa unutar ćelije. Za "sada" tu
+ * prazninu pokriva korekcija DHMZ mjerenjem (`observationDelta`).
  *
  * Nikad ne baca — bez podataka vraća nulu i model ostaje nekorigiran.
  */
@@ -141,7 +150,7 @@ export async function learnModelBias(
       fetchJson<HourlyTemps>(
         `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}` +
           `&hourly=temperature_2m&past_days=${pastDays}` +
-          `&forecast_days=1&timezone=auto`,
+          `&forecast_days=1&timezone=auto${MODEL_PARAM}`,
       ),
       fetchJson<DailyTemps>(
         `${ARCHIVE_BASE}?latitude=${lat}&longitude=${lon}&start_date=${isoDate(start)}` +
@@ -150,7 +159,7 @@ export async function learnModelBias(
       fetchJson<DailyTemps>(
         `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}` +
           `&daily=temperature_2m_min,temperature_2m_max&past_days=${pastDays}` +
-          `&forecast_days=1&timezone=auto`,
+          `&forecast_days=1&timezone=auto${MODEL_PARAM}`,
       ),
     ]);
 

@@ -1,7 +1,23 @@
 # Odabir modela prognoze i korekcija temperature
 
 **Datum:** 5.8.2026.
-**Status:** Primijenjeno
+**Status:** Primijenjeno — **djelomično ispravljeno**, vidi
+[ispravak](2026-08-05-ispravak-referentnog-modela.md)
+
+> **ISPRAVAK (5.8.2026., isti dan).** Dvije tvrdnje u ovom zapisu su naknadno
+> izmjerene kao netočne:
+>
+> 1. **"Pogrešna ćelija mreže na 6 m"** nije uzrok. ERA5 arhiva na *istim*
+>    koordinatama Starigrada zna ohladiti jutro (04–08 h: 22.3 / 21.9 / 22.0 /
+>    23.8 / 25.5 °C), a ECMWF protiv arhive promašuje −0.04 °C na prošlim
+>    danima. Da je ćelija problem, griješila bi i arhiva — dijeli istu mrežu.
+> 2. **"Uz ECMWF je naučeni bias ≈ 0"** — nije. Bio je +1.88 °C, ali izmjeren
+>    na *pogrešnom modelu*: `learnModelBias` je zvao Open-Meteo bez `&models=`
+>    pa je učio `best_match`, dok je prikaz bio ECMWF.
+>
+> Također: V&R **ne** prikazuje Zemunik za Starigrad. Prikazuje 21 °C, što je
+> ispod svake okolne postaje (Zemunik 21 °C, Puntamika 26.3 °C) — dakle
+> vlastita modelska procjena, ne preslikana postaja.
 
 ## Problem
 
@@ -88,11 +104,21 @@ mjerenja (1.69 vs 1.95 °C), ali za jutarnje minimume je među najgorima
 
 ## Što ostaje otvoreno
 
-U 06–08 h Starigrad je još 3–5 °C iznad V&R. Uzrok je ista pogrešna ćelija
+~~U 06–08 h Starigrad je još 3–5 °C iznad V&R. Uzrok je ista pogrešna ćelija
 na 6 m koju nijedan model ne zaobilazi za tu točku. Jedini put dalje: za
 obalna mjesta pod planinom tražiti prognozu s točke u kopnu ili s najbliže
 postaje — ali to znači prikazivati vrijeme *drugog mjesta* (upravo to radi
-V&R, koji za Starigrad prikazuje Zemunik).
+V&R, koji za Starigrad prikazuje Zemunik).~~
+
+**ZATVORENO kao pogrešno postavljeno** (5.8.2026.). Ćelija nije uzrok (vidi
+ispravak na vrhu). Prognoza s kopnene točke je izmjerena i odbačena: 5 km u
+kopno od Starigrada skače na 623 m n.v. i daje 20.9 °C — to je vrijeme
+Velebita, ne Starigrada. Blaga kopnena točka na toj obali ne postoji.
+
+Pravi preostali odmak je **drugdje**: nakon ispravka referentnog modela jutra
+su u Lici još 4–6 °C iznad V&R (Otočac 6.06, Gospić 3.78 °C MAE). Ta razlika
+nije dokazana greška — V&R tamo prognozira hladnija jutra od ECMWF-a, a koji
+je od njih bliži istini zna se samo naknadno, protiv arhive.
 
 ## Metodologija
 

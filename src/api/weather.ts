@@ -14,9 +14,11 @@ import type {
  *
  * 1. Povjerenje u postaju ovisi o udaljenosti. Postaja na 1 km (Split-
  *    Marjan) je praktički termometar tog mjesta i smije ispraviti model
- *    gotovo u cijelosti; postaja na 35 km je druga mikroklima i smije ga
- *    samo dotjerati. Zato i težina razlike i najveći dopušteni pomak
- *    padaju s udaljenošću (5 °C na 0 km -> 1 °C na 40 km).
+ *    gotovo u cijelosti; postaja na 55 km je druga mikroklima i smije ga
+ *    samo dotjerati. Zato težina razlike pada s udaljenošću, a najveći
+ *    dopušteni pomak ovisi o blizini najbliže postaje (5 °C uz mjesto ->
+ *    1 °C na granici od 60 km). Udaljenost se kažnjava JEDNOM — vidi
+ *    `observationDelta`.
  *
  * 2. Ista korekcija se prenosi na krivulju sati (correctHourly), inače
  *    hero kaže 25° a prvi sat u traci 27° — vidljivo proturječje. Model
@@ -27,8 +29,14 @@ import type {
  *    prognoze blijedi prema nuli.
  */
 
-/** Unutar ovog radijusa mjerenje korigira model; dalje korekcija slabi do nule. */
-const CORRECTION_RANGE_KM = 40;
+/**
+ * Unutar ovog radijusa mjerenje korigira model; dalje korekcija slabi do nule.
+ *
+ * 60 km, ne 40: u međuterminima DHMZ objavi samo ~29 postaja (izmjereno
+ * 5.8.2026. u 01 h), pa je na 40 km pola zemlje ostajalo posve bez korekcije.
+ * Leave-one-out na 29 postaja: 60 km daje 1.99 °C, 40 km 2.09 °C.
+ */
+const CORRECTION_RANGE_KM = 60;
 
 /** Najveći pomak: postaja uz samo mjesto smije više od daleke. */
 const MAX_CORRECTION_NEAR_C = 5;
@@ -75,8 +83,20 @@ export function observationDelta(
   }
   if (weightSum <= 0) return 0;
 
-  // Prosječna razlika, prigušena pouzdanošću najbliže postaje.
-  const raw = (deltaSum / weightSum) * bestCloseness;
+  /*
+   * Vagani prosjek razlike, BEZ dodatnog množenja s `bestCloseness`.
+   * Udaljenost je već uračunata dvaput bi je kaznila: težina svake postaje
+   * pada s udaljenošću (`closeness`), pa je prosjek množen još i najboljom
+   * blizinom puštao npr. samo 30 % stvarne razlike. Model je noću pretopao
+   * na 25 od 29 postaja (izmjereno +2.24 °C, 5.8.2026. u 01 h), a arhiva
+   * tu grešku ne vidi (na Polači uči +0.14 °C uz stvarnu +4 °C) — pa je
+   * mjerenje jedina obrana i ne smije se prigušiti.
+   *
+   * Leave-one-out na 29 postaja: bez prigušenja 1.99 °C, s prigušenjem
+   * 2.37 °C, bez ikakve korekcije 2.58 °C. Granica (`cap`) i dalje ovisi o
+   * blizini, pa daleka postaja ne može napraviti veliki pomak.
+   */
+  const raw = deltaSum / weightSum;
   const cap =
     MAX_CORRECTION_FAR_C +
     (MAX_CORRECTION_NEAR_C - MAX_CORRECTION_FAR_C) * bestCloseness;
