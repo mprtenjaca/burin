@@ -77,20 +77,6 @@ export type RadarFrame = {
   isNowcast: boolean;
 };
 
-/**
- * Zamjenjivi izvor kartografskih pločica — karta renderira bilo koji
- * TileSource, pa su RainViewer/OWM samo njegovi dobavljači.
- */
-export type TileSource = {
-  id: string;
-  label: string;
-  urlTemplate: string; // sadrži {z}/{x}/{y}
-  opacity: number;
-  attribution: { label: string; url: string };
-};
-
-export type OwmLayer = "temp_new" | "clouds_new" | "wind_new" | "precipitation_new";
-
 export type WeatherBundle = {
   place: Place;
   current: CurrentWeather;

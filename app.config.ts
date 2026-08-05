@@ -11,6 +11,11 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: "com.markop.burin",
     supportsTablet: false,
+    infoPlist: {
+      // Aplikacija koristi samo standardni HTTPS — bez toga EAS pri svakom
+      // buildu pita za izvozne propise o kriptografiji.
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
   android: {
     package: "com.markop.burin",
@@ -20,9 +25,6 @@ const config: ExpoConfig = {
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",
     },
-    config: {
-      googleMaps: { apiKey: process.env.GOOGLE_MAPS_API_KEY ?? "" },
-    },
     predictiveBackGestureEnabled: false,
   },
   web: {
@@ -31,6 +33,9 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-dev-client",
+    // Nativni modul (nije u Expo Go) — traži dev build; na iOS-u plugin
+    // dodaje $MLRN.post_install u Podfile.
+    "@maplibre/maplibre-react-native",
     [
       "expo-location",
       {
@@ -42,6 +47,14 @@ const config: ExpoConfig = {
   experiments: {
     typedRoutes: true,
   },
+  // EAS projekt (expo.dev/accounts/mprtenja/projects/burin). Dinamički config
+  // se ne može sam upisati, pa `eas init` traži da se projectId doda ručno.
+  extra: {
+    eas: {
+      projectId: "a3051112-d9b2-49cd-9e93-d2eeffde3d52",
+    },
+  },
+  owner: "mprtenja",
 };
 
 export default config;

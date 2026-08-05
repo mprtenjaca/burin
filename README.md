@@ -11,8 +11,8 @@ površina je radar na karti.
 | [DHMZ](https://meteo.hr) | trenutna mjerenja najbliže postaje (`hrvatska_n.xml`) | ne treba |
 | [Open-Meteo](https://open-meteo.com) | prognoza (16 dana, po satima), geokodiranje, kvaliteta zraka | ne treba |
 | [RainViewer](https://www.rainviewer.com) | radar oborina + animacija (prošla 2 h + nowcast) | ne treba |
-| [OpenWeatherMap](https://openweathermap.org) | dodatni slojevi karte (temperatura, naoblaka, vjetar, oborine) | `EXPO_PUBLIC_OWM_API_KEY` |
-| Google Maps | podloga karte na Androidu | `GOOGLE_MAPS_API_KEY` |
+| [OpenWeatherMap](https://openweathermap.org) | obojeni slojevi karte (temperatura, naoblaka, vjetar) | `EXPO_PUBLIC_OWM_API_KEY` |
+| [CARTO](https://carto.com/attributions) / OpenStreetMap | vektorska GL podloga karte (svijetla; tamna za naoblaku i vjetar) | ne treba |
 
 ## Postavljanje
 
@@ -23,28 +23,31 @@ copy .env.example .env   # pa upiši ključeve
 
 `.env`:
 
-- `GOOGLE_MAPS_API_KEY` — Google Maps Android SDK ključ, potreban samo za
-  **vlastiti Android dev build**. Bez njega je tamo ekran karte neupotrebljiv:
-  podloga je prazna, a zbog poznatog ponašanja react-native-maps (#5156) ne
-  prikazuju se ni radarske pločice. U Expo Go i na iOS-u (Apple Maps) ne treba;
-  ostatak aplikacije radi normalno.
-- `EXPO_PUBLIC_OWM_API_KEY` — opcionalno; bez njega su OWM slojevi na karti
-  jednostavno skriveni (ostaje samo Radar).
+- `EXPO_PUBLIC_OWM_API_KEY` — opcionalno; bez njega su OWM slojevi
+  (Temperatura / Naoblaka / Vjetar) sivi s napomenom "Potreban OWM ključ", a
+  Radar oborina radi normalno.
+
+Google Maps ključ **više ne treba**: karta je na MapLibre GL s CARTO
+vektorskom podlogom (bez ključa), pa Google/Apple karte uopće ne sudjeluju.
 
 ## Pokretanje
 
-Projekt je na **Expo SDK 54** — namjerno, da radi u **Expo Go** aplikaciji
-(iOS bez Maca i bez Apple Developer računa).
+Karta je na **MapLibre GL** (nativni modul), pa aplikacija **ne radi u Expo
+Go** — treba vlastiti dev build. Nakon što je build jednom instaliran, JS
+izmjene idu preko Metroa u sekundi (`npx expo start`).
 
-### iOS / brzo testiranje — Expo Go
+### iOS — EAS dev build (bez Maca, internal distribution)
 
 ```bash
-npx expo start
+npx eas-cli login                                      # jednokratno (Expo račun)
+npx eas-cli device:create                              # jednokratno po uređaju (UDID)
+npx eas-cli build --profile development --platform ios # ~15 min u oblaku, pa link
+npx expo start                                         # dev server; otvori app na mobitelu
 ```
 
-Skeniraj QR kamerom (iOS) ili iz Expo Go aplikacije (Android). Mobitel i PC
-moraju biti na istoj Wi-Fi mreži. U Expo Go karta na iOS-u koristi Apple Maps
-podlogu, pa `GOOGLE_MAPS_API_KEY` tamo nije potreban.
+`device:create` na iPhoneu otvara profil za registraciju UDID-a; build nakon
+toga stigne kao link/QR za instalaciju. Mobitel i PC moraju biti na istoj
+Wi-Fi mreži. Novi nativni build treba samo pri dodavanju nativnih modula.
 
 ### Android — vlastiti dev build (puni nativni moduli)
 
@@ -81,8 +84,9 @@ npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 4. Google Maps ključ se čita iz `.env` kroz dinamički `app.config.ts`.
 5. `Izvori podataka` je vlastita ruta (`app/sources.tsx`) — 1:1 sa stavkom u
    ladici; povezana i iz Postavki.
-6. Pregled radara na početnoj je običan `MapView` bez gesti (NE `liteMode` —
-   Google lite mode ne podržava tile overlaye).
+6. Pregled radara na početnoj je MapLibre karta bez gesti, s
+   `androidView="texture"` (GLSurfaceView u scroll listi na Androidu ima
+   z-order artefakte; TextureView nema).
 7. Jedinice se pretvaraju lokalno iz metričkih (jedna keširana reprezentacija).
 8. Testovi samo za čistu logiku (parseri, mapiranja, formatiranje) — bez UI
    snapshot testova.
@@ -91,12 +95,20 @@ npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 10. Hrvatsko obrazloženje lokacije na Androidu prikazuje se **u aplikaciji**
     (Android nema string dozvole na razini manifesta); iOS ga dobiva kroz
     expo-location plugin.
-11. Animacija radara: montirane dvije `UrlTile` (aktivna 0.7 + sljedeća 0.01
-    za predučitavanje), nikad zamjena `urlTemplate` na živom sloju (treperenje
-    na Androidu).
-12. **SDK 54, ne 57** — svjesno spušteno da projekt radi u Expo Go aplikaciji,
-    jer se iOS build na Windowsima ne može napraviti lokalno (treba macOS/Xcode),
-    a Expo Go podržava SDK 54. Sve funkcionalnosti su ostale iste.
+11. Animacija radara: montiran aktivni okvir + susjedi s `raster-opacity: 0`
+    (predučitavanje), korak samo mijenja prozirnost — vidljivi izvor se nikad
+    ne remonta, pa nema treperenja.
+12. **SDK 54, ne 57** — izvorno spušteno da projekt radi u Expo Go aplikaciji.
+    Od 5.8.2026. Expo Go više nije ograničenje (iOS ide na EAS dev build), ali
+    SDK ostaje 54 — dizanje SDK-a je zaseban zahvat, ne dio migracije karte.
+13. **Karta na MapLibre GL** (5.8.2026.) — `react-native-maps` zamijenjen s
+    `@maplibre/maplibre-react-native`: CARTO vektorska podloga bez ključa,
+    glatko rastezanje pločica iznad razine podataka (radar više ne nestaje),
+    imena gradova iznad vremenskih boja (`beforeId`), i temelj za vlastite
+    strelice vjetra. Google Maps ključ i `PROVIDER_GOOGLE` više ne postoje.
+    Animacija radara ide izmjenom `raster-opacity` na montiranim susjednim
+    okvirima — `tiles` se na živom izvoru ne mijenja (native ga čita samo
+    pri stvaranju), a paint svojstva se primjenjuju odmah.
 
 ## Što radi
 
@@ -113,9 +125,8 @@ npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 
 ## Što treba API ključ
 
-- Radar karta u vlastitom **Android** dev buildu → `GOOGLE_MAPS_API_KEY`
-  (u Expo Go i na iOS-u nije potreban)
-- Slojevi Temperatura/Naoblaka/Vjetar/Oborine → `EXPO_PUBLIC_OWM_API_KEY`
+- Slojevi Temperatura/Naoblaka/Vjetar → `EXPO_PUBLIC_OWM_API_KEY`
+- Podloga karte i Radar rade bez ijednog ključa
 
 ## Sljedeći koraci (v1.1)
 

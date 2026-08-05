@@ -1,7 +1,5 @@
-import { t } from "@/i18n";
-
 import { fetchJson } from "./client";
-import type { RadarFrame, TileSource } from "./types";
+import type { RadarFrame } from "./types";
 
 const API_URL = "https://api.rainviewer.com/public/weather-maps.json";
 
@@ -27,16 +25,5 @@ export async function fetchRadarFrames(): Promise<RadarFrames> {
       ...past.map((f) => ({ time: f.time, path: f.path, isNowcast: false })),
       ...nowcast.map((f) => ({ time: f.time, path: f.path, isNowcast: true })),
     ],
-  };
-}
-
-/** Shema boja 4, glatke pločice sa snijegom (1_1), 256 px. */
-export function rainviewerTileSource(host: string, frame: RadarFrame): TileSource {
-  return {
-    id: `rainviewer-${frame.time}`,
-    label: t.map.layerRadar,
-    urlTemplate: `${host}${frame.path}/256/{z}/{x}/{y}/4/1_1.png`,
-    opacity: 0.7,
-    attribution: { label: t.map.radarAttribution, url: "https://www.rainviewer.com" },
   };
 }
