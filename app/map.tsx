@@ -7,9 +7,11 @@ import {
   type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import * as Location from "expo-location";
-import { LocateFixed } from "lucide-react-native";
+import { router } from "expo-router";
+import { ArrowLeft, LocateFixed } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   MAP_BASE_ATTRIBUTION,
@@ -25,6 +27,7 @@ import type { Bounds } from "@/api/windGrid";
 import { ErrorView } from "@/components/ErrorView";
 import { LayerChips } from "@/components/LayerChips";
 import { LayerLegend } from "@/components/LayerLegend";
+import { MapPin } from "@/components/MapPin";
 import { MapTimeline } from "@/components/MapTimeline";
 import { WindBarbs } from "@/components/WindBarbs";
 import { useLocation } from "@/hooks/useLocation";
@@ -34,9 +37,11 @@ import { useWindGrid } from "@/hooks/useWindGrid";
 import { useWindStyle } from "@/hooks/useWindStyle";
 import { t } from "@/i18n";
 import { useCities } from "@/store/cities";
+import { useLastWeather } from "@/store/lastWeather";
 import { useMapTimeline } from "@/store/mapTimeline";
+import { Wordmark } from "@/components/Wordmark";
 import { colors } from "@/theme/colors";
-import { useThemeColors } from "@/theme/useThemeColors";
+import { ACCENT_CORAL, weatherGradient } from "@/utils/weatherLook";
 
 const FRAME_INTERVAL_MS = 600;
 /** Sati se listaju sporije od radarskih okvira — inače je nečitljivo. */
@@ -78,7 +83,7 @@ type WeatherTile = { key: string; url: string; active: boolean };
 
 export default function MapScreen() {
   const cameraRef = useRef<CameraRef>(null);
-  const { fg } = useThemeColors();
+  const insets = useSafeAreaInsets();
   const selected = useCities((s) => s.selected);
   const gps = useLocation(selected === null);
   const radar = useRadarFrames();
@@ -96,6 +101,21 @@ export default function MapScreen() {
 
   // Karta se centrira na odabrano mjesto, a za "Moja lokacija" na GPS.
   const focus = selected ?? (gps.status === "granted" ? gps.place : null);
+
+  // Temperatura na pinu: zadnji dohvat za to mjesto (burin:last-weather) —
+  // karta ne radi vlastiti upit prognoze. Bez pohrane pin je točka.
+  const lastBundle = useLastWeather((s) =>
+    focus ? s.byPlaceId[focus.id] : undefined,
+  );
+  const pinTemp = lastBundle ? Math.round(lastBundle.current.temp) : undefined;
+  /*
+   * Značka nosi gradijent trenutnog vremena tog mjesta (dorada 6.8.2026.)
+   * — s karte se odmah vidi KAKVO je vrijeme, ne samo koliko stupnjeva.
+   * Uvijek svijetla paleta: značka stoji na karti, ne na temi aplikacije.
+   */
+  const pinStops = lastBundle
+    ? weatherGradient(lastBundle.current.code, lastBundle.current.isDay, false)
+    : undefined;
 
   /*
    * Centar karte hrani vremensku crtu na slojevima koji nisu radar.
@@ -142,19 +162,50 @@ export default function MapScreen() {
     return idx >= 0 ? idx : 0;
   }, [layer.timeline, frames, hours]);
 
+  /**
+   * "Sada" na skali — odatle kreće play (dorada 6.8.2026.). Isto što i
+   * `defaultStep`, ali izračunato posebno jer `defaultStep` služi i kao
+   * rezerva kad koraka nema.
+   */
+  const nowStep = useMemo(() => {
+    if (layer.timeline === "frames") return frames.map((f) => f.isNowcast).lastIndexOf(false);
+    return nowIndex(hours);
+  }, [layer.timeline, frames, hours]);
+
   const stepCount = layer.timeline === "frames" ? frames.length : hours.length;
   // Indeks iz drugog izvora (npr. sat 40 na radaru s 11 okvira) se odbacuje.
   const index = step !== null && step < stepCount ? step : defaultStep;
+
+  /*
+   * Smjer animacije ovisi o tome IMA li sloj budućnost (dorada 6.8.2026.):
+   *
+   * - Slojevi sa satima (temperatura/naoblaka/vjetar) je imaju — play
+   *   kreće od "sada" prema naprijed i na kraju se vrati na "sada".
+   *   Prije je kružio kroz cijeli niz pa je s kraja skakao 24 h unatrag.
+   * - RADAR je nema: izmjereno 6.8.2026. da RainViewer vraća 13 prošlih
+   *   okvira i NULA nowcasta. Ondje play vrti PROŠLOST — od najstarijeg
+   *   okvira do sada pa ispočetka, kao klasična radarska animacija.
+   *
+   * Klizanje rukom uvijek ide po CIJELOJ crti, u oba smjera.
+   */
+  const hasFuture = nowStep >= 0 && nowStep < stepCount - 1;
 
   useEffect(() => {
     if (!playing || stepCount < 2) return;
     const ms = layer.timeline === "frames" ? FRAME_INTERVAL_MS : HOUR_INTERVAL_MS;
     const timer = setInterval(() => {
-      setStep((index + 1) % stepCount);
+      const next = index + 1;
+      if (hasFuture) {
+        // Naprijed od "sada" do kraja, pa natrag na "sada".
+        setStep(next >= stepCount || next < nowStep ? nowStep : next);
+        return;
+      }
+      // Bez budućnosti: petlja kroz cijelu (prošlu) crtu.
+      setStep(next >= stepCount ? 0 : next);
     }, ms);
     return () => clearInterval(timer);
     // `index` je namjerno u ovisnostima: interval se resetira po koraku.
-  }, [playing, stepCount, index, layer.timeline, setStep]);
+  }, [playing, stepCount, index, nowStep, hasFuture, layer.timeline, setStep]);
 
   // Promjena odabranog mjesta (drugi grad u ladici) pomiče kartu.
   useEffect(() => {
@@ -318,31 +369,67 @@ export default function MapScreen() {
           kamo vjetar puše i mijenjaju se s vremenskom crtom.
         */}
         {isWind && (
-          <WindBarbs grid={windQuery.data ?? []} timeIso={hours[index]?.time} />
+          <WindBarbs
+            grid={windQuery.data ?? []}
+            timeIso={hours[index]?.time}
+            // Duljina strujnica prati kadar — fiksna je na jakom
+            // približavanju prelazila 80 % širine ekrana.
+            bounds={bounds}
+          />
         )}
 
+        {/*
+          JEDAN pin: mjesto s heroja (odabrani grad ili "Moja lokacija") —
+          bijela značka s temperaturom + repić (dizajn 6.8.2026.). Bez
+          zasebne oznake trenutne GPS pozicije.
+        */}
         {focus && (
-          <Marker lngLat={[focus.lon, focus.lat]} anchor="center">
-            <View
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 9,
-                backgroundColor: colors.mint,
-                borderWidth: 3,
-                borderColor: "#FFFFFF",
-                elevation: 3,
-                shadowColor: "#000",
-                shadowOpacity: 0.25,
-                shadowRadius: 3,
-                shadowOffset: { width: 0, height: 1 },
-              }}
-            />
+          <Marker lngLat={[focus.lon, focus.lat]} anchor="bottom">
+            <MapPin temp={pinTemp} stops={pinStops} />
           </Marker>
         )}
       </MapLibreMap>
 
-      <View className="absolute left-0 right-0 top-3">
+      {/*
+        Karta je fullscreen (bez headera), pa natrag crta sam ekran —
+        gore lijevo, iznad karte, na istoj tamnoj plohi kao ostale
+        kontrole (dorada 6.8.2026.).
+      */}
+      <Pressable
+        onPress={() => router.navigate("/")}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel={t.common.weather}
+        className="absolute left-4 h-11 w-11 items-center justify-center rounded-full bg-ink/85"
+        style={{ top: insets.top + 8 }}
+      >
+        <ArrowLeft size={22} strokeWidth={2.5} color="#FFFFFF" />
+      </Pressable>
+
+      {/* Wordmark u sredini vrha — potpis na fullscreen karti. */}
+      <View
+        className="absolute left-0 right-0 items-center"
+        style={{ top: insets.top + 8 }}
+        pointerEvents="none"
+      >
+        <View className="flex-row items-center rounded-full bg-ink/85 px-4 py-2.5">
+          <Wordmark color={colors.paper} iconSize={18} textSize={15} />
+        </View>
+      </View>
+
+      <Pressable
+        onPress={locateMe}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={t.map.locateMe}
+        className="absolute right-4 h-11 w-11 items-center justify-center rounded-full bg-ink/85"
+        style={{ top: insets.top + 8 }}
+      >
+        <LocateFixed size={20} strokeWidth={2.5} color="#FFFFFF" />
+      </Pressable>
+
+      {/* Slojevi: okomiti stupac ikona uz desni rub, vertikalno centriran. */}
+      <View className="absolute right-4" style={{ top: insets.top + 64 }}>
         <LayerChips
           active={layer.id}
           onChange={(next) => {
@@ -357,17 +444,10 @@ export default function MapScreen() {
         />
       </View>
 
-      <Pressable
-        onPress={locateMe}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={t.map.locateMe}
-        className="absolute right-4 top-16 h-11 w-11 items-center justify-center rounded-full border border-ink/[0.08] bg-paper/95 dark:border-paper/10 dark:bg-night/95"
+      <View
+        className="absolute left-4 right-4 gap-2"
+        style={{ bottom: insets.bottom + 12 }}
       >
-        <LocateFixed size={20} strokeWidth={1.5} color={fg} opacity={0.8} />
-      </Pressable>
-
-      <View className="absolute bottom-4 left-4 right-4 gap-2">
         <LayerLegend layer={layer.id} />
 
         {/*
@@ -376,15 +456,13 @@ export default function MapScreen() {
           uklanja. Svedena je na jedan tanak red bez pozadinskih "pillova"
           da ne odvlači pogled s karte; dodir i dalje otvara izvor.
         */}
-        <View className="flex-row items-center gap-1.5 pl-1">
+        <View className="flex-row items-center gap-1.5 self-start rounded-full bg-ink/70 px-2.5 py-1">
           <Pressable hitSlop={10} onPress={() => Linking.openURL(layer.attribution.url)}>
-            <Text className="text-[9px] text-ink/35 dark:text-paper/35">
-              {layer.attribution.label}
-            </Text>
+            <Text className="text-[9px] text-paper/60">{layer.attribution.label}</Text>
           </Pressable>
-          <Text className="text-[9px] text-ink/25 dark:text-paper/25">·</Text>
+          <Text className="text-[9px] text-paper/40">·</Text>
           <Pressable hitSlop={10} onPress={() => Linking.openURL(MAP_BASE_ATTRIBUTION.url)}>
-            <Text className="text-[9px] text-ink/35 dark:text-paper/35">
+            <Text className="text-[9px] text-paper/60">
               {MAP_BASE_ATTRIBUTION.label}
             </Text>
           </Pressable>
@@ -400,12 +478,17 @@ export default function MapScreen() {
               void hoursQuery.refetch();
               if (isWind) void windQuery.refetch();
             }}
-            className="flex-row items-center justify-between rounded-2xl border border-ink/[0.08] bg-paper/95 px-4 py-2 dark:border-paper/10 dark:bg-night/95"
+            className="flex-row items-center justify-between rounded-2xl bg-ink/90 px-4 py-2.5"
           >
-            <Text className="flex-1 text-[11px] text-ink/60 dark:text-paper/60">
+            <Text className="flex-1 font-grotesk text-[11.5px] text-paper/70">
               {t.map.timelineUnavailable}
             </Text>
-            <Text className="text-[11px] text-mint">{t.common.retry}</Text>
+            <Text
+              className="font-grotesk-bold text-[11.5px]"
+              style={{ color: ACCENT_CORAL }}
+            >
+              {t.common.retry}
+            </Text>
           </Pressable>
         )}
 
@@ -426,7 +509,7 @@ export default function MapScreen() {
 
       {radarBusy && (
         <View className="absolute inset-0 items-center justify-center">
-          <ActivityIndicator size="small" color={colors.mint} />
+          <ActivityIndicator size="small" color={ACCENT_CORAL} />
         </View>
       )}
       {radarFailed && (

@@ -43,3 +43,6 @@ yarn-error.*
 
 # lokalni APK za rucnu instalaciju
 *.apk
+
+# HTML mockupi iz brainstorm sesija (radni materijal, ne izvorni kod)
+.superpowers/

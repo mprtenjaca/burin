@@ -9,14 +9,21 @@ import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit, WindUnit } from "@/utils/format";
 import { convertTemp, formatDayShort } from "@/utils/format";
 import { codeToCondition } from "@/utils/weatherCodes";
+import { ACCENT_CORAL } from "@/utils/weatherLook";
 
 import { DayDetails } from "./DayDetails";
 import { Hairline } from "./Section";
 
+/** Širine kolona — dijele ih zaglavlje i redovi da poravnanje drži. */
+const KOL_DAN = 74;
+const KOL_IKONA = 21;
+const KOL_OBOR = 48;
+const KOL_TEMP = 38;
+
 /**
- * 14 dana: dan, ikona, % oborina, min–max s malom trakom raspona
- * (raspon dana unutar raspona svih 14 dana). Dodir na red otvara
- * razdoblja dana s pojedinostima.
+ * 14 dana: dan, ikona, % oborina, min–max s trakom raspona (raspon dana
+ * unutar raspona svih 14 dana). Dodir na red otvara razdoblja dana s
+ * pojedinostima.
  */
 export function DailyList({
   days,
@@ -37,19 +44,33 @@ export function DailyList({
   const deg = (v: number) => `${Math.round(convertTemp(v, tempUnit))}°`;
 
   return (
-    <View>
+    <View className="rounded-2xl bg-white px-4 py-2 dark:bg-coal">
       {/* Zaglavlje kolona — bez njega se nije znalo što je postotak. */}
-      <View className="flex-row items-center gap-3 pb-1.5">
-        <View className="w-[72px]" />
-        <View style={{ width: 18 }} />
-        <Text className="w-10 text-right text-[10px] uppercase tracking-wider text-ink/40 dark:text-paper/40">
+      {/*
+        Zaglavlje i redovi dijele ISTE širine kolona (KOL_*), pa MIN i MAX
+        stoje točno iznad svojih brojki. Traka raspona uzima ostatak
+        (`flex-1`) — bez fiksne granice bi se poravnanje razišlo.
+      */}
+      <View className="flex-row items-center gap-2.5 pb-1.5 pt-1">
+        <View style={{ width: KOL_DAN }} />
+        <View style={{ width: KOL_IKONA }} />
+        <Text
+          className="text-right font-grotesk-medium text-[12.5px] text-ink/55 dark:text-paper/55"
+          style={{ width: KOL_OBOR }}
+        >
           {t.home.precipShort}
         </Text>
         <View className="flex-1" />
-        <Text className="w-8 text-right text-[10px] uppercase tracking-wider text-ink/40 dark:text-paper/40">
+        <Text
+          className="text-right font-grotesk-medium text-[12.5px] text-ink/55 dark:text-paper/55"
+          style={{ width: KOL_TEMP }}
+        >
           {t.home.minShort}
         </Text>
-        <Text className="w-8 text-right text-[10px] uppercase tracking-wider text-ink/40 dark:text-paper/40">
+        <Text
+          className="text-right font-grotesk-medium text-[12.5px] text-ink/55 dark:text-paper/55"
+          style={{ width: KOL_TEMP }}
+        >
           {t.home.maxShort}
         </Text>
       </View>
@@ -65,38 +86,54 @@ export function DailyList({
             {i > 0 && <Hairline />}
             <Pressable
               onPress={() => setOpenDate(isOpen ? null : d.date)}
-              className="flex-row items-center gap-3 py-2.5"
+              className="flex-row items-center gap-2.5 py-3"
             >
-              <View className="w-[72px] flex-row items-center gap-1">
-                <Text className="text-[15px] text-ink dark:text-paper">
+              <View
+                className="flex-row items-center gap-1"
+                style={{ width: KOL_DAN }}
+              >
+                <Text className="font-grotesk-medium text-[16px] text-ink dark:text-paper">
                   {dayLabel}
                 </Text>
                 <ChevronDown
-                  size={13}
-                  strokeWidth={1.5}
-                  color={isOpen ? colors.mint : fg}
-                  opacity={isOpen ? 1 : 0.3}
+                  size={14}
+                  strokeWidth={2}
+                  color={isOpen ? ACCENT_CORAL : fg}
+                  opacity={isOpen ? 1 : 0.35}
                   style={{ transform: [{ rotate: isOpen ? "180deg" : "0deg" }] }}
                 />
               </View>
-              <Icon size={18} strokeWidth={1.5} color={fg} opacity={0.7} />
+              <View style={{ width: KOL_IKONA }}>
+                <Icon size={21} strokeWidth={2} color={fg} opacity={0.75} />
+              </View>
               <Text
-                className={`w-10 text-right text-xs ${
-                  d.precipProbMax >= 1 ? "text-mint" : "text-ink/25 dark:text-paper/25"
+                className={`text-right font-grotesk-medium text-[14px] ${
+                  d.precipProbMax >= 1 ? "" : "text-ink/25 dark:text-paper/25"
                 }`}
+                style={[
+                  { width: KOL_OBOR },
+                  d.precipProbMax >= 1 ? { color: ACCENT_CORAL } : null,
+                ]}
               >
                 {d.precipProbMax >= 1 ? `${Math.round(d.precipProbMax)} %` : "–"}
               </Text>
+              {/* Traka uzima ostatak reda — brojke ostaju na kraju. */}
               <View className="h-1 flex-1 rounded-full bg-ink/10 dark:bg-paper/10">
                 <View
-                  className="absolute h-1 rounded-full bg-ink/40 dark:bg-paper/50"
-                  style={{ left: `${left}%`, width: `${width}%` }}
+                  className="absolute h-1 rounded-full"
+                  style={{ left: `${left}%`, width: `${width}%`, backgroundColor: "#EE9A3E" }}
                 />
               </View>
-              <Text className="w-8 text-right text-[15px] text-ink/50 dark:text-paper/50">
+              <Text
+                className="text-right font-grotesk-medium text-[16px] text-ink/60 dark:text-paper/60"
+                style={{ width: KOL_TEMP }}
+              >
                 {deg(d.tMin)}
               </Text>
-              <Text className="w-8 text-right text-[15px] text-ink dark:text-paper">
+              <Text
+                className="text-right font-grotesk-bold text-[16px] text-ink dark:text-paper"
+                style={{ width: KOL_TEMP }}
+              >
                 {deg(d.tMax)}
               </Text>
             </Pressable>

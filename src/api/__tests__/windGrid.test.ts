@@ -1,4 +1,4 @@
-import { gridPoints, parseWindGrid, windFeatures } from "../windGrid";
+import { gridPoints, parseWindGrid, stepDegFor, windFeatures } from "../windGrid";
 
 const BOUNDS = { west: 15, south: 44, east: 16, north: 45 };
 
@@ -27,6 +27,44 @@ describe("gridPoints", () => {
     const points = gridPoints(BOUNDS);
     const unique = new Set(points.map((p) => `${p.lat},${p.lon}`));
     expect(unique.size).toBe(points.length);
+  });
+
+  /**
+   * Izmjereno 6.8.2026.: Open-Meteo za točke razmaknute 0.008° vraća
+   * IDENTIČNE vrijednosti (model je na ~0.1°). Gušća mreža od toga je
+   * čisti trošak — stotine istovjetnih strujnica jedna na drugoj.
+   */
+  it("pri jakom približavanju se mreža prorjeđuje, ne steže", () => {
+    const tight = { west: 15.0, south: 44.0, east: 15.05, north: 44.05 };
+    const wide = gridPoints(BOUNDS);
+    const near = gridPoints(tight);
+    expect(near.length).toBeLessThan(wide.length);
+    // Uvijek ostaje mreža (bar 2×2) — interpolacija treba susjede.
+    expect(near.length).toBeGreaterThanOrEqual(4);
+    for (const p of near) {
+      expect(p.lon).toBeGreaterThan(tight.west);
+      expect(p.lon).toBeLessThan(tight.east);
+    }
+  });
+});
+
+describe("stepDegFor", () => {
+  it("duljina strujnice prati širinu kadra", () => {
+    const wide = stepDegFor({ west: 14, south: 44, east: 18, north: 46 });
+    const near = stepDegFor({ west: 15.0, south: 44.0, east: 15.1, north: 44.1 });
+    expect(near).toBeLessThan(wide);
+  });
+
+  it("strujnica nikad ne prelazi kadar ni ne nestane", () => {
+    // Na jakom zoomu je fiksna duljina prelazila 80 % širine ekrana.
+    const span = 0.1;
+    const step = stepDegFor({ west: 15, south: 44, east: 15 + span, north: 44.1 });
+    expect(step * 6).toBeLessThan(span);
+    expect(step).toBeGreaterThan(0);
+
+    // Bez kadra i s besmislenim kadrom ostaje zadana vrijednost.
+    expect(stepDegFor()).toBeGreaterThan(0);
+    expect(stepDegFor({ west: 15, south: 44, east: 15, north: 44 })).toBeGreaterThan(0);
   });
 });
 

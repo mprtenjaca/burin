@@ -131,8 +131,11 @@ export function useWeatherBundle(place: Place | null) {
       hourlyAll: correctHourly(debiasedAll, delta),
       daily: debiasDaily(forecast.data.daily, modelBias),
       dhmz: dhmzObs,
-      aqi: aqi.data,
-      seaTemp: seaTemp.data,
+      aqi: aqi.data?.aqi,
+      pollen: aqi.data?.pollen,
+      // Upit vraća null za kopnena mjesta (react-query brani undefined);
+      // WeatherBundle očekuje undefined kad mora nema.
+      seaTemp: seaTemp.data ?? undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

@@ -3,6 +3,12 @@ export type Place = {
   id: string; // `${lat.toFixed(3)},${lon.toFixed(3)}`
   name: string;
   country?: string;
+  /**
+   * ISO kod države (HR, AT…). Bira Meteoalarm feed za upozorenja izvan
+   * Hrvatske. Može nedostajati (stariji spremljeni gradovi) — tada se
+   * država izvodi iz koordinata preko hrvatske tablice regija.
+   */
+  countryCode?: string;
   lat: number;
   lon: number;
   isGps?: boolean;
@@ -85,6 +91,7 @@ export type WeatherBundle = {
   daily: DailyPoint[]; // 16 dana, UI prikazuje 14
   dhmz?: DhmzObservation; // samo ako je najbliža postaja <= 50 km
   aqi?: number; // european_aqi
+  pollen?: import("@/utils/weatherLook").PollenLevels; // CAMS, grains/m³
   seaTemp?: number; // temperatura mora, samo za obalna mjesta
   fetchedAt: number; // epoch ms — "Podaci od HH:mm"
 };

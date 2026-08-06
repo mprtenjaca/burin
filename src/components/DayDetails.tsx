@@ -5,7 +5,6 @@ import { Pressable, Text, View } from "react-native";
 
 import type { DailyPoint, HourlyPoint } from "@/api/types";
 import { t } from "@/i18n";
-import { colors } from "@/theme/colors";
 import { useThemeColors } from "@/theme/useThemeColors";
 import type { DayPart } from "@/utils/dayParts";
 import { buildDayParts } from "@/utils/dayParts";
@@ -18,6 +17,7 @@ import {
   windUnitLabel,
 } from "@/utils/format";
 import { codeToCondition } from "@/utils/weatherCodes";
+import { ACCENT_CORAL } from "@/utils/weatherLook";
 
 import { Hairline } from "./Section";
 
@@ -32,19 +32,22 @@ function Row({
 }) {
   const { fg } = useThemeColors();
   return (
-    <View className="flex-row items-center gap-2.5 py-1.5">
-      <Icon size={15} strokeWidth={1.5} color={fg} opacity={0.5} />
-      <Text className="flex-1 text-[13px] text-ink/60 dark:text-paper/60">
+    <View className="flex-row items-center gap-3 py-2">
+      <Icon size={18} strokeWidth={2} color={fg} opacity={0.55} />
+      <Text className="flex-1 font-grotesk-medium text-[14px] text-ink/65 dark:text-paper/65">
         {label}
       </Text>
-      <Text className="text-[13px] text-ink dark:text-paper">{value}</Text>
+      <Text className="font-grotesk-medium text-[14px] text-ink dark:text-paper">
+        {value}
+      </Text>
     </View>
   );
 }
 
 /**
- * Detalji odabranog dana: razdoblja dana kao odabirni stupci, a ispod
- * pojedinosti odabranog razdoblja (oborine, vjetar, tlak, vlaga, osjet).
+ * Detalji odabranog dana (redizajn 6.8.2026.): razdoblja dana kao odabirni
+ * stupci, ispod pojedinosti odabranog razdoblja. Isti jezik kao ostatak
+ * ekrana — Space Grotesk, koraljni akcent, veći tekstovi za čitljivost.
  */
 export function DayDetails({
   day,
@@ -70,7 +73,7 @@ export function DayDetails({
   if (parts.length === 0) {
     return (
       <View className="py-4">
-        <Text className="text-center text-xs text-ink/40 dark:text-paper/40">
+        <Text className="text-center font-grotesk-medium text-[13px] text-ink/50 dark:text-paper/50">
           {t.common.noData}
         </Text>
       </View>
@@ -79,6 +82,7 @@ export function DayDetails({
 
   return (
     <View className="gap-3 pb-3 pt-1">
+      {/* Razdoblja dana: aktivno je ispunjeno koraljnom, ne samo obrubljeno. */}
       <View className="flex-row gap-2">
         {parts.map((part) => {
           const { Icon } = codeToCondition(part.code, part.isDay);
@@ -87,28 +91,48 @@ export function DayDetails({
             <Pressable
               key={part.id}
               onPress={() => setActiveId(part.id)}
-              className={`flex-1 items-center gap-1.5 rounded-2xl border py-2.5 ${
-                isActive
-                  ? "border-mint"
-                  : "border-ink/[0.08] dark:border-paper/10"
+              className={`flex-1 items-center gap-1.5 rounded-2xl px-1 py-3 ${
+                isActive ? "" : "bg-ink/[0.04] dark:bg-paper/[0.06]"
               }`}
+              style={isActive ? { backgroundColor: ACCENT_CORAL } : undefined}
             >
+              {/* Kratica + raspon sati: puni naziv u uski stupac ne stane. */}
               <Text
-                className={`text-[11px] ${
-                  isActive ? "text-mint" : "text-ink/50 dark:text-paper/50"
+                numberOfLines={1}
+                className={`font-grotesk-bold text-[13px] ${
+                  isActive ? "text-white" : "text-ink/70 dark:text-paper/70"
                 }`}
               >
-                {part.label}
+                {part.shortLabel}
               </Text>
-              <Text className="text-lg font-light text-ink dark:text-paper">
+              <Text
+                className={`font-grotesk text-[10.5px] ${
+                  isActive ? "text-white/75" : "text-ink/45 dark:text-paper/45"
+                }`}
+                style={{ marginTop: -4 }}
+              >
+                {part.rangeLabel}
+              </Text>
+              <Text
+                className={`font-grotesk-bold text-[21px] ${
+                  isActive ? "text-white" : "text-ink dark:text-paper"
+                }`}
+              >
                 {deg(part.temp)}
               </Text>
-              <Icon size={16} strokeWidth={1.5} color={fg} opacity={0.7} />
+              <Icon
+                size={20}
+                strokeWidth={2}
+                color={isActive ? "#FFFFFF" : fg}
+                opacity={isActive ? 0.95 : 0.7}
+              />
               <Text
-                className={`text-[10px] ${
-                  part.precipProb >= 1
-                    ? "text-mint"
-                    : "text-ink/30 dark:text-paper/30"
+                className={`font-grotesk-medium text-[12px] ${
+                  isActive
+                    ? "text-white/90"
+                    : part.precipProb >= 1
+                      ? "text-ink/70 dark:text-paper/70"
+                      : "text-ink/30 dark:text-paper/30"
                 }`}
               >
                 {part.precipProb >= 1 ? `${Math.round(part.precipProb)}%` : "–"}
@@ -119,8 +143,8 @@ export function DayDetails({
       </View>
 
       {active && (
-        <View className="gap-1 rounded-2xl border border-ink/[0.08] px-3.5 py-2.5 dark:border-paper/10">
-          <Text className="pb-1 text-[11px] uppercase tracking-[1.5px] text-ink/40 dark:text-paper/40">
+        <View className="gap-0.5 rounded-2xl bg-ink/[0.04] px-4 py-3 dark:bg-paper/[0.06]">
+          <Text className="pb-1 font-grotesk-bold text-[13px] text-ink/55 dark:text-paper/55">
             {active.label} — {codeToCondition(active.code, active.isDay).label}
           </Text>
           <Row
@@ -150,10 +174,10 @@ export function DayDetails({
       )}
 
       <View className="flex-row justify-between px-1">
-        <Text className="text-[11px] text-ink/40 dark:text-paper/40">
+        <Text className="font-grotesk-medium text-[12.5px] text-ink/60 dark:text-paper/60">
           {t.home.sunrise} {formatTime(day.sunrise)}
         </Text>
-        <Text className="text-[11px] text-ink/40 dark:text-paper/40">
+        <Text className="font-grotesk-medium text-[12.5px] text-ink/60 dark:text-paper/60">
           {t.home.sunset} {formatTime(day.sunset)}
         </Text>
       </View>

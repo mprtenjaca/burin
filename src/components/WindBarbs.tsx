@@ -3,7 +3,7 @@ import { GeoJSONSource, Layer } from "@maplibre/maplibre-react-native";
 import { useEffect, useMemo, useState } from "react";
 
 import { MAP_LABELS_LAYER_ID } from "@/api/mapLayers";
-import { type WindGridPoint, windFeatures } from "@/api/windGrid";
+import { type Bounds, type WindGridPoint, windFeatures } from "@/api/windGrid";
 
 /**
  * Sloj vjetra — kratke crtice koje **klize u smjeru strujanja**.
@@ -89,16 +89,19 @@ const FRAME_MS = 130;
 export function WindBarbs({
   grid,
   timeIso,
+  bounds,
   animate = true,
 }: {
   grid: WindGridPoint[];
   timeIso?: string;
+  /** Kadar karte — duljina strujnica prati razinu približavanja. */
+  bounds?: Bounds | null;
   /** Isključuje kretanje (npr. za statične preglede). */
   animate?: boolean;
 }) {
   const features = useMemo(
-    () => (timeIso ? windFeatures(grid, timeIso) : null),
-    [grid, timeIso],
+    () => (timeIso ? windFeatures(grid, timeIso, bounds ?? undefined) : null),
+    [grid, timeIso, bounds],
   );
 
   const [frame, setFrame] = useState(0);

@@ -28,7 +28,22 @@ export const useCities = create<CitiesState>()(
         ),
       removeCity: (id) =>
         set((s) => ({ saved: s.saved.filter((p) => p.id !== id) })),
-      select: (place) => set({ selected: place }),
+      /*
+       * Odabir SPREMLJENOG grada seli ga na kraj niza (= vrh prikaza:
+       * ladica i tražilica prikazuju obrnuto, najnovije prvo). Bez ovoga
+       * je grad istisnut iz prvih 6 u ladici bio "izgubljen" i povratkom
+       * u njega se nije vraćao (dorada 6.8.2026.).
+       */
+      select: (place) =>
+        set((s) => {
+          if (!place || !s.saved.some((p) => p.id === place.id)) {
+            return { selected: place };
+          }
+          return {
+            selected: place,
+            saved: [...s.saved.filter((p) => p.id !== place.id), place],
+          };
+        }),
       isSaved: (id) => get().saved.some((p) => p.id === id),
     }),
     {

@@ -33,19 +33,17 @@ export function LayerLegend({ layer }: { layer: MapLayerId }) {
   const scale = SCALES[layer];
 
   return (
-    <View className="gap-1.5 rounded-2xl border border-ink/[0.08] bg-paper/95 px-3 py-2 dark:border-paper/10 dark:bg-night/95">
+    // Tamna ploha kao ostale kontrole karte (dorada 6.8.2026.) — podloga
+    // karte varira, tamna je jedina koja svugdje drži kontrast.
+    <View className="gap-1.5 rounded-2xl bg-ink/85 px-3 py-2">
       <View className="h-1.5 flex-row overflow-hidden rounded-full">
         {scale.colors.map((color) => (
           <View key={color} className="flex-1" style={{ backgroundColor: color }} />
         ))}
       </View>
       <View className="flex-row justify-between">
-        <Text className="text-[10px] text-ink/50 dark:text-paper/50">
-          {scale.from}
-        </Text>
-        <Text className="text-[10px] text-ink/50 dark:text-paper/50">
-          {scale.to}
-        </Text>
+        <Text className="font-grotesk text-[10.5px] text-paper/60">{scale.from}</Text>
+        <Text className="font-grotesk text-[10.5px] text-paper/60">{scale.to}</Text>
       </View>
     </View>
   );

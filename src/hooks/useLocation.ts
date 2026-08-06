@@ -38,10 +38,13 @@ export function useLocation(enabled: boolean): GpsState & { request: () => void 
 
         const { latitude, longitude } = pos.coords;
         let name = t.drawer.myLocation;
+        let countryCode: string | undefined;
         try {
           const geo = await Location.reverseGeocodeAsync({ latitude, longitude });
           const first = geo[0];
           name = first?.city ?? first?.subregion ?? first?.region ?? name;
+          // Bira Meteoalarm feed i izvan Hrvatske (dorada 6.8.2026.).
+          countryCode = first?.isoCountryCode ?? undefined;
         } catch {
           // reverse geocode nije kritičan — ostaje "Moja lokacija"
         }
@@ -52,6 +55,7 @@ export function useLocation(enabled: boolean): GpsState & { request: () => void 
           place: {
             id: placeId(latitude, longitude),
             name,
+            countryCode,
             lat: latitude,
             lon: longitude,
             isGps: true,

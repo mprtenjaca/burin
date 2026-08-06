@@ -18,7 +18,9 @@ type SettingsState = {
 export const useSettings = create<SettingsState>()(
   persist(
     (set) => ({
-      theme: "system",
+      // Svijetla je zadana (odluka 6.8.2026.) — gradijenti heroja su
+      // dizajnirani prvo za svijetlu; tamna ostaje izbor u postavkama.
+      theme: "light",
       tempUnit: "C",
       windUnit: "kmh",
       setTheme: (theme) => set({ theme }),

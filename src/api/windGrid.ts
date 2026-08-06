@@ -36,30 +36,53 @@ type OmPoint = {
 };
 
 /**
- * Koliko crtica po strani kadra. 9×7 = 63 točke: gusto da se vidi strujanje,
- * a još uvijek jedan upit i čitljiva karta. Open-Meteo podnosi i više, ali
- * gušće od ovoga se crtice počnu preklapati na malom ekranu.
+ * Koliko crtica po strani kadra. 14×11 = 154 točke: gusto da se vidi
+ * strujanje, a još uvijek jedan upit i čitljiva karta. Open-Meteo podnosi
+ * i više, ali gušće od ovoga se crtice počnu preklapati na malom ekranu.
  */
 const COLS = 14;
 const ROWS = 11;
+
+/**
+ * Najmanji razmak mreže u stupnjevima.
+ *
+ * Izmjereno 6.8.2026.: Open-Meteo je za točke razmaknute 0.008° vratio
+ * IDENTIČNE vrijednosti (44.100/44.108/44.116 → sve 21.4 km/h, sve
+ * zaokružene na latitude 44.12) — model je na ~0.1° rezoluciji, pa gušća
+ * mreža ne donosi nove podatke, samo troši kvotu i crta stotine
+ * istovjetnih strujnica jednu na drugoj. Zato se pri jakom približavanju
+ * mreža PROREĐUJE umjesto da se steže s kadrom.
+ */
+const MIN_GRID_STEP_DEG = 0.05;
 
 /** Rub kadra se izostavlja — crtice na samom rubu izgledaju odsječeno. */
 const INSET = 0.08;
 
 export type Bounds = { west: number; south: number; east: number; north: number };
 
-/** Izvezeno radi testova: ravnomjerna mreža unutar granica kadra. */
+/**
+ * Izvezeno radi testova: ravnomjerna mreža unutar granica kadra.
+ *
+ * Broj točaka pada kad bi razmak sišao ispod rezolucije modela — inače
+ * se pri približavanju traže deseci točaka iz ISTE ćelije modela, koje
+ * sve vrate isti broj (izmjereno, vidi `MIN_GRID_STEP_DEG`).
+ */
 export function gridPoints(bounds: Bounds): { lat: number; lon: number }[] {
   const { west, south, east, north } = bounds;
   const w = east - west;
   const h = north - south;
-  const points: { lat: number; lon: number }[] = [];
 
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
+  const usable = 1 - 2 * INSET;
+  // Bar 2 po strani: ispod toga nema mreže, a interpolacija treba susjede.
+  const cols = Math.max(2, Math.min(COLS, Math.floor((w * usable) / MIN_GRID_STEP_DEG)));
+  const rows = Math.max(2, Math.min(ROWS, Math.floor((h * usable) / MIN_GRID_STEP_DEG)));
+
+  const points: { lat: number; lon: number }[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
       // (i + 0.5) / n centrira točke u svoje ćelije umjesto da ih lijepi na rub.
-      const fx = INSET + ((c + 0.5) / COLS) * (1 - 2 * INSET);
-      const fy = INSET + ((r + 0.5) / ROWS) * (1 - 2 * INSET);
+      const fx = INSET + ((c + 0.5) / cols) * usable;
+      const fy = INSET + ((r + 0.5) / rows) * usable;
       points.push({
         lat: Number((south + fy * h).toFixed(3)),
         lon: Number((west + fx * w).toFixed(3)),
@@ -166,8 +189,28 @@ function sampleWind(
  * putanja bi ih razvukla preko pola karte.
  */
 const STEPS = 6;
-/** Duljina jednog koraka u stupnjevima (~2 km). */
+/** Duljina jednog koraka u stupnjevima (~2 km) na regionalnom kadru. */
 const STEP_DEG = 0.018;
+
+/**
+ * Referentna širina kadra za `STEP_DEG` (zoom ≈ 8, regionalni pogled).
+ * Strujnica se skalira s kadrom: fiksna duljina je na jakom približavanju
+ * prelazila 80 % širine ekrana (izmjereno 6.8.2026. na zoomu 12), pa su
+ * se crte razvlačile preko cijele karte i izgledale kao da vjetra nema.
+ */
+const REFERENCE_SPAN_DEG = 2.14;
+/** Granice skaliranja — crta ne smije nestati ni prerasti kadar. */
+const MIN_STEP_DEG = 0.0015;
+const MAX_STEP_DEG = 0.05;
+
+/** Duljina koraka strujnice za dani kadar; bez kadra ostaje zadana. */
+export function stepDegFor(bounds?: Bounds): number {
+  if (!bounds) return STEP_DEG;
+  const span = Math.abs(bounds.east - bounds.west);
+  if (!Number.isFinite(span) || span <= 0) return STEP_DEG;
+  const scaled = STEP_DEG * (span / REFERENCE_SPAN_DEG);
+  return Math.min(MAX_STEP_DEG, Math.max(MIN_STEP_DEG, scaled));
+}
 
 /**
  * GeoJSON za sloj vjetra: **strujnice**, ne pojedinačne crtice.
@@ -183,7 +226,10 @@ const STEP_DEG = 0.018;
 export function windFeatures(
   grid: WindGridPoint[],
   timeIso: string,
+  /** Kadar karte — duljina strujnice se skalira s njim (vidi `stepDegFor`). */
+  bounds?: Bounds,
 ): GeoJSON.FeatureCollection<GeoJSON.LineString> {
+  const stepDeg = stepDegFor(bounds);
   // Indeks sata po točki: traži se jednom, ne u svakom koraku svake crte.
   const hourIndex = new Map<WindGridPoint, number>();
   for (const point of grid) {
@@ -208,15 +254,17 @@ export function windFeatures(
       // Bez vjetra nema strujnice — tišina se ne crta.
       if (!wind || wind.speed < 0.5) break;
 
-      coords.push([Number(lon.toFixed(4)), Number(lat.toFixed(4))]);
+      // 5 decimala (~1 m): na 4 su se kratki koraci jakog zooma zgnječili
+      // u istu točku i strujnica bi se izgubila.
+      coords.push([Number(lon.toFixed(5)), Number(lat.toFixed(5))]);
       speedSum += wind.speed;
       samples++;
 
       // Korak je JEDINIČNI po smjeru: duljina crte ne ovisi o brzini, inače
       // bi slab vjetar davao točkice, a jak prelazio pola karte.
       const norm = Math.hypot(wind.u, wind.v) || 1;
-      lat += (wind.v / norm) * STEP_DEG;
-      lon += ((wind.u / norm) * STEP_DEG) / Math.cos(lat * (Math.PI / 180));
+      lat += (wind.v / norm) * stepDeg;
+      lon += ((wind.u / norm) * stepDeg) / Math.cos(lat * (Math.PI / 180));
     }
 
     // Dvije točke nisu krivulja.

@@ -7,6 +7,10 @@ export type DayPartId = "morning" | "afternoon" | "evening" | "night";
 export type DayPart = {
   id: DayPartId;
   label: string;
+  /** Kratica za uski stupac ("Popodne") — puni naziv ne stane. */
+  shortLabel: string;
+  /** "12–17 h" — raspon razdoblja, ispisuje se ispod kratice. */
+  rangeLabel: string;
   hours: HourlyPoint[];
   temp: number; // najviša u razdoblju (za noć: najniža)
   code: number; // najizraženije stanje razdoblja
@@ -40,6 +44,20 @@ function labelFor(id: DayPartId): string {
       return t.home.evening;
     case "night":
       return t.home.night;
+  }
+}
+
+/** Kratica za uski stupac — puni naziv tamo ne stane. */
+function shortLabelFor(id: DayPartId): string {
+  switch (id) {
+    case "morning":
+      return t.home.morningShort;
+    case "afternoon":
+      return t.home.afternoonShort;
+    case "evening":
+      return t.home.eveningShort;
+    case "night":
+      return t.home.nightShort;
   }
 }
 
@@ -82,6 +100,8 @@ export function buildDayParts(hourly: HourlyPoint[], date: string): DayPart[] {
     parts.push({
       id: range.id,
       label: labelFor(range.id),
+      shortLabel: shortLabelFor(range.id),
+      rangeLabel: `${range.from}–${range.to} h`,
       hours,
       temp: range.id === "night" ? Math.min(...temps) : Math.max(...temps),
       code: dominantCode(hours),

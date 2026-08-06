@@ -1,11 +1,15 @@
 import type { ReactNode } from "react";
 import { Text, View } from "react-native";
 
-/** Sekcija s tihim naslovom — bez kartice, dijeli je samo bjelina. */
+/**
+ * Sekcija s malim naslovom. Naslovi su NORMALNA slova, ne verzal s
+ * razmaknutim slovima (dorada 6.8.2026.) — uppercase+tracking je posvuda
+ * izgledao generički ("AI dizajn"), a čita se i teže.
+ */
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <View className="gap-3">
-      <Text className="text-xs uppercase tracking-[2px] text-ink/50 dark:text-paper/50">
+    <View className="gap-2.5">
+      <Text className="px-1 font-grotesk-bold text-[13.5px] text-ink/55 dark:text-paper/55">
         {title}
       </Text>
       {children}
@@ -13,12 +17,13 @@ export function Section({ title, children }: { title: string; children: ReactNod
   );
 }
 
-/** Kartica — rounded-2xl s jedva vidljivim rubom, bez sjena. */
+/**
+ * Kartica — bez ruba, ispunjena: bijela na mist podlozi, coal na night
+ * (redizajn 6.8.2026.; rubovi su na mockupu ocijenjeni kao "ružni").
+ */
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <View
-      className={`rounded-2xl border border-ink/[0.08] dark:border-paper/10 ${className ?? ""}`}
-    >
+    <View className={`rounded-2xl bg-white dark:bg-coal ${className ?? ""}`}>
       {children}
     </View>
   );
@@ -26,5 +31,5 @@ export function Card({ children, className }: { children: ReactNode; className?:
 
 /** 1px linija-razdjelnica. */
 export function Hairline() {
-  return <View className="h-px bg-ink/[0.08] dark:bg-paper/10" />;
+  return <View className="h-px bg-ink/[0.05] dark:bg-paper/[0.07]" />;
 }

@@ -1,3 +1,5 @@
+import type { PollenLevels } from "@/utils/weatherLook";
+
 import { fetchJson } from "./client";
 import type { CurrentWeather, DailyPoint, HourlyPoint, Place } from "./types";
 import { placeId } from "./types";
@@ -90,11 +92,22 @@ type OmGeoResult = {
   latitude: number;
   longitude: number;
   country?: string;
+  country_code?: string;
   admin1?: string;
 };
 type OmGeoResponse = { results?: OmGeoResult[] };
 
-type OmAirQualityResponse = { current?: { european_aqi?: number } };
+type OmAirQualityResponse = {
+  current?: {
+    european_aqi?: number;
+    alder_pollen?: number | null;
+    birch_pollen?: number | null;
+    grass_pollen?: number | null;
+    mugwort_pollen?: number | null;
+    olive_pollen?: number | null;
+    ragweed_pollen?: number | null;
+  };
+};
 
 type OmMarineResponse = {
   current?: { sea_surface_temperature?: number | null };
@@ -266,39 +279,89 @@ export function mergeForecasts(
   return { hourly, daily };
 }
 
-export async function geocode(query: string): Promise<Place[]> {
-  const url = `${GEOCODING_BASE}?name=${encodeURIComponent(query)}&language=hr&count=8&format=json`;
-  const res = await fetchJson<OmGeoResponse>(url);
-  return (res.results ?? []).map((r) => ({
-    id: placeId(r.latitude, r.longitude),
-    name: r.name,
-    country: r.country,
-    lat: r.latitude,
-    lon: r.longitude,
-  }));
+/**
+ * Hrvatska mjesta na vrh (stabilno — unutar grupa redoslijed API-ja
+ * ostaje). Geocoding nema filter države, a korisniku u Hrvatskoj je
+ * "Novalja, Hrvatska" gotovo uvijek ono što traži, ne istoimeno mjesto
+ * na drugom kontinentu. Izvezeno radi testova.
+ */
+export function croatiaFirst<T extends { countryCode?: string }>(list: T[]): T[] {
+  return [...list].sort(
+    (a, b) => Number(b.countryCode === "HR") - Number(a.countryCode === "HR"),
+  );
 }
 
-export async function fetchAirQuality(lat: number, lon: number): Promise<number | undefined> {
-  const url = `${AIR_QUALITY_BASE}?latitude=${lat}&longitude=${lon}&current=european_aqi&timezone=auto`;
+export async function geocode(query: string): Promise<Place[]> {
+  const url = `${GEOCODING_BASE}?name=${encodeURIComponent(query)}&language=hr&count=10&format=json`;
+  const res = await fetchJson<OmGeoResponse>(url);
+  // `countryCode` OSTAJE u Place (dorada 6.8.2026.): bira Meteoalarm
+  // feed za upozorenja u 38 europskih zemalja.
+  return croatiaFirst(
+    (res.results ?? []).map((r) => ({
+      id: placeId(r.latitude, r.longitude),
+      name: r.name,
+      country: r.country,
+      countryCode: r.country_code,
+      lat: r.latitude,
+      lon: r.longitude,
+    })),
+  );
+}
+
+export type AirQuality = {
+  aqi?: number;
+  /** grains/m³ po vrsti; CAMS model (Europa), ne mjerenje. */
+  pollen: PollenLevels;
+};
+
+/** Vrijednost peludi: broj ili izostanak (CAMS zna vratiti null). */
+function pollenNum(v: number | null | undefined): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+/**
+ * Kvaliteta zraka + pelud iz ISTOG upita (isti endpoint, samo više
+ * parametara) — pelud ne košta nijedan dodatni poziv. Vraća objekt,
+ * nikad `undefined` (react-query pravilo).
+ */
+export async function fetchAirQuality(lat: number, lon: number): Promise<AirQuality> {
+  const url =
+    `${AIR_QUALITY_BASE}?latitude=${lat}&longitude=${lon}` +
+    `&current=european_aqi,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen` +
+    `&timezone=auto`;
   const res = await fetchJson<OmAirQualityResponse>(url);
-  return res.current?.european_aqi;
+  const c = res.current;
+  return {
+    aqi: c?.european_aqi,
+    pollen: {
+      alder: pollenNum(c?.alder_pollen),
+      birch: pollenNum(c?.birch_pollen),
+      grass: pollenNum(c?.grass_pollen),
+      mugwort: pollenNum(c?.mugwort_pollen),
+      olive: pollenNum(c?.olive_pollen),
+      ragweed: pollenNum(c?.ragweed_pollen),
+    },
+  };
 }
 
 /**
  * Temperatura mora. Marine API pokriva samo morske točke — za kopnene
- * gradove (npr. Zagreb) vraća `null`, a ne grešku, pa se `null` mora
- * izričito pretvoriti u `undefined` da UI ne prikaže "0°" u Zagrebu.
+ * gradove (npr. Zagreb) vraća `null`, a ne grešku.
+ *
+ * Vraća `null` (NE `undefined`) kad mora nema: react-query zabranjuje
+ * `undefined` kao rezultat upita i ruši ekran greškom "Query data cannot
+ * be undefined" (izmjereno na Zagrebu, 6.8.2026.).
  */
 export async function fetchSeaTemperature(
   lat: number,
   lon: number,
-): Promise<number | undefined> {
+): Promise<number | null> {
   const url = `${MARINE_BASE}?latitude=${lat}&longitude=${lon}&current=sea_surface_temperature&timezone=auto`;
   try {
     const res = await fetchJson<OmMarineResponse>(url);
     const temp = res.current?.sea_surface_temperature;
-    return typeof temp === "number" && Number.isFinite(temp) ? temp : undefined;
+    return typeof temp === "number" && Number.isFinite(temp) ? temp : null;
   } catch {
-    return undefined;
+    return null;
   }
 }

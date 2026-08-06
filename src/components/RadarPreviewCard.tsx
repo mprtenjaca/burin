@@ -2,6 +2,7 @@ import {
   Camera,
   Layer,
   Map as MapLibreMap,
+  Marker,
   RasterSource,
 } from "@maplibre/maplibre-react-native";
 import { router } from "expo-router";
@@ -16,7 +17,9 @@ import {
 } from "@/api/mapLayers";
 import { useRadarFrames } from "@/hooks/useRadarFrames";
 import { t } from "@/i18n";
+import { weatherGradient } from "@/utils/weatherLook";
 
+import { MapPin } from "./MapPin";
 import { Card } from "./Section";
 
 /** Stara latitudeDelta 2.4 ≈ jedan stupanj šire od regionalnog zooma 8. */
@@ -27,7 +30,20 @@ const PREVIEW_ZOOM = 7;
  * puni ekran karte. Radarske pločice i granice rastezanja dolaze iz istog
  * `MAP_LAYERS` unosa kao na punoj karti — jedan izvor istine.
  */
-export function RadarPreviewCard({ lat, lon }: { lat: number; lon: number }) {
+export function RadarPreviewCard({
+  lat,
+  lon,
+  temp,
+  code,
+  isDay,
+}: {
+  lat: number;
+  lon: number;
+  /** Temperatura odabranog mjesta — značka je pokazuje bez ulaska u kartu. */
+  temp?: number;
+  code?: number;
+  isDay?: boolean;
+}) {
   const { data } = useRadarFrames();
   const lastPast = data?.frames.filter((f) => !f.isNowcast).at(-1);
   const radar = mapLayerById("radar");
@@ -35,6 +51,10 @@ export function RadarPreviewCard({ lat, lon }: { lat: number; lon: number }) {
     data && lastPast
       ? mapLayerTileUrl(radar, { host: data.host, frame: lastPast })
       : null;
+
+  // Ista značka kao na punoj karti — mjesto se vidi bez ulaska u nju.
+  const pinStops =
+    code === undefined ? undefined : weatherGradient(code, isDay ?? true, false);
 
   return (
     <Pressable onPress={() => router.navigate("/map")}>
@@ -76,6 +96,13 @@ export function RadarPreviewCard({ lat, lon }: { lat: number; lon: number }) {
                 />
               </RasterSource>
             )}
+            {/* Značka odabranog mjesta — vidi se bez ulaska u kartu. */}
+            <Marker lngLat={[lon, lat]} anchor="bottom">
+              <MapPin
+                temp={temp === undefined ? undefined : Math.round(temp)}
+                stops={pinStops}
+              />
+            </Marker>
           </MapLibreMap>
         </View>
         <View className="flex-row items-center justify-between px-4 py-2.5">

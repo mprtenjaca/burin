@@ -2,7 +2,7 @@ import { mapLayerById } from "@/api/mapLayers";
 import type { RadarFrame } from "@/api/types";
 import type { TimelineHour } from "@/hooks/useTimelineHours";
 
-import { timelineSteps } from "../MapTimeline";
+import { nowStepIndex, timelineSteps } from "../MapTimeline";
 
 const frames: RadarFrame[] = [
   { time: 1785882000, path: "/p1", isNowcast: false },
@@ -83,5 +83,27 @@ describe("crta je prisutna na svim slojevima", () => {
       const steps = timelineSteps(mapLayerById(layer), frames, hours);
       expect(steps.length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * Sidro "Sada" (dorada 6.8.2026.): crta ide od prošlosti preko sada u
+ * budućnost, pa play mora krenuti odavde, a ne s kraja niza.
+ */
+describe("nowStepIndex", () => {
+  it("nalazi 'sada' u sredini niza sati", () => {
+    const steps = timelineSteps(mapLayerById("temp_new"), [], hours);
+    expect(nowStepIndex(steps)).toBe(1);
+  });
+
+  it("na radaru je 'sada' zadnji IZMJERENI okvir, prije nowcasta", () => {
+    const steps = timelineSteps(mapLayerById("radar"), frames, []);
+    expect(nowStepIndex(steps)).toBe(1);
+  });
+
+  it("bez 'sada' vraća -1 (crta se tada vrti cijela)", () => {
+    const noNow: TimelineHour[] = hours.map((h) => ({ ...h, isNow: false }));
+    expect(nowStepIndex(timelineSteps(mapLayerById("temp_new"), [], noNow))).toBe(-1);
+    expect(nowStepIndex([])).toBe(-1);
   });
 });

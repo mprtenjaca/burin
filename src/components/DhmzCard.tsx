@@ -59,10 +59,10 @@ export function DhmzCard({
       : "–";
 
   return (
-    <View className="gap-4 rounded-2xl border border-ink/[0.08] px-4 py-4 dark:border-paper/10">
+    <View className="gap-4 rounded-2xl bg-white px-4 py-4 dark:bg-coal">
       <View className="flex-row items-baseline justify-between">
         <View className="flex-row items-baseline gap-3">
-          <Text className="text-3xl font-light text-ink dark:text-paper">
+          <Text className="font-grotesk-bold text-3xl text-ink dark:text-paper">
             {tempValue}
           </Text>
           {obs.conditionText && (
