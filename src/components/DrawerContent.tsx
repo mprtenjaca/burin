@@ -1,17 +1,5 @@
 import { router, usePathname } from "expo-router";
-import {
-  BookmarkPlus,
-  ChevronRight,
-  Cloudy,
-  Info,
-  MapPin,
-  Radar,
-  Search,
-  Settings,
-  Thermometer,
-  TriangleAlert,
-  Wind,
-} from "lucide-react-native";
+import { BookmarkPlus, ChevronRight, Cloudy, Info, MapPin, Radar, Search, Settings, Thermometer, TriangleAlert, Wind } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -31,6 +19,7 @@ import { colors } from "@/theme/colors";
 import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit } from "@/utils/format";
 import { convertTemp } from "@/utils/format";
+import { WindFlag } from "@/components/WindFlag";
 import { Wordmark } from "@/components/Wordmark";
 import { CloudsLayer } from "@/components/backdrop/CloudsLayer";
 import { FogLayer } from "@/components/backdrop/FogLayer";
@@ -38,12 +27,7 @@ import { LightningLayer } from "@/components/backdrop/LightningLayer";
 import { RainLayer } from "@/components/backdrop/RainLayer";
 import { RaysLayer } from "@/components/backdrop/RaysLayer";
 import { SnowLayer } from "@/components/backdrop/SnowLayer";
-import {
-  ACCENT_CORAL,
-  backdropEffects,
-  precipIntensity,
-  weatherGradient,
-} from "@/utils/weatherLook";
+import { ACCENT_CORAL, backdropEffects, heroAccent, precipIntensity, weatherGradient } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
 type DrawerNav = { closeDrawer: () => void };
@@ -91,6 +75,7 @@ function Item({
   Icon,
   iconColor,
   active,
+  accent = ACCENT_CORAL,
   right,
   card = false,
   disabled = false,
@@ -101,6 +86,12 @@ function Item({
   /** Boja linije ikone; bez nje ikona prati tekst (prigušeni ink/paper). */
   iconColor?: string;
   active?: boolean;
+  /**
+   * Boja AKTIVNE stavke — ovisi o podlozi (6.8.2026.). Zadano koraljna;
+   * stavke preko kojih se prelijeva rep gradijenta zaglavlja dobivaju
+   * `heroAccent`, jer se na toplim narančastim podlogama koraljna utapa.
+   */
+  accent?: string;
   right?: ReactNode;
   /**
    * Mjesta su UVIJEK kartice (bijela/coal) — bez toga su se stapala s
@@ -127,14 +118,8 @@ function Item({
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
       disabled={disabled}
-      style={
-        pressed && !disabled
-          ? { opacity: 0.5, transform: [{ scale: 0.97 }] }
-          : undefined
-      }
-      className={`mx-3 flex-row items-center gap-3 rounded-xl px-4 py-4 ${
-        card || active ? "bg-white dark:bg-coal" : "active:bg-ink/5 dark:active:bg-paper/5"
-      } ${disabled ? "opacity-40" : ""}`}
+      style={pressed && !disabled ? { opacity: 0.5, transform: [{ scale: 0.97 }] } : undefined}
+      className={`mx-3 flex-row items-center gap-3 rounded-xl px-4 py-4 ${card || active ? "bg-white dark:bg-coal" : "active:bg-ink/5 dark:active:bg-paper/5"} ${disabled ? "opacity-40" : ""}`}
     >
       {Icon && (
         <Icon
@@ -142,16 +127,11 @@ function Item({
           strokeWidth={2}
           // Obojena ikona zadržava SVOJU boju i kad je stavka aktivna —
           // aktivnost nosi tekst i kartica, ne promjena boje ikone.
-          color={iconColor ?? (active ? ACCENT_CORAL : fg)}
+          color={iconColor ?? (active ? accent : fg)}
           opacity={iconColor ? 0.95 : active ? 1 : 0.55}
         />
       )}
-      <Text
-        className={`flex-1 font-grotesk-medium text-[17px] ${
-          active ? "" : "text-ink dark:text-paper"
-        }`}
-        style={active ? { color: ACCENT_CORAL } : undefined}
-      >
+      <Text className={`flex-1 font-grotesk-medium text-[17px] ${active ? "" : "text-ink dark:text-paper"}`} style={active ? { color: accent } : undefined}>
         {label}
       </Text>
       {right}
@@ -161,11 +141,7 @@ function Item({
 
 /** Mali naslov grupe — isti jezik kao naslovi sekcija (bez verzala). */
 function GroupLabel({ children }: { children: string }) {
-  return (
-    <Text className="px-7 pb-2 pt-6 font-grotesk-bold text-[14px] text-ink/55 dark:text-paper/55">
-      {children}
-    </Text>
-  );
+  return <Text className="px-7 pb-2 pt-6 font-grotesk-bold text-[14px] text-ink/55 dark:text-paper/55">{children}</Text>;
 }
 
 /**
@@ -182,7 +158,7 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
   if (!bundle) {
     return (
       <View className="px-7" style={{ marginTop: insets.top + 18 }}>
-        <Wordmark color={dark ? colors.paper : colors.ink} iconSize={24} textSize={20} />
+        <Wordmark color={dark ? colors.paper : colors.ink} textSize={20} />
       </View>
     );
   }
@@ -229,33 +205,16 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
                 <Stop offset="1" stopColor={pageBg} />
               </LinearGradient>
             </Defs>
-            <Rect
-              x="0"
-              y="0"
-              width={size.w}
-              height={size.h + FADE_H}
-              fill="url(#drawer-bg)"
-            />
+            <Rect x="0" y="0" width={size.w} height={size.h + FADE_H} fill="url(#drawer-bg)" />
           </Svg>
 
           {backdropEffects(bundle.current.code, bundle.current.isDay).map((name) => {
             const Layer = DRAWER_LAYERS[name];
-            return (
-              <Layer
-                key={name}
-                width={size.w}
-                height={size.h + FADE_H}
-                intensity={precipIntensity(bundle.current.code)}
-              />
-            );
+            return <Layer key={name} width={size.w} height={size.h + FADE_H} intensity={precipIntensity(bundle.current.code)} />;
           })}
 
           {/* Rep: ambijent i boja se gase prema stavkama. */}
-          <Svg
-            width={size.w}
-            height={FADE_H}
-            style={{ position: "absolute", top: size.h }}
-          >
+          <Svg width={size.w} height={FADE_H} style={{ position: "absolute", top: size.h }}>
             <Defs>
               <LinearGradient id="drawer-fade" x1="0" y1="0" x2="0" y2="1">
                 <Stop offset="0" stopColor={pageBg} stopOpacity="0" />
@@ -268,14 +227,14 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
         </View>
       )}
 
-      <View
-        onLayout={(e) =>
-          setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })
-        }
-        style={{ paddingTop: insets.top + 18, paddingBottom: 20 }}
-        className="px-7"
-      >
-        <Wordmark color={dark ? colors.paper : colors.ink} iconSize={20} textSize={16} />
+      <View onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })} style={{ paddingTop: insets.top + 18, paddingBottom: 20 }} className="px-7">
+        {/*
+          Podcrta OVDJE dobiva `heroAccent`, ne koraljnu (6.8.2026.):
+          zaglavlje ladice crta gradijent trenutnog vremena, a na toplim
+          narančastim podlogama se koraljna utapa. Kod wordmarka "Podcrt"
+          akcent NOSI cijeli logo, pa bi se bez ovoga sveo na sam tekst.
+        */}
+        <Wordmark color={dark ? colors.paper : colors.ink} accent={heroAccent(bundle.current.code, bundle.current.isDay)} textSize={16} />
 
         {/*
           Raspored "vrijeme lijevo, ime desno" (Markov odabir 6.8.2026.):
@@ -293,20 +252,13 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
             {Math.round(convertTemp(bundle.current.temp, tempUnit))}°
           </Text>
           <View className="flex-1">
-            <Text className="font-grotesk-bold text-[15px] text-ink dark:text-paper">
-              {bundle.place.name}
-            </Text>
+            <Text className="font-grotesk-bold text-[15px] text-ink dark:text-paper">{bundle.place.name}</Text>
             <Text className="font-grotesk-medium text-[12.5px] text-ink/65 dark:text-paper/65">
-              {condition.label} · {t.home.feelsLike.toLowerCase()}{" "}
-              {Math.round(convertTemp(bundle.current.feelsLike, tempUnit))}°
+              {condition.label} · {t.home.feelsLike.toLowerCase()} {Math.round(convertTemp(bundle.current.feelsLike, tempUnit))}°
             </Text>
           </View>
           {/* Ikona vremena zatvara par — isti glif kao u traci sati. */}
-          <ConditionIcon
-            size={34}
-            strokeWidth={1.9}
-            color={dark ? colors.paper : colors.ink}
-          />
+          <ConditionIcon size={34} strokeWidth={1.9} color={dark ? colors.paper : colors.ink} />
         </View>
       </View>
     </View>
@@ -320,15 +272,14 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
  */
 export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
   const pathname = usePathname();
-  const { fg } = useThemeColors();
+  const { fg, dark } = useThemeColors();
   const saved = useCities((s) => s.saved);
   const selected = useCities((s) => s.selected);
   const select = useCities((s) => s.select);
   const addCity = useCities((s) => s.addCity);
 
   /** Grad koji se trenutno gleda, a nije među spremljenima. */
-  const unsavedSelected =
-    selected && !saved.some((c) => c.id === selected.id) ? selected : null;
+  const unsavedSelected = selected && !saved.some((c) => c.id === selected.id) ? selected : null;
   const byPlaceId = useLastWeather((s) => s.byPlaceId);
   const tempUnit = useSettings((s) => s.tempUnit);
 
@@ -396,17 +347,33 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
   const onHome = pathname === "/";
   const onMap = pathname === "/map";
 
-  /** Temperatura + ikona vremena za grad, ako je ikad dohvaćen. */
+  /*
+   * Boja aktivnog GRADA prati podlogu (6.8.2026.): rep gradijenta
+   * zaglavlja se prelijeva preko prvih stavki s gradovima (`FADE_H`), pa
+   * na toplim narančastim vremenima koraljna ondje gubi kontrast. Ostale
+   * grupe (KARTE, APLIKACIJA) stoje na mist podlozi i ostaju koraljne.
+   */
+  const cityAccent = headerBundle
+    ? heroAccent(headerBundle.current.code, headerBundle.current.isDay)
+    : ACCENT_CORAL;
+
+  /**
+   * Temperatura + ikona vremena za grad, ako je ikad dohvaćen.
+   *
+   * Uz njih ide i značka vjetra (6.8.2026.): priobalju je bura glavni
+   * podatak, pa se jak vjetar vidi u samoj listi. Značke nema ispod
+   * 10 m/s, pa u mirnom vremenu red izgleda isto kao prije.
+   */
   const cityRight = (place: Place): ReactNode => {
     const bundle = byPlaceId[place.id];
     if (!bundle) return undefined;
     const { Icon } = codeToCondition(bundle.current.code, bundle.current.isDay);
     return (
       <View className="flex-row items-center gap-1.5">
+        {/* Gradovi su BIJELE kartice — bijela vjetrulja bi bila nevidljiva. */}
+        <WindFlag speedKmh={bundle.current.windGusts} size={20} tone={dark ? "dark" : "card"} />
         <Icon size={18} strokeWidth={2} color={fg} opacity={0.6} />
-        <Text className="font-grotesk-bold text-[17px] text-ink dark:text-paper">
-          {Math.round(convertTemp(bundle.current.temp, tempUnit))}°
-        </Text>
+        <Text className="font-grotesk-bold text-[17px] text-ink dark:text-paper">{Math.round(convertTemp(bundle.current.temp, tempUnit))}°</Text>
       </View>
     );
   };
@@ -428,13 +395,7 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
 
       <GroupLabel>{t.drawer.cities}</GroupLabel>
       <View className="gap-2">
-        <Item
-          label={t.drawer.myLocation}
-          Icon={MapPin}
-          card
-          active={onHome && selected === null}
-          onPress={() => goHome(null)}
-        />
+        <Item label={t.drawer.myLocation} Icon={MapPin} card accent={cityAccent} active={onHome && selected === null} onPress={() => goHome(null)} />
 
         {/*
           Grad koji se gleda, a NIJE spremljen (dorada 6.8.2026.): stoji
@@ -445,16 +406,12 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
           <Item
             label={unsavedSelected.name}
             card
+            accent={cityAccent}
             active={onHome}
             right={
               <View className="flex-row items-center gap-3">
                 {cityRight(unsavedSelected)}
-                <Pressable
-                  hitSlop={12}
-                  accessibilityRole="button"
-                  accessibilityLabel={t.drawer.saveCity}
-                  onPress={() => addCity(unsavedSelected)}
-                >
+                <Pressable hitSlop={12} accessibilityRole="button" accessibilityLabel={t.drawer.saveCity} onPress={() => addCity(unsavedSelected)}>
                   <BookmarkPlus size={21} strokeWidth={2} color={ACCENT_CORAL} />
                 </Pressable>
               </View>
@@ -468,38 +425,19 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
           preklopnik, ne arhiv — puna lista je u tražilici. `addCity`
           dodaje na kraj, pa je obrnuti redoslijed = najnovije prvo.
         */}
-        {[...saved].reverse().slice(0, 6).map((city) => (
-          <Item
-            key={city.id}
-            label={city.name}
-            card
-            active={onHome && selected?.id === city.id}
-            right={cityRight(city)}
-            onPress={() => goHome(city)}
-          />
-        ))}
+        {[...saved]
+          .reverse()
+          .slice(0, 6)
+          .map((city) => (
+            <Item key={city.id} label={city.name} card accent={cityAccent} active={onHome && selected?.id === city.id} right={cityRight(city)} onPress={() => goHome(city)} />
+          ))}
         {/*
-          Više od 6 spremljenih: "Vidi više" otvara tražilicu BEZ
-          tipkovnice (focus=0) — tamo je puna lista, a tipkovnica bi
-          je odmah prekrila.
+          Više od 6 spremljenih: "Vidi više" otvara tražilicu s punom
+          listom. Parametar `focus=0` je maknut 6.8.2026. — tipkovnica se
+          tamo više NIKAD ne otvara sama, pa ga nema što gasiti.
         */}
-        {saved.length > 6 && (
-          <Item
-            label={t.drawer.seeAll}
-            Icon={ChevronRight}
-            onPress={() => {
-              navigation.closeDrawer();
-              if (router.canDismiss()) router.dismissAll();
-              router.navigate({ pathname: "/search", params: { focus: "0" } });
-            }}
-          />
-        )}
-        <Item
-          label={t.search.placeholder}
-          Icon={Search}
-          active={pathname === "/search"}
-          onPress={() => go("/search")}
-        />
+        {saved.length > 6 && <Item label={t.drawer.seeAll} Icon={ChevronRight} onPress={() => go("/search")} />}
+        <Item label={t.search.placeholder} Icon={Search} active={pathname === "/search"} onPress={() => go("/search")} />
       </View>
 
       {/*
@@ -523,25 +461,9 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
 
       <GroupLabel>{t.drawer.app}</GroupLabel>
       <View className="gap-0.5">
-        <Item
-          label={t.common.warnings}
-          Icon={TriangleAlert}
-          iconColor={WARNINGS_COLOR}
-          active={pathname === "/warnings"}
-          onPress={() => go("/warnings")}
-        />
-        <Item
-          label={t.settings.title}
-          Icon={Settings}
-          active={pathname === "/settings"}
-          onPress={() => go("/settings")}
-        />
-        <Item
-          label={t.sources.title}
-          Icon={Info}
-          active={pathname === "/sources"}
-          onPress={() => go("/sources")}
-        />
+        <Item label={t.common.warnings} Icon={TriangleAlert} iconColor={WARNINGS_COLOR} active={pathname === "/warnings"} onPress={() => go("/warnings")} />
+        <Item label={t.settings.title} Icon={Settings} active={pathname === "/settings"} onPress={() => go("/settings")} />
+        <Item label={t.sources.title} Icon={Info} active={pathname === "/sources"} onPress={() => go("/sources")} />
       </View>
     </ScrollView>
   );

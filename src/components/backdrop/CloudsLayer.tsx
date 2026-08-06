@@ -190,8 +190,16 @@ export const CloudsLayer = memo(function CloudsLayer({
   width,
   height,
   scrollY,
+  density = "full",
 }: LayerProps) {
   const H = height || 1;
+  /*
+   * Djelomično oblačno dobiva TRI oblaka umjesto pet i vidljivo blijeđe
+   * (6.8.2026.): tamo oblaci stoje uz sunčane zrake, pa nebo mora ostati
+   * pretežno vedro — inače se stanje ne razlikuje od oblačnog.
+   */
+  const sparse = density === "sparse";
+  const count = sparse ? 3 : CLOUDS;
 
   const shift = scrollY
     ? {
@@ -210,20 +218,30 @@ export const CloudsLayer = memo(function CloudsLayer({
   /** Determinističan raspored — inače oblaci skaču na svaki re-render. */
   const clouds = useMemo(
     () =>
-      Array.from({ length: CLOUDS }, (_, i) => ({
+      Array.from({ length: count }, (_, i) => ({
         id: `cloud-${i}`,
         // Puna širina: rezanje na rubu rješava rezerva platna (EDGE_PAD).
         cx: width * (0.1 + rnd(i + 5) * 0.85),
-        // Raspoređeni niže: plavo seže preko pola ekrana (Markov odabir).
-        cy: height * (0.06 + rnd(i + 47) * 0.5),
+        /*
+         * Raspoređeni niže: plavo seže preko pola ekrana (Markov odabir).
+         * Rijetki idu JOŠ VIŠE (gornja trećina) — sunce je na vrhu kadra,
+         * pa oblaci uz njega izgledaju kao dio istog neba, a velika
+         * brojka u sredini ostaje na čistoj podlozi.
+         */
+        cy: sparse
+          ? height * (0.04 + rnd(i + 47) * 0.26)
+          : height * (0.06 + rnd(i + 47) * 0.5),
         scale: 0.8 + rnd(i + 89) * 0.8,
-        opacity: 0.4 + rnd(i + 127) * 0.35,
+        // Blijeđe kad ih je malo: oblak uz sunce ne smije "težiti".
+        opacity: sparse
+          ? 0.22 + rnd(i + 127) * 0.16
+          : 0.4 + rnd(i + 127) * 0.35,
         driftMs: DRIFT_MS[i % DRIFT_MS.length]!,
         breathMs: BREATH_MS[i % BREATH_MS.length]!,
         delayMs: Math.round(rnd(i + 173) * 6000),
         toRight: rnd(i + 211) > 0.5,
       })),
-    [width, height],
+    [width, height, count, sparse],
   );
 
   return (

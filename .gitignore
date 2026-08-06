@@ -46,3 +46,7 @@ yarn-error.*
 
 # HTML mockupi iz brainstorm sesija (radni materijal, ne izvorni kod)
 .superpowers/
+
+# Zapisi odluka i specovi — radni materijal, ostaju lokalno (6.8.2026.).
+# Opće odluke koje se čuvaju idu u CLAUDE.md (Recent Decisions) i README.
+docs/

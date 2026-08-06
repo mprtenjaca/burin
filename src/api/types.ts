@@ -24,6 +24,13 @@ export type CurrentWeather = {
   code: number;
   isDay: boolean;
   windSpeed: number;
+  /**
+   * Udari vjetra (km/h). Značka bure se ravna PO NJIMA, ne po stalnom
+   * vjetru (Markov odabir 6.8.2026.): izmjereno da ECMWF za Polaču daje
+   * 4.2 m/s stalnog uz 9.1 m/s u udarima — bura se osjeti i pamti po
+   * udarima. Vrijeme&Radar prikazuje isto.
+   */
+  windGusts: number;
   windDir: number;
   humidity: number;
   pressure: number;

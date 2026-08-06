@@ -39,8 +39,10 @@ import { t } from "@/i18n";
 import { useCities } from "@/store/cities";
 import { useLastWeather } from "@/store/lastWeather";
 import { useMapTimeline } from "@/store/mapTimeline";
+import { useSettings } from "@/store/settings";
 import { Wordmark } from "@/components/Wordmark";
 import { colors } from "@/theme/colors";
+import { convertTemp } from "@/utils/format";
 import { ACCENT_CORAL, weatherGradient } from "@/utils/weatherLook";
 
 const FRAME_INTERVAL_MS = 600;
@@ -85,6 +87,8 @@ export default function MapScreen() {
   const cameraRef = useRef<CameraRef>(null);
   const insets = useSafeAreaInsets();
   const selected = useCities((s) => s.selected);
+  const tempUnit = useSettings((s) => s.tempUnit);
+  const windUnit = useSettings((s) => s.windUnit);
   const gps = useLocation(selected === null);
   const radar = useRadarFrames();
 
@@ -107,7 +111,14 @@ export default function MapScreen() {
   const lastBundle = useLastWeather((s) =>
     focus ? s.byPlaceId[focus.id] : undefined,
   );
-  const pinTemp = lastBundle ? Math.round(lastBundle.current.temp) : undefined;
+  /*
+   * Pretvorba u odabranu jedinicu je OBAVEZNA (popravak 6.8.2026.): prije
+   * je pin crtao sirove °C i uz odabrani °F pokazivao npr. 24 tamo gdje
+   * cijela aplikacija piše 75. Ista greška je bila i na crti karte.
+   */
+  const pinTemp = lastBundle
+    ? Math.round(convertTemp(lastBundle.current.temp, tempUnit))
+    : undefined;
   /*
    * Značka nosi gradijent trenutnog vremena tog mjesta (dorada 6.8.2026.)
    * — s karte se odmah vidi KAKVO je vrijeme, ne samo koliko stupnjeva.
@@ -413,7 +424,7 @@ export default function MapScreen() {
         pointerEvents="none"
       >
         <View className="flex-row items-center rounded-full bg-ink/85 px-4 py-2.5">
-          <Wordmark color={colors.paper} iconSize={18} textSize={15} />
+          <Wordmark color={colors.paper} textSize={15} />
         </View>
       </View>
 
@@ -499,6 +510,7 @@ export default function MapScreen() {
           hours={hours}
           index={index}
           playing={playing}
+          units={{ tempUnit, windUnit }}
           onTogglePlay={togglePlay}
           onScrub={(i) => {
             stop();

@@ -7,6 +7,7 @@ const model: CurrentWeather = {
   code: 1,
   isDay: false,
   windSpeed: 10,
+  windGusts: 18,
   windDir: 180,
   humidity: 50,
   pressure: 1013,

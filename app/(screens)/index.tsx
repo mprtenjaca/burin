@@ -239,6 +239,7 @@ export default function HomeScreen() {
           tMax={today?.tMax}
           nightMin={nightMin}
           tempUnit={tempUnit}
+          windUnit={windUnit}
           hours={bundle.hourly}
           warnings={warnings}
           fetchedAt={bundle.fetchedAt}
@@ -327,7 +328,7 @@ export default function HomeScreen() {
           vrhu bi se tukao s datumom, a niže je tihi potpis, ne naslov.
         */}
         <Animated.View pointerEvents="none" style={{ opacity: wordmarkOpacity }}>
-          <Wordmark color={dark ? colors.paper : colors.ink} iconSize={20} textSize={16} />
+          <Wordmark color={dark ? colors.paper : colors.ink} textSize={16} />
         </Animated.View>
         <TopButton
           onPress={() => navigation.dispatch(DrawerActions.openDrawer())}

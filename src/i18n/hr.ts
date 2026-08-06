@@ -173,6 +173,10 @@ export const hr = {
     noResults: "Nema rezultata",
     remove: "Ukloni",
     clear: "Obriši upisano",
+    myLocation: "Moja lokacija",
+    /* Kad dozvola nije dana — red je i poziv i gumb. */
+    allowLocation: "Dopusti pristup lokaciji",
+    locatingNow: "Tražim lokaciju...",
   },
 
   /** Razvojni pregled pozadina po vremenu (nije dio redovnog toka). */

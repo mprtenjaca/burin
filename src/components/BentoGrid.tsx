@@ -2,41 +2,18 @@ import { router } from "expo-router";
 import { ChevronRight, Waves } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
-import Svg, {
-  Circle,
-  Defs,
-  G,
-  Line,
-  LinearGradient,
-  Path,
-  Stop,
-  Text as SvgText,
-} from "react-native-svg";
+import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Stop, Text as SvgText } from "react-native-svg";
 
 import type { CurrentWeather } from "@/api/types";
 import { SunCycle } from "@/components/SunCycle";
+import { WindFlag } from "@/components/WindFlag";
 import { t } from "@/i18n";
 import { colors } from "@/theme/colors";
 import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit, WindUnit } from "@/utils/format";
-import {
-  convertTemp,
-  convertWind,
-  tempUnitLabel,
-  windDirLabel,
-  windUnitLabel,
-} from "@/utils/format";
+import { convertTemp, convertWind, tempUnitLabel, windDirLabel, windUnitLabel } from "@/utils/format";
 import type { PollenLevels, PollenSpecies } from "@/utils/weatherLook";
-import {
-  ACCENT_CORAL,
-  AQI_COLORS,
-  POLLEN_COLORS,
-  aqiInfo,
-  dewPoint,
-  pollenInfo,
-  uvLabel,
-  visibilityLabel,
-} from "@/utils/weatherLook";
+import { ACCENT_CORAL, AQI_COLORS, POLLEN_COLORS, aqiInfo, dewPoint, pollenInfo, uvLabel, visibilityLabel } from "@/utils/weatherLook";
 
 /** Visina polukartice — sve jednake (odluka s mockupa v4; dizano za čitljivost). */
 const CARD_H = 160;
@@ -103,31 +80,15 @@ function Card({
     <>
       {/* Veličine i kontrasti sitnih tekstova dignuti za starije korisnike. */}
       <View className="flex-row items-center justify-between">
-        <Text
-          className={`font-grotesk-bold text-[13.5px] ${
-            inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/60 dark:text-paper/60"
-          }`}
-        >
-          {label}
-        </Text>
+        <Text className={`font-grotesk-bold text-[13.5px] ${inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/60 dark:text-paper/60"}`}>{label}</Text>
         {onPress && <ChevronRight size={18} strokeWidth={2.5} color={fg} opacity={0.45} />}
       </View>
       <View className="flex-1 justify-center">{children}</View>
-      {caption !== undefined && (
-        <Text
-          className={`font-grotesk-medium text-[12.5px] ${
-            inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/65 dark:text-paper/65"
-          }`}
-        >
-          {caption}
-        </Text>
-      )}
+      {caption !== undefined && <Text className={`font-grotesk-medium text-[12.5px] ${inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/65 dark:text-paper/65"}`}>{caption}</Text>}
     </>
   );
 
-  const className = `rounded-2xl px-3.5 py-3 ${wide ? "basis-full" : "grow basis-[45%]"} ${
-    inverted ? "bg-ink dark:bg-paper" : "bg-white dark:bg-coal"
-  }`;
+  const className = `rounded-2xl px-3.5 py-3 ${wide ? "basis-full" : "grow basis-[45%]"} ${inverted ? "bg-ink dark:bg-paper" : "bg-white dark:bg-coal"}`;
   const style = fixedHeight ? { height: CARD_H } : undefined;
 
   return onPress ? (
@@ -142,33 +103,14 @@ function Card({
 }
 
 /** Velika vrijednost u kartici, s opcionalnom malom jedinicom. */
-function Value({
-  children,
-  unit,
-  inverted = false,
-}: {
-  children: string;
-  unit?: string;
-  inverted?: boolean;
-}) {
+function Value({ children, unit, inverted = false }: { children: string; unit?: string; inverted?: boolean }) {
   const main = inverted ? "text-paper dark:text-ink" : "text-ink dark:text-paper";
   return (
     <View className="flex-row items-baseline gap-1">
-      <Text
-        className={`font-grotesk-bold ${main}`}
-        style={{ fontSize: 32, letterSpacing: -1 }}
-      >
+      <Text className={`font-grotesk-bold ${main}`} style={{ fontSize: 32, letterSpacing: -1 }}>
         {children}
       </Text>
-      {unit !== undefined && (
-        <Text
-          className={`font-grotesk-medium text-[14px] ${
-            inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/65 dark:text-paper/65"
-          }`}
-        >
-          {unit}
-        </Text>
-      )}
+      {unit !== undefined && <Text className={`font-grotesk-medium text-[14px] ${inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/65 dark:text-paper/65"}`}>{unit}</Text>}
     </View>
   );
 }
@@ -197,14 +139,7 @@ function Compass({ windDir }: { windDir: number }) {
           narančasta) — isti jezik kao krivulja zalaska. userSpaceOnUse:
           koordinate su u sustavu rotirane grupe, pa gradijent prati iglu.
         */}
-        <LinearGradient
-          id="needle"
-          x1="52"
-          y1="86"
-          x2="52"
-          y2="15"
-          gradientUnits="userSpaceOnUse"
-        >
+        <LinearGradient id="needle" x1="52" y1="86" x2="52" y2="15" gradientUnits="userSpaceOnUse">
           <Stop offset="0" stopColor="#F5D547" />
           <Stop offset="1" stopColor="#EE6E3C" />
         </LinearGradient>
@@ -235,14 +170,7 @@ function Compass({ windDir }: { windDir: number }) {
         <Line x1="52" y1="86" x2="58" y2="93" stroke="#F5D547" strokeWidth="3" strokeLinecap="round" />
       </G>
       <Circle cx="52" cy="52" r="14" fill={center} stroke={faint} strokeWidth="1.5" />
-      <SvgText
-        x="52"
-        y="56"
-        fontSize="11"
-        fontWeight="700"
-        textAnchor="middle"
-        fill={dark ? colors.paper : colors.ink}
-      >
+      <SvgText x="52" y="56" fontSize="11" fontWeight="700" textAnchor="middle" fill={dark ? colors.paper : colors.ink}>
         {windDirLabel(windDir)}
       </SvgText>
     </Svg>
@@ -271,10 +199,7 @@ function fmtPressure(hpa: number): string {
  */
 function PressureGauge({ hpa, size }: { hpa: number; size: number }) {
   const { dark } = useThemeColors();
-  const fraction = Math.min(
-    1,
-    Math.max(0, (hpa - PRESSURE_MIN) / (PRESSURE_MAX - PRESSURE_MIN)),
-  );
+  const fraction = Math.min(1, Math.max(0, (hpa - PRESSURE_MIN) / (PRESSURE_MAX - PRESSURE_MIN)));
   const lit = Math.round(fraction * GAUGE_TICKS);
   const disc = dark ? colors.paper : colors.ink;
   const dimTick = dark ? "rgba(20,20,20,.3)" : "rgba(250,250,248,.32)";
@@ -289,29 +214,14 @@ function PressureGauge({ hpa, size }: { hpa: number; size: number }) {
         const angle = -GAUGE_SWEEP / 2 + (i / (GAUGE_TICKS - 1)) * GAUGE_SWEEP;
         return (
           <G key={i} rotation={angle} origin="48,48">
-            <Line
-              x1="48"
-              y1="5"
-              x2="48"
-              y2="12"
-              stroke={i < lit ? ACCENT_CORAL : dimTick}
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
+            <Line x1="48" y1="5" x2="48" y2="12" stroke={i < lit ? ACCENT_CORAL : dimTick} strokeWidth="1.8" strokeLinecap="round" />
           </G>
         );
       })}
       <SvgText x="48" y="31" fontSize="8" fontWeight="700" textAnchor="middle" fill={subtext}>
         Tlak
       </SvgText>
-      <SvgText
-        x="48"
-        y="54"
-        fontSize="18"
-        fontWeight="700"
-        textAnchor="middle"
-        fill={text}
-      >
+      <SvgText x="48" y="54" fontSize="18" fontWeight="700" textAnchor="middle" fill={text}>
         {fmtPressure(hpa)}
       </SvgText>
       <SvgText x="48" y="67" fontSize="8.5" textAnchor="middle" fill={subtext}>
@@ -356,23 +266,13 @@ export function BentoGrid({
   tempUnit: TempUnit;
   windUnit: WindUnit;
 }) {
+  const { dark } = useThemeColors();
   const deg = (v: number) => `${Math.round(convertTemp(v, tempUnit))}°`;
   const feelsDiff = current.feelsLike - current.temp;
-  const feelsCaption =
-    Math.abs(feelsDiff) < 1
-      ? t.home.feelsSame
-      : feelsDiff > 0
-        ? t.home.feelsWarmer
-        : t.home.feelsColder;
+  const feelsCaption = Math.abs(feelsDiff) < 1 ? t.home.feelsSame : feelsDiff > 0 ? t.home.feelsWarmer : t.home.feelsColder;
   const dew = dewPoint(current.temp, current.humidity);
   const air = aqi !== undefined ? aqiInfo(aqi) : undefined;
-  const pollenGradeLabels = [
-    t.pollen.none,
-    t.pollen.low,
-    t.pollen.moderate,
-    t.pollen.high,
-    t.pollen.veryHigh,
-  ] as const;
+  const pollenGradeLabels = [t.pollen.none, t.pollen.low, t.pollen.moderate, t.pollen.high, t.pollen.veryHigh] as const;
   const dust = pollen !== undefined ? pollenInfo(pollen) : undefined;
   const speciesLabel = (key: PollenSpecies) => t.pollen.species[key];
 
@@ -383,36 +283,22 @@ export function BentoGrid({
         podatak, a kopnena ga uopće nemaju — tada kartica ostaje samo
         osjet, bez praznog mjesta (odluka 6.8.2026.).
       */}
-      <Card
-        label={t.home.feelsLike}
-        caption={seaTemp === undefined ? feelsCaption : undefined}
-      >
+      <Card label={t.home.feelsLike} caption={seaTemp === undefined ? feelsCaption : undefined}>
         <Value>{deg(current.feelsLike)}</Value>
         {seaTemp !== undefined && (
           <View className="mt-3 flex-row items-center justify-between border-t border-ink/[0.07] pt-2.5 dark:border-paper/10">
             <View className="flex-row items-center gap-1.5">
               <Waves size={19} strokeWidth={2} color={SEA_BLUE} />
-              <Text className="font-grotesk-medium text-[15px] text-ink/75 dark:text-paper/75">
-                {t.home.seaTemp}
-              </Text>
+              <Text className="font-grotesk-medium text-[15px] text-ink/75 dark:text-paper/75">{t.home.seaTemp}</Text>
             </View>
-            <Text
-              className="font-grotesk-bold text-[22px]"
-              style={{ color: SEA_BLUE }}
-            >
+            <Text className="font-grotesk-bold text-[22px]" style={{ color: SEA_BLUE }}>
               {deg(seaTemp)}
             </Text>
           </View>
         )}
       </Card>
 
-      <Card
-        label={t.metrics.uv}
-        inverted
-        caption={
-          uvMax !== undefined ? `${t.home.uvMaxToday} ${Math.round(uvMax)}` : undefined
-        }
-      >
+      <Card label={t.metrics.uv} inverted caption={uvMax !== undefined ? `${t.home.uvMaxToday} ${Math.round(uvMax)}` : undefined}>
         <Value inverted unit={uv !== undefined ? uvLabel(uv) : undefined}>
           {uv !== undefined ? `${Math.round(uv)}` : "–"}
         </Value>
@@ -420,13 +306,7 @@ export function BentoGrid({
         {uv !== undefined && (
           <View className="mt-2.5 h-[5px] flex-row rounded-full">
             {UV_COLORS.map((c, i) => (
-              <View
-                key={c}
-                className={`flex-1 ${i === 0 ? "rounded-l-full" : ""} ${
-                  i === UV_COLORS.length - 1 ? "rounded-r-full" : ""
-                }`}
-                style={{ backgroundColor: c }}
-              />
+              <View key={c} className={`flex-1 ${i === 0 ? "rounded-l-full" : ""} ${i === UV_COLORS.length - 1 ? "rounded-r-full" : ""}`} style={{ backgroundColor: c }} />
             ))}
             <ScaleMarker fraction={uv / 12} />
           </View>
@@ -439,10 +319,7 @@ export function BentoGrid({
         </Card>
       )}
 
-      <Card
-        label={t.metrics.humidity}
-        caption={`${t.home.dewPointNote} ${deg(dew)}`}
-      >
+      <Card label={t.metrics.humidity} caption={`${t.home.dewPointNote} ${deg(dew)}`}>
         <Value>{`${Math.round(current.humidity)}%`}</Value>
       </Card>
 
@@ -450,13 +327,18 @@ export function BentoGrid({
       <Card label={t.metrics.wind} wide>
         <View className="flex-row items-center justify-between">
           <View className="gap-2">
-            <Value unit={`${windUnitLabel(windUnit)} · ${windDirLabel(current.windDir)}`}>
-              {`${Math.round(convertWind(current.windSpeed, windUnit))}`}
-            </Value>
+            <Value unit={`${windUnitLabel(windUnit)} · ${windDirLabel(current.windDir)}`}>{`${Math.round(convertWind(current.windSpeed, windUnit))}`}</Value>
             {gusts !== undefined && (
-              <Value unit={`${windUnitLabel(windUnit)} · ${t.home.gusts.toLowerCase()}`}>
-                {`${Math.round(convertWind(gusts, windUnit))}`}
-              </Value>
+              /*
+                Vjetrulja stoji UZ UDARE (6.8.2026.), jer se značka po
+                njima i ravna — bijela od 10 m/s, crvenih pruga od 17.
+                Ispod praga je `WindFlag` prazan, pa red ostaje samo broj.
+              */
+              <View className="flex-row items-center gap-2">
+                <Value unit={`${windUnitLabel(windUnit)} · ${t.home.gusts.toLowerCase()}`}>{`${Math.round(convertWind(gusts, windUnit))}`}</Value>
+                {/* Kartica je bijela/coal — ton kartice, ne bijela na bijelom. */}
+                <WindFlag speedKmh={gusts} size={20} tone={dark ? "dark" : "card"} />
+              </View>
             )}
           </View>
           {/* Negativna margina: kompas koristi punu visinu kartice. */}
@@ -467,17 +349,11 @@ export function BentoGrid({
       </Card>
 
       {/* Tlak: goli disk bez kartice, promjera kao visina kartica. */}
-      <View
-        className="grow basis-[45%] items-center justify-center"
-        style={{ height: CARD_H }}
-      >
+      <View className="grow basis-[45%] items-center justify-center" style={{ height: CARD_H }}>
         <PressureGauge hpa={current.pressure} size={CARD_H} />
       </View>
 
-      <Card
-        label={t.metrics.visibility}
-        caption={visibilityKm !== undefined ? visibilityLabel(visibilityKm) : undefined}
-      >
+      <Card label={t.metrics.visibility} caption={visibilityKm !== undefined ? visibilityLabel(visibilityKm) : undefined}>
         <Value unit="km">{visibilityKm !== undefined ? `${visibilityKm}` : "–"}</Value>
       </Card>
 
@@ -485,10 +361,7 @@ export function BentoGrid({
         <Value>{`${Math.round(current.cloudCover)}%`}</Value>
       </Card>
 
-      <Card
-        label={t.home.precip24}
-        caption={precip24 >= 0.5 ? t.home.precipSome : t.home.precipNone}
-      >
+      <Card label={t.home.precip24} caption={precip24 >= 0.5 ? t.home.precipSome : t.home.precipNone}>
         <Value unit="mm">{`${precip24}`}</Value>
       </Card>
 
@@ -508,15 +381,10 @@ export function BentoGrid({
         >
           <View className="gap-3 py-1">
             <View className="flex-row items-baseline justify-between">
-              <Text
-                className="font-grotesk-bold text-[20px]"
-                style={{ color: dust.color }}
-              >
+              <Text className="font-grotesk-bold text-[20px]" style={{ color: dust.color }}>
                 {pollenGradeLabels[dust.grade]}
               </Text>
-              <Text className="font-grotesk-medium text-[12.5px] text-ink/65 dark:text-paper/65">
-                {speciesLabel(dust.species[0]!.key)}
-              </Text>
+              <Text className="font-grotesk-medium text-[12.5px] text-ink/65 dark:text-paper/65">{speciesLabel(dust.species[0]!.key)}</Text>
             </View>
 
             {/*
@@ -528,25 +396,14 @@ export function BentoGrid({
             {dust.species.slice(0, 3).map((s) => (
               <View key={s.key} className="gap-1.5">
                 <View className="flex-row items-baseline justify-between">
-                  <Text className="font-grotesk-medium text-[13.5px] text-ink/75 dark:text-paper/75">
-                    {speciesLabel(s.key)}
-                  </Text>
-                  <Text
-                    className="font-grotesk-bold text-[12px]"
-                    style={{ color: POLLEN_COLORS[s.grade - 1] }}
-                  >
+                  <Text className="font-grotesk-medium text-[13.5px] text-ink/75 dark:text-paper/75">{speciesLabel(s.key)}</Text>
+                  <Text className="font-grotesk-bold text-[12px]" style={{ color: POLLEN_COLORS[s.grade - 1] }}>
                     {pollenGradeLabels[s.grade]}
                   </Text>
                 </View>
                 <View className="h-[5px] flex-row rounded-full">
                   {POLLEN_COLORS.map((c, i) => (
-                    <View
-                      key={c}
-                      className={`flex-1 ${i === 0 ? "rounded-l-full" : ""} ${
-                        i === POLLEN_COLORS.length - 1 ? "rounded-r-full" : ""
-                      }`}
-                      style={{ backgroundColor: c }}
-                    />
+                    <View key={c} className={`flex-1 ${i === 0 ? "rounded-l-full" : ""} ${i === POLLEN_COLORS.length - 1 ? "rounded-r-full" : ""}`} style={{ backgroundColor: c }} />
                   ))}
                   <ScaleMarker fraction={s.fraction} />
                 </View>
@@ -561,25 +418,14 @@ export function BentoGrid({
         <Card label={t.home.airQuality} wide fixedHeight={false}>
           <View className="gap-2.5 py-1">
             <View className="flex-row items-baseline justify-between">
-              <Text
-                className="font-grotesk-bold text-[20px]"
-                style={{ color: air.color }}
-              >
+              <Text className="font-grotesk-bold text-[20px]" style={{ color: air.color }}>
                 {air.label}
               </Text>
-              <Text className="font-grotesk-medium text-[12.5px] text-ink/65 dark:text-paper/65">
-                AQI {Math.round(aqi)}
-              </Text>
+              <Text className="font-grotesk-medium text-[12.5px] text-ink/65 dark:text-paper/65">AQI {Math.round(aqi)}</Text>
             </View>
             <View className="h-[5px] flex-row rounded-full">
               {AQI_COLORS.map((c, i) => (
-                <View
-                  key={c}
-                  className={`flex-1 ${i === 0 ? "rounded-l-full" : ""} ${
-                    i === AQI_COLORS.length - 1 ? "rounded-r-full" : ""
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
+                <View key={c} className={`flex-1 ${i === 0 ? "rounded-l-full" : ""} ${i === AQI_COLORS.length - 1 ? "rounded-r-full" : ""}`} style={{ backgroundColor: c }} />
               ))}
               <ScaleMarker fraction={air.fraction} />
             </View>

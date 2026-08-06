@@ -31,7 +31,7 @@ const MARINE_BASE = "https://marine-api.open-meteo.com/v1/marine";
 export const PRIMARY_MODEL = "ecmwf_ifs025";
 
 const CURRENT_PARAMS =
-  "temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_direction_10m,relative_humidity_2m,pressure_msl,cloud_cover,precipitation";
+  "temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_gusts_10m,wind_direction_10m,relative_humidity_2m,pressure_msl,cloud_cover,precipitation";
 const HOURLY_PARAMS =
   "temperature_2m,apparent_temperature,weather_code,is_day,precipitation,precipitation_probability,wind_speed_10m,wind_direction_10m,wind_gusts_10m,relative_humidity_2m,pressure_msl,cloud_cover,uv_index,visibility";
 const DAILY_PARAMS =
@@ -46,6 +46,7 @@ export type OmRawCurrent = {
   weather_code: number;
   is_day: number;
   wind_speed_10m: number;
+  wind_gusts_10m: number;
   wind_direction_10m: number;
   relative_humidity_2m: number;
   pressure_msl: number;
@@ -122,6 +123,8 @@ export function mapCurrent(raw: OmRawCurrent): CurrentWeather {
     code: raw.weather_code,
     isDay: raw.is_day === 1,
     windSpeed: raw.wind_speed_10m,
+    /* Stariji keširani odgovori nemaju udare — 0 znači "bez značke". */
+    windGusts: raw.wind_gusts_10m ?? 0,
     windDir: raw.wind_direction_10m,
     humidity: raw.relative_humidity_2m,
     pressure: raw.pressure_msl,

@@ -22,7 +22,13 @@ export const useSettings = create<SettingsState>()(
       // dizajnirani prvo za svijetlu; tamna ostaje izbor u postavkama.
       theme: "light",
       tempUnit: "C",
-      windUnit: "kmh",
+      /*
+       * m/s je zadano (Markov odabir 6.8.2026.): DHMZ, pomorska prognoza i
+       * Beaufortova skala u Hrvatskoj govore u m/s, pa i pragovi bure
+       * (10 / 17 m/s) imaju smisla samo u toj jedinici. km/h ostaje izbor
+       * u Postavkama.
+       */
+      windUnit: "ms",
       setTheme: (theme) => set({ theme }),
       setTempUnit: (tempUnit) => set({ tempUnit }),
       setWindUnit: (windUnit) => set({ windUnit }),

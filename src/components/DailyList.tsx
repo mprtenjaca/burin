@@ -41,6 +41,12 @@ export function DailyList({
   const allMin = Math.min(...days.map((d) => d.tMin));
   const allMax = Math.max(...days.map((d) => d.tMax));
   const span = Math.max(1, allMax - allMin);
+  /*
+   * Ovdje NAMJERNO ostaje samo ° bez slova jedinice (6.8.2026.): kolone
+   * MIN/MAX su široke 38 px (KOL_TEMP), a "-15°F" u dvije kolone jedna do
+   * druge se ne uklopi — izmjereno da bi se odrezalo. Jedinica se čita s
+   * heroja i iz Postavki; u ovoj tablici je nedvosmislena.
+   */
   const deg = (v: number) => `${Math.round(convertTemp(v, tempUnit))}°`;
 
   return (

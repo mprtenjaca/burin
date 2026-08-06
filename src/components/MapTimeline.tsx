@@ -7,7 +7,14 @@ import type { RadarFrame } from "@/api/types";
 import type { TimelineHour } from "@/hooks/useTimelineHours";
 import { t } from "@/i18n";
 import { useThemeColors } from "@/theme/useThemeColors";
-import { clockTime } from "@/utils/format";
+import type { TempUnit, WindUnit } from "@/utils/format";
+import {
+  clockTime,
+  convertTemp,
+  convertWind,
+  tempUnitSuffix,
+  windUnitLabel,
+} from "@/utils/format";
 import { ACCENT_CORAL } from "@/utils/weatherLook";
 
 /** Jedan korak crte, sveden na ono što se prikazuje. */
@@ -22,27 +29,43 @@ function hourLabel(iso: string): string {
   return `${iso.slice(11, 13)}:00`;
 }
 
-/** Vrijednost za centar karte, ovisno o sloju (bez nje je klizač mrtav). */
-function valueNote(layer: MapLayer, hour: TimelineHour): string | undefined {
+/**
+ * Vrijednost za centar karte, ovisno o sloju (bez nje je klizač mrtav).
+ *
+ * Jedinice su OBAVEZNE (popravak 6.8.2026.): prije su ovdje išli sirovi
+ * °C i tvrdo upisan "km/h", pa je crta uz odabrani °F/m-s pokazivala
+ * druge brojeve od cijele ostale aplikacije.
+ */
+function valueNote(
+  layer: MapLayer,
+  hour: TimelineHour,
+  units: Units,
+): string | undefined {
   switch (layer.id) {
     case "temp_new":
-      return hour.temp === undefined ? undefined : `${Math.round(hour.temp)}°`;
+      return hour.temp === undefined
+        ? undefined
+        : `${Math.round(convertTemp(hour.temp, units.tempUnit))}${tempUnitSuffix(units.tempUnit)}`;
     case "clouds_new":
       return hour.cloudCover === undefined ? undefined : `${Math.round(hour.cloudCover)} %`;
     case "wind_new":
       return hour.windSpeed === undefined
         ? undefined
-        : `${Math.round(hour.windSpeed)} km/h`;
+        : `${Math.round(convertWind(hour.windSpeed, units.windUnit))} ${windUnitLabel(units.windUnit)}`;
     default:
       return undefined;
   }
 }
+
+/** Jedinice iz postavki — prosljeđuju se da `timelineSteps` ostane čist. */
+export type Units = { tempUnit: TempUnit; windUnit: WindUnit };
 
 /** Izvezeno radi testova: koraci crte za dani sloj. */
 export function timelineSteps(
   layer: MapLayer,
   frames: RadarFrame[],
   hours: TimelineHour[],
+  units: Units = { tempUnit: "C", windUnit: "ms" },
 ): Step[] {
   if (layer.timeline === "frames") {
     return frames.map((f, i) => ({
@@ -54,7 +77,7 @@ export function timelineSteps(
   }
   return hours.map((h) => ({
     label: hourLabel(h.time),
-    note: valueNote(layer, h),
+    note: valueNote(layer, h, units),
     isNow: h.isNow,
   }));
 }
@@ -84,6 +107,7 @@ export function MapTimeline({
   playing,
   onTogglePlay,
   onScrub,
+  units,
 }: {
   layer: MapLayer;
   frames: RadarFrame[];
@@ -92,9 +116,15 @@ export function MapTimeline({
   playing: boolean;
   onTogglePlay: () => void;
   onScrub: (index: number) => void;
+  /**
+   * Jedinice DOLAZE IZ EKRANA, ne iz storea (6.8.2026.): `useSettings`
+   * ovdje bi uvukao AsyncStorage u modul, a njegovi testovi su čista
+   * logika bez nativnih modula — suite se odmah prestao pokretati.
+   */
+  units: Units;
 }) {
   const { dark } = useThemeColors();
-  const steps = timelineSteps(layer, frames, hours);
+  const steps = timelineSteps(layer, frames, hours, units);
   const step = steps[index];
 
   // Bez koraka (izvor još učitava) crta ostaje vidljiva, ali neaktivna —

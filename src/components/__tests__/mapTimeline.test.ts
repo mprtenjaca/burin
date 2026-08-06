@@ -54,9 +54,38 @@ describe("timelineSteps — OWM slojevi (sati)", () => {
     expect(steps[2]!.note).toBe("65 %");
   });
 
-  it("vjetar prikazuje brzinu", () => {
+  it("vjetar prikazuje brzinu u zadanoj jedinici (m/s)", () => {
     const steps = timelineSteps(mapLayerById("wind_new"), [], hours);
-    expect(steps[1]!.note).toBe("19 km/h");
+    // 18.9 km/h / 3.6 = 5.25 m/s
+    expect(steps[1]!.note).toBe("5 m/s");
+  });
+
+  /*
+   * Jedinice iz postavki MORAJU stići do crte (popravak 6.8.2026.): prije
+   * su ovdje išli sirovi °C i tvrdo upisan "km/h", pa je karta pokazivala
+   * druge brojeve od ostatka aplikacije kad je odabran °F ili m/s.
+   */
+  it("poštuje odabrane jedinice", () => {
+    const f = timelineSteps(mapLayerById("temp_new"), [], hours, {
+      tempUnit: "F",
+      windUnit: "kmh",
+    });
+    // 29.4 °C = 84.9 °F — i oznaka MORA reći da su Fahrenheiti.
+    expect(f[0]!.note).toBe("85°F");
+
+    const kmh = timelineSteps(mapLayerById("wind_new"), [], hours, {
+      tempUnit: "C",
+      windUnit: "kmh",
+    });
+    expect(kmh[1]!.note).toBe("19 km/h");
+  });
+
+  it("Celzijus ostaje bez slova, samo stupnjevi", () => {
+    const steps = timelineSteps(mapLayerById("temp_new"), [], hours, {
+      tempUnit: "C",
+      windUnit: "ms",
+    });
+    expect(steps[0]!.note).toBe("29°");
   });
 
   it("sat se označava 24-satno, tekući je označen", () => {

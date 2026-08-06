@@ -7,12 +7,13 @@ import type { CurrentWeather, HourlyPoint } from "@/api/types";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { HourlyStrip } from "@/components/HourlyStrip";
 import { WarningBar } from "@/components/WarningBar";
+import { WindFlag } from "@/components/WindFlag";
 import { useNow } from "@/hooks/useNow";
 import { t } from "@/i18n";
 import { useThemeColors } from "@/theme/useThemeColors";
-import type { TempUnit } from "@/utils/format";
-import { clockTime, convertTemp } from "@/utils/format";
-import { backdropEffects, heroAccent, precipIntensity, type GradientStops } from "@/utils/weatherLook";
+import type { TempUnit, WindUnit } from "@/utils/format";
+import { clockTime, convertTemp, convertWind, windUnitLabel } from "@/utils/format";
+import { backdropEffects, heroAccent, precipIntensity, windStrength, type GradientStops } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
 /** "čet 6.8." — red datuma gore lijevo. */
@@ -56,6 +57,7 @@ export function Hero({
   tMax,
   nightMin,
   tempUnit,
+  windUnit,
   hours,
   warnings,
   fetchedAt,
@@ -71,6 +73,8 @@ export function Hero({
   tMax?: number;
   nightMin?: number;
   tempUnit: TempUnit;
+  /** Za brzinu udara uz vjetrulju — ista jedinica kao u karticama. */
+  windUnit: WindUnit;
   hours: HourlyPoint[];
   /** Meteoalarm upozorenja za mjesto; prazno = nema trake. */
   warnings: MeteoWarning[];
@@ -82,12 +86,18 @@ export function Hero({
   scrollY?: Animated.Value;
 }) {
   const insets = useSafeAreaInsets();
-  const { fg } = useThemeColors();
+  const { fg, dark } = useThemeColors();
   // Živ sat: bez ovoga je datum/vrijeme stajao na trenutku renderiranja.
   const now = useNow();
 
   const condition = codeToCondition(current.code, current.isDay);
   const deg = (v: number) => `${Math.round(convertTemp(v, tempUnit))}`;
+  /*
+   * Brzina uz vjetrulju se pokazuje po ISTOM pragu po kojem se crta i
+   * značka (`windStrength`), pa se ne mogu razići — inače bi broj stajao
+   * sam bez ikone ili obrnuto.
+   */
+  const gustFlag = windStrength(current.windGusts) !== "calm";
 
   return (
     <View style={{ height, width }}>
@@ -185,6 +195,33 @@ export function Hero({
             >
               °
             </Text>
+            {/*
+              "F" samo u Fahrenheitima (Markov odabir 6.8.2026.): sivkasto,
+              ISPOD kružića — poravnat s njim po lijevom rubu, a spušten do
+              DNA velike brojke. Celzijus ga ne dobiva; ° je dovoljan.
+
+              Mjere: brojka ima lineHeight 134 i glif joj završi na ~116 px
+              (okvir nosi ~36 px praznine ispod — izmjereno 6.8.2026.).
+              F visine 30 zato ide na top 84 da mu dno padne na istu
+              liniju kao dno znamenki. `left: 7` je ISTI kao na kružiću, pa
+              stoje u stupcu jedan pod drugim.
+            */}
+            {tempUnit === "F" && (
+              <Text
+                className="font-grotesk-medium"
+                style={{
+                  position: "absolute",
+                  left: 7,
+                  top: 73,
+                  fontSize: 28,
+                  lineHeight: 30,
+                  color: fg,
+                  opacity: 0.3,
+                }}
+              >
+                F
+              </Text>
+            )}
           </View>
         </View>
 
@@ -219,6 +256,31 @@ export function Hero({
           {isStale ? `${t.common.dataFrom} ` : ""}
           {clockTime(fetchedAt)}
         </Text>
+
+        {/*
+          VJETRULJA NA HEROJU (6.8.2026.) — ispod datuma, uz brzinu udara.
+          Stoji ovdje, a ne u kutu: kut gore lijevo drži tražilicu, desni
+          hamburger, a sredina je jedina os koja je već centrirana.
+
+          Značka se pojavljuje SAMO kad udari prijeđu 10 m/s (`WindFlag`
+          inače vrati null), pa je u mirnom vremenu ovdje nema — a kad je
+          bura, vidi se prije nego se dođe do bento kartica.
+        */}
+        {gustFlag && (
+          <View className="mt-2 flex-row items-center gap-1.5">
+            {/*
+              Heroj ima SVOJ ton (`hero`), svjetliji od kartica: podloga mu
+              je obojeni gradijent, ne bijela kartica, pa mu ne treba
+              toliko tamnog za odvajanje — s tonom kartice je izgledao
+              pretežak (Markov ispravak 6.8.2026.).
+            */}
+            <WindFlag speedKmh={current.windGusts} size={20} tone={dark ? "dark" : "hero"} />
+            <Text className="font-grotesk-bold text-[15px] text-ink dark:text-paper">{Math.round(convertWind(current.windGusts, windUnit))}</Text>
+            <Text className="font-grotesk-medium text-[13px] text-ink/70 dark:text-paper/70">
+              {windUnitLabel(windUnit)} · {t.home.gusts.toLowerCase()}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/*

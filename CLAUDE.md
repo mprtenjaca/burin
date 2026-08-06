@@ -13,10 +13,13 @@ više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
 
 | Što | Status | Bilješka |
 |---|---|---|
-| **Upozorenja + pelud + ambijent + navigacija** | Kod gotov, dio provjeren na uređaju | 6.8.2026., [Record](docs/records/2026-08-06-upozorenja-pelud-ambijent.md) + [spec](docs/superpowers/specs/2026-08-06-upozorenja-pelud-ladica-karta-design.md). Meteoalarm za **38 europskih zemalja**, pelud (`/pollen`), 6 ambijentalnih pozadina po vremenu, pravi Stack + swipe-back, MRU gradovi, povijest pretrage |
-| **Redizajn početnog ekrana** | Kod gotov, dorada u tijeku | 6.8.2026., po v7 mockupu ([Record](docs/records/2026-08-06-redizajn-pocetnog-ekrana.md)). Marko fino štima razmake oko velike brojke u heroju |
-| **Karta → MapLibre** | Provjereno na uređaju, radi | Migracija 5.8.2026. + popravci s uređaja. Vidi [Record](docs/records/2026-08-05-karta-maplibre-odluka.md) |
-| Wordmark u aplikaciji | **Čeka Markov odabir** | Ikona "Zapuh" je odabrana i ugrađena; wordmark (logo + tekst) je u drugom krugu prijedloga — Marko bira |
+| **Vjetrulja (značka bure)** | Kod gotov, **čeka provjeru na uređaju** | 6.8.2026. Po UDARIMA (10 m/s siva/bijela → 17 m/s crvena), na 4 mjesta: ladica, tražilica, bento (uz udare), heroj (ispod datuma). Tri tona po podlozi (`card` / `hero` / `dark`). [Pregled na svim podlogama](https://claude.ai/code/artifact/ee7a45e4-ec7c-4ed3-ab1e-29ebc8999eb9) |
+| **Wordmark "Podcrt"** | Kod gotov, **čeka provjeru na uređaju** | Marko odabrao 6.8.2026. u [3. krugu](https://claude.ai/code/artifact/d9c60bc2-7f8b-4ff4-91c7-ae320371ade8): `burin` + zapuh koji se uvija DESNO od riječi, u visini slova. Ugrađen na sva 4 mjesta; u ladici dobiva `heroAccent` |
+| **Jedinice (m/s, °F)** | Kod gotov, **čeka provjeru na uređaju** | m/s je zadano; F stoji ISPOD kružića na velikoj brojci. Popravljene 3 stvarne greške na karti gdje se postavka uopće nije čitala |
+| Tražilica: lokacija + tipkovnica | Kod gotov, **čeka provjeru na uređaju** | Sekcija "Moja lokacija" na vrhu (GPS tek na dodir), bez auto-tipkovnice, tipkovnica po temi, ikona vremena + vjetrulja na povijesti i spremljenima |
+| Djelomično oblačno | Kod gotov, **čeka provjeru na uređaju** | Prije je crtalo samo sunčane zrake (isto kao vedro); sada zrake + rijetki oblaci (`density="sparse"`) |
+| Razmaci u heroju | Dorada u tijeku | Marko fino štima `marginBottom` na imenu mjesta (~143) i `marginTop` na opisu (~230) u `Hero.tsx`. Izmjereno: okvir brojke nosi 38.8 px praznine gore, 36.3 dolje |
+| Domet regije: kod kaže 90 km, zapis je govorio 130 | Open, nije greška u radu | `REGION_RANGE_KM = 90` u `useWarnings.ts`; stariji zapis navodi 130 km (dodano zbog grada u Čileu s hrvatskim alarmom). Zaštita radi u oba slučaja — Čile nema feed, a filtar države blokira prelazak granice. Treba samo odlučiti koji je broj točan |
 | Polača tip (zaleđe uz morsku postaju) | Open | Postaje su Šibenik/Veli Rat/Knin — sve pretople, pa korekcija **grije** mjesto na 122 m. Zemunika (21 °C, 12 km) nema u feedu; gušćeg DHMZ feeda nema |
 | 14-dnevni min/max korekcija | Open | `debiasDaily` radi, ali korekcija mjerenjem se ne primjenjuje na dnevne vrijednosti — mogući blagi nesklad s razdobljima dana |
 | Vremenske vijesti / blog | Open, neistraženo | Marko pitao ima li izvora za HR i svijet. Nije istraženo — DHMZ ima vijesti, za svijet treba provjeriti |
@@ -25,15 +28,22 @@ više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
 
 ## Next Step
 
-**Nastaviti doradu na uređaju.** Otvoreno konkretno:
+**Provjeriti sve od 6.8.2026. na uređaju.** Ništa od ovoga nije viđeno na
+telefonu — sve je JS, dakle sam reload, bez rebuilda:
 
-1. **Wordmark** — Marko bira među 6 prijedloga (drugi krug); ikona je
-   zaključana ("Zapuh"). Kad odabere, ide u `Wordmark.tsx`
-2. **Razmaci u heroju** — Marko fino štima `marginBottom` na imenu mjesta
-   (linija ~130 u `Hero.tsx`) i `marginTop` na opisu vremena (~189).
-   Izmjereno: okvir brojke nosi 38.8 px praznine gore, 36.3 dolje
-3. **Nova ikona traži EAS rebuild** — `assets/icon.png` je nativni asset,
-   reload ga ne mijenja
+1. **Vjetrulja** na 4 mjesta (ladica, tražilica, bento uz udare, heroj ispod
+   datuma). **Nema je kad su udari < 10 m/s — to nije greška.** Tri prethodne
+   izvedbe su pale (krug = "točka", siva vjetrulja, bijela na bijelom), pa
+   ovu treba pogledati na svijetloj I tamnoj temi
+2. **Wordmark "Podcrt"** — kovrča mora stajati DESNO od riječi u visini
+   slova. Dvije izvedbe su bile promašene (rastegnuta pod cijelom riječi, pa
+   preko slova); mjere su izvedene iz širine riječi (`wordW / 0.66`)
+3. **F na velikoj brojci** — ISPOD kružića, na dnu znamenki
+   (`left: 7, top: 84` u `Hero.tsx`)
+4. **Djelomično oblačno** — mora imati oblake, ne samo zrake
+5. **Razmaci u heroju** — Marko fino štima margine oko velike brojke
+6. **Nova ikona traži EAS rebuild** — `assets/icon.png` je nativni asset,
+   reload ga ne mijenja (jedino što na ovoj listi traži build)
 
 Radni tijek: Marko gleda na iPhoneu (JS-only, reload preko
 `npx expo start --dev-client` — **rebuild treba samo za ikone/nativno**),
@@ -43,11 +53,33 @@ Ako se temperatura još dira: jedino što ostaje je **gušći izvor mjerenja**.
 Izmjereno je da se štimanjem težina više ne dobiva (visina i manji domet su
 *gori*), a Polača se bez podatka iz Ravnih kotara ne može riješiti.
 
+**Vjetar nema korekciju mjerenjem.** Temperatura ide kroz `debiasHourly` +
+`observationDelta`, a `windSpeed`/`windGusts` se prenose iz modela kakvi su.
+Na obali model na mreži od ~25 km podcjenjuje kanaliziranu buru — ako zastava
+bude sustavno preblaga, uzrok je tu, ne u pragovima.
+
 ## Recent Decisions
 
 | Odluka | Zašto |
 |---|---|
-| Hrvatska = ručna tablica regija, ostatak Europe = geokodiranje | Meteoalarm NE objavljuje granice ni koordinate regija — samo ime i EMMA ID. Regija po zemlji: Italija 19, Austrija 116, **Njemačka 409**, pa ručna tablica nije izvediva. HR ostaje ručna jer je provjerena i točna. Detalji u [Recordu](docs/records/2026-08-06-upozorenja-pelud-ambijent.md) |
+| Značka bure ide po UDARIMA, ne po stalnom vjetru | Izmjereno 6.8.2026. za Polaču: ECMWF daje 4.2 m/s stalnog uz **9.1 m/s u udarima**. Bura se osjeti i pamti po udarima; po stalnom vjetru se značka u zaleđu ne bi upalila gotovo nikad. V&R prikazuje isto (njihovih 11 m/s nisu ni model ni DHMZ postaja — Zadar je tada mjerio 3.1 m/s) |
+| Prag značke 10 m/s (bijela) / 17 m/s (crvena) | Markov odabir po V&R-u. 17.2 m/s je i granica 8 Beauforta (olujno), pa se skala poklapa s pomorskom prognozom. Ispod praga NEMA značke — inače stoji uvijek i prestane nositi informaciju |
+| Značka vjetra je VJETRULJA, ne zastava | Vjetrulja je instrument za vjetar pa se sama čita kao "vjetar"; zastava je signal i značenje nosi samo bojom. Marko dao izvorni SVG. Izvedba: stup + TRI pune pruge s **PROZIRNIM rasjecima** (naizmjenične pruge SU oblik — bez rasjeka je znak puni blok). Crvena za olujno je ista na svim podlogama, jer crveno znači opasnost; jarbol nikad nije crven |
+| Značka ima TRI tona po podlozi, ne dva | `card` (#6E6E69) za bijele kartice, `hero` (#9A9A93) za obojeni gradijent, `dark` (bijela) za tamno. Jedan `onLight` za oboje je heroju davao ton kartice i izgledao pretežak. **Bijela na bijeloj kartici je nevidljiva** — dok je rukav imao obris se nazirala, s prozirnim rasjecima je obris otpao |
+| SVG ikonu provjeriti RENDEROM u PNG prije uređaja | Dvije izvedbe su pale NA UREĐAJU (krug = "mala točka", pa bijela na bijelom). Render u `sharp` je uhvatio treću grešku bez telefona: `strokeWidth: 2` + široke pruge na rukavu visokom ~11 jedinica pojedu svu bijelu površinu, pa je znak izgledao siv. Isto je pokazalo da 64×64 viewBox nosi trećinu praznine — odatle "izgleda sitno" |
+| Koordinate u SVG-u se IZRAČUNAJU, ne pogađaju | Rubovi rukava se sužavaju (gore 12 → 16.5, dolje 28 → 23.5 na x = 21 → 52), pa pruge moraju pratiti tu jednadžbu da "leže" u perspektivi. `viewBox` isto: granice su izračunate rotacijom vrhova oko (21,18). Kod wordmarka je pogađanje odrezalo kovrču (luk seže do x=22, kadar je bio do 21) |
+| `transform-origin` i `skewX` iz weba ne postoje u react-native-svg | Markov SVG ih koristi. Rotacija mora ići kao `rotate(kut, cx, cy)` — bez zadanog centra ide oko (0,0) i rukav odleti izvan kadra |
+| Djelomično oblačno = zrake + oblaci | Prije je vraćalo samo `["rays"]`, isto kao čisto sunce, pa se na uređaju vidjelo kao "vedro, samo malo manje vedro" — bez ijednog oblaka. Oblaci dolaze u `density="sparse"` (3 umjesto 5, blijeđi, gornja trećina), a paleta NE prelazi u "duboku" — inače bi se promijenio već odobren izgled |
+| m/s je zadana jedinica vjetra | DHMZ, pomorska prognoza i Beaufort u Hrvatskoj govore u m/s, pa i pragovi bure imaju smisla samo tako. `persist` znači da postojeće instalacije **zadržavaju** stari `kmh` — zadana vrijednost vrijedi za nove |
+| Fahrenheit dobiva slovo, Celzijus ne | Celzijus je zadan pa mu slovo ne treba ("24°"); "75°" bez slova je neodredivo. Na velikoj brojci F stoji ISPOD kružića (poravnat s njim slijeva, spušten na dno znamenki), a NE desno od njega |
+| 14 dana ostaje bez slova jedinice | Kolone MIN/MAX su 38 px (`KOL_TEMP`); "-15°F" u dvije kolone jedna do druge se ne uklopi. Zaglavlje kolona ionako kaže što je što |
+| Jedinice se u `MapTimeline` prosljeđuju PROPOM, ne čitaju iz storea | `useSettings` u tom modulu uvuče AsyncStorage, a njegovi testovi su čista logika bez nativnih modula — cijeli suite se prestao pokretati ("NativeModule: AsyncStorage is null") |
+| Tipkovnica se u tražilici ne otvara sama | Ekran je i popis spremljenih i povijesti — najčešći potez je dodir na poznat grad, a tipkovnica je preko toga skakala i zaklanjala pola liste. Time je i parametar `focus=0` postao nepotreban pa je maknut |
+| GPS u tražilici se traži TEK NA DODIR | Dizati sustavni dijalog za dozvolu samo zato što je korisnik otvorio tražilicu je nametljivo. Iznimka: kad je mjesto s heroja već "Moja lokacija", dozvola je očito dana pa se red puni odmah |
+| Hamburger OSTAJE desno, tražilica lijevo | Ladica izlazi zdesna; hamburger slijeva bi značio "tapni lijevo, panel dođe zdesna". V&R ima obrnuto jer im se i ladica otvara ulijevo — kopirati samo položaj gumba dalo bi najgore od oboje |
+| Wordmark je "Podcrt" — logo je UPLETEN u slog | Marko odabrao među 6 prijedloga. Nema zasebne ikone slijeva: riječ `burin` + srednji zapuh glifa koji se uvija DESNO od riječi, u visini slova. Akcent time NOSI cijeli logo, pa na toplim podlogama (zaglavlje ladice) mora dobiti `heroAccent` — inače se koraljna utopi i ostane samo tekst |
+| Boja aktivne stavke u ladici prati podlogu | Rep gradijenta zaglavlja se prelijeva preko prvih stavki s gradovima (`FADE_H = 130`), pa tamo koraljna gubi kontrast → `cityAccent` = `heroAccent`. Grupe KARTE i APLIKACIJA stoje na mist podlozi i ostaju koraljne. Tražilica isto ostaje koraljna — njeni redovi nisu na gradijentu |
+| Hrvatska = ručna tablica regija, ostatak Europe = geokodiranje | Meteoalarm NE objavljuje granice ni koordinate regija — samo ime i EMMA ID. Regija po zemlji: Italija 19, Austrija 116, **Njemačka 409**, pa ručna tablica nije izvediva. HR ostaje ručna jer je provjerena i točna |
 | Filtar države pri geokodiranju regije je OBAVEZAN | Izmjereno: "Velebit channel" bez njega geokodira u Velebit u **Srbiji** — mjesto bi dobilo upozorenje iz krive zemlje |
 | Sve što ide na disk mora biti malo | `hourlyAll` (16 dana × 24 h) je ~69 kB po gradu; `persist` ga je serijalizirao na JS threadu pri svakoj promjeni mjesta. Ne piše se na disk — 413 kB → 35 kB za 6 gradova |
 | Skupa montiranja odgoditi za jedan kadar | Sadržaj ispod pregiba (bento, 14 dana, MapLibre) i skeleton pri promjeni grada: hero se vidi prvi, pa ne smije čekati najskuplji dio ekrana |
@@ -57,8 +89,7 @@ Izmjereno je da se štimanjem težina više ne dobiva (visina i manji domet su
 | `width="100%"` u SVG-u bez `viewBox` daje kvadrat | Nađeno na uređaju (veo magle). Uvijek izričite dimenzije |
 | Zrake sunca se NE pomiču, samo dišu | Kad se kose crte kližu, oko ih čita kao oborinu. Sunčano vrijeme dobiva mirnu geometriju + promjenu svjetline |
 | Dizajn se zaključava u HTML mockupu prije koda | 7 iteracija u browseru prije ijedne linije redizajna; isto za logo i wordmark (artifact s prijedlozima). Jeftinije od ciklusa build→pogledaj→popravi |
-| Vizualno se provjerava NA UREĐAJU, ne u kodu | Svaki bug ovog kruga (odrezana brojka, kvadrat magle, skakanje zvjezdica, swipe u krivi ekran) prošao je typecheck, testove i export |
-| Vizualno se provjerava NA UREĐAJU, ne u kodu | Uz kartu (već zapisano) sada i UI: flex hero se stisnuo na pola ekrana, traka sati curila izvan ruba, Zagreb rušio ekran — sve prošlo typecheck, testove i export |
+| Vizualno se provjerava NA UREĐAJU, ne u kodu | **Nijedan** vizualni bug do sada nije uhvaćen provjerama: odrezana velika brojka, kvadrat magle, skakanje zvjezdica, swipe u krivi ekran, flex hero na pola visine, traka sati izvan ruba, pad na Zagrebu, 4 kruga kartografskih bugova, tri promašene izvedbe vjetrulje — sve je prošlo typecheck, testove i `expo export`. Za SVG ikone render u PNG (`sharp`) hvata dio grešaka prije telefona, ali ne zamjenjuje ga |
 | react-query queryFn NIKAD ne smije vratiti `undefined` | Ruši ekran greškom "Query data cannot be undefined". `fetchSeaTemperature` zato vraća `null` za kopno, a hook ga pretvara u `undefined` za `WeatherBundle` |
 | `keepPreviousData` na upitima vezanim uz poziciju karte | Bez toga svaki pomak mijenja `queryKey`, `data` na tren nestane i kontrole vremenske crte se onemoguće — izgleda kao da je aplikacija pukla |
 | Boja akcenta ovisi o podlozi (`heroAccent`) | Koraljna `#EE6E3C` je zadana, ali na toplim narančastim gradijentima heroja se utapa — tamo prelazi u čeličnu plavu. Instrumenti u karticama su uvijek koraljni jer su kartice neutralne |
@@ -73,7 +104,6 @@ Izmjereno je da se štimanjem težina više ne dobiva (visina i manji domet su
 | Open-Meteo ima SATNU kvotu (~600/h) | Probijena testiranjem mreže vjetra (154 točke po upitu) → HTTP 429 na SVA tri sloja koja o njemu ovise. Zato: duži `staleTime`, grublje zaokruživanje kadra, odmak među pokušajima i vidljiva poruka umjesto mrtvih kontrola |
 | Sva mjerenja izmjeriti, ne procijeniti | Više puta je "logična" ideja izmjerena kao pogoršanje (postajno učenje, GFS, puna korekcija, težina po visini) |
 | Mjeriti protiv termometra, ne protiv Vrijeme&Radara | Bug je 3 commita bio nevidljiv jer je slučajno približavao V&R-u na Starigradu, dok je štetio na 12 drugih mjesta |
-| Bugove karte provjeriti **na uređaju** | Svi kartografski bugovi (4 kruga) prošli su typecheck, 132 testa i `expo export`, a bili vidljivi tek na uređaju |
 | `PRIMARY_MODEL` se izvozi iz `openMeteo` i dijeli s `bias` | Bias se MORA učiti iz modela koji se prikazuje. Dok su bili razdvojeni, učio se `best_match` a prikazivao ECMWF: odmak 2.66 vs 2.40 °C, pogrešan predznak u Lici i Istri |
 | ECMWF IFS kao glavni model, ne `best_match` | Izmjereno 0.97 vs 1.83 °C promašaja jutarnjih minimuma na 12 mjesta; najbolji na 8/12 |
 | Udaljenost kažnjavati JEDNOM u `observationDelta` | Množenje prosjeka s `bestCloseness` je puštalo ~30 % stvarne razlike. Leave-one-out: 1.99 vs 2.37 °C. Arhiva noćnu grešku ne vidi (Polača: nauči +0.14 uz stvarnih +4 °C) |
@@ -95,7 +125,7 @@ Izmjereno je da se štimanjem težina više ne dobiva (visina i manji domet su
 ```bash
 npx expo start --dev-client   # dev server; JS izmjene idu reloadom, BEZ rebuilda
 npm run typecheck             # tsc --noEmit
-npm test                      # jest, 213 testova
+npm test                      # jest, 224 testa u 21 skupini
 npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 npx expo run:android          # nativni dev build
 node scripts/generate-icons.mjs      # ikone iz SVG glifa (traži sharp)
@@ -156,19 +186,29 @@ je aktivni korak + susjedi (opacity 0, predučitavanje), korak mijenja samo
 `raster-opacity` — `tiles` na živom izvoru se ne smije mijenjati (ne radi
 ništa), a remount vidljivog izvora bi treperio.
 
-**Izgled** ([redizajn](docs/records/2026-08-06-redizajn-pocetnog-ekrana.md) +
-[ambijent](docs/records/2026-08-06-upozorenja-pelud-ambijent.md), 6.8.2026.):
-`weatherLook.ts` je izvor istine — `weatherGradient` (WMO + doba dana + tema
-→ 3 stopa), `backdropEffects` (WMO → **niz** slojeva, pa susnježica = kiša +
-snijeg, grmljavina = kiša + bljeskovi), `precipIntensity`, `heroAccent`,
-`dewPoint`, `pollenInfo`, `warningColor`, `readableOn`. Sve čiste i testirane.
+**Izgled** (redizajn + ambijent, 6.8.2026.): `weatherLook.ts` je izvor istine
+— `weatherGradient` (WMO + doba dana + tema → 3 stopa), `backdropEffects`
+(WMO → **niz** slojeva, pa susnježica = kiša + snijeg, grmljavina = kiša +
+bljeskovi, **djelomično oblačno = zrake + oblaci**), `precipIntensity`,
+`heroAccent`, `windStrength` + `WIND_FLAG_COLORS`, `dewPoint`, `pollenInfo`,
+`warningColor`, `readableOn`. Sve čiste i testirane.
 
 `HeroBackdrop` crta gradijent i bira ambijentalne slojeve iz
 `components/backdrop/` (sve u `react-native-svg`, bez nativnog modula).
 Pravila za slojeve: `useNativeDriver: true` uvijek (JS driver štuca nakon
 reloada), elementi u skupinama koje dijele petlju, platno s izračunatom
 rezervom, bešavne petlje (pomak ciklusa = period uzorka). **Isti slojevi
-idu i u zaglavlje ladice.**
+idu i u zaglavlje ladice.** `density="sparse"` daje rjeđu i blijeđu inačicu
+sloja (koristi ga djelomično oblačno, gdje oblaci stoje uz sunčane zrake).
+
+**Vjetar i jedinice:** `WindFlag` (vjetrulja) čita **udare** iz
+`current.windGusts` u km/h i sam odlučuje hoće li se nacrtati — ispod 10 m/s
+vraća `null`, pa se pozivatelji ne bave pragom. Ton se zadaje propom
+(`card` / `hero` / `dark`) jer isti znak stoji i na bijeloj kartici i na
+gradijentu. Jedinice se svugdje pretvaraju iz metričkih (`convertTemp`,
+`convertWind`); `tempUnitSuffix` daje "°" za Celzijus i "°F" za Fahrenheit.
+`MapTimeline` jedinice prima **propom**, ne iz storea — `useSettings` bi u
+taj modul uvukao AsyncStorage i srušio njegove testove čiste logike.
 
 Tipografija je Space Grotesk kroz `font-grotesk*` klase — RN nema sintetički
 bold, pa je svaka debljina zasebna klasa. Naslovi su **normalna slova**, ne
@@ -194,8 +234,9 @@ src/api/              openMeteo, dhmz, meteoalarm, meteoalarmEurope,
 src/store/            settings, cities, lastWeather, searchHistory,
                       mapTimeline (zustand + AsyncStorage)
 src/components/       Hero, HeroBackdrop, HourlyStrip, BentoGrid, WarningBar,
-                      Wordmark, MapPin, Skeleton, SunCycle, DailyList,
-                      DayDetails, DhmzCard, MapTimeline, LayerChips...
+                      Wordmark ("Podcrt"), WindFlag (vjetrulja), MapPin,
+                      Skeleton, SunCycle, DailyList, DayDetails, DhmzCard,
+                      MapTimeline, LayerChips...
 src/components/backdrop/  ambijentalni slojevi po vremenu: RaysLayer,
                       RainLayer, SnowLayer, CloudsLayer, FogLayer,
                       LightningLayer + shared.ts (LayerProps, rnd, SLOPE)
@@ -205,8 +246,9 @@ src/utils/            weatherCodes, weatherLook, emmaRegions, format, geo, dayPa
 src/theme/colors.ts   paper/ink/night/mint + mist (podloga) i coal (tamna kartica)
 src/i18n/hr.ts        SVI UI stringovi (kanonski rječnik = izvor tipa)
 scripts/generate-icons.mjs  ikone iz glifa "Zapuh" (traži sharp)
-docs/records/         zapisi odluka
-docs/superpowers/specs/  dizajni prije implementacije
+docs/                 LOKALNO, u .gitignoreu od 6.8.2026. — zapisi odluka i
+                      specovi su radni materijal; opće odluke žive OVDJE
+                      (Recent Decisions) i u README-u
 ```
 
 **Razvojni ekran:** Postavke → *Pregled pozadina po vremenu* (`/preview`)

@@ -137,8 +137,17 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
   const key = paletteKey(code, isDay);
   switch (key) {
     case "sunDay":
-    case "partlyDay":
       return ["rays"];
+    /*
+     * DJELOMIČNO OBLAČNO = zrake + oblaci (popravak 6.8.2026.).
+     *
+     * Prije je vraćalo samo `["rays"]`, isto kao čisto sunce, pa se na
+     * uređaju vidjelo kao "vedro, samo malo manje vedro" — u pozadini
+     * NIJE BILO NI JEDNOG OBLAKA, a stanje se zove djelomično oblačno.
+     * Oblaci ovdje dolaze u manjoj gustoći (vidi `density` u CloudsLayer).
+     */
+    case "partlyDay":
+      return ["rays", "clouds"];
     case "thunder":
       return ["rain", "lightning"];
     case "rain":
@@ -222,6 +231,47 @@ export function readableOn(hex: string): string {
    */
   return luminance > 0.19 ? "#141414" : "#FFFFFF";
 }
+
+// ---- jačina vjetra (značka zastave) ----
+
+/**
+ * Jačina vjetra za značku "zastava" (6.8.2026.). Priobalju je bura glavni
+ * podatak, pa se vidi već u listama gradova — ne treba otvarati mjesto.
+ *
+ * Pragovi su Markov odabir, isti kao Vrijeme&Radar: ispod 10 m/s NEMA
+ * značke (inače bi stajala gotovo uvijek i prestala nositi informaciju),
+ * 10–17 m/s bijela, od 17 m/s crvena. 17.2 m/s je i granica 8 Beauforta
+ * (olujno), pa se skala poklapa s pomorskom prognozom.
+ *
+ * ULAZ JE km/h jer `WeatherBundle.windSpeed` stoji u km/h (`convertWind`
+ * pretvara IZ km/h) — miješanje jedinica bi značku upalilo pri 10 km/h.
+ */
+export type WindStrength = "calm" | "strong" | "storm";
+
+/** 10 m/s u km/h — granica na kojoj se značka pojavljuje. */
+export const WIND_FLAG_KMH = 36;
+/** 17 m/s u km/h — granica na kojoj zastava postaje crvena (8 Bf). */
+export const WIND_STORM_KMH = 61.2;
+
+export function windStrength(speedKmh: number): WindStrength {
+  if (speedKmh >= WIND_STORM_KMH) return "storm";
+  if (speedKmh >= WIND_FLAG_KMH) return "strong";
+  return "calm";
+}
+
+/**
+ * Boje značke vjetrulje (`WindFlag`):
+ *  - `strong` je boja RUKAVA — bijel je uvijek, kao prava vjetrulja
+ *  - `storm` je boja PRUGA I STUPA kad je bura olujna; ista crvena kao
+ *    Meteoalarm razina 4, da "crveno" kroz aplikaciju znači jedno
+ *
+ * Pri samo jakom vjetru pruge su sive (definirano u `WindFlag`) — rukav
+ * ostaje bijel u oba slučaja.
+ */
+export const WIND_FLAG_COLORS: Record<Exclude<WindStrength, "calm">, string> = {
+  strong: "#FAFAF8",
+  storm: WARNING_COLORS[4],
+};
 
 /**
  * Rosište po Magnusovoj formuli (WMO koeficijenti). Ulaz: °C i % vlage.

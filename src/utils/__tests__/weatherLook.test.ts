@@ -13,6 +13,10 @@ import {
   warningColor,
   warningFg,
   weatherGradient,
+  WIND_FLAG_COLORS,
+  WIND_FLAG_KMH,
+  WIND_STORM_KMH,
+  windStrength,
 } from "../weatherLook";
 
 const HEX = /^#[0-9A-F]{6}$/i;
@@ -63,10 +67,22 @@ describe("weatherGradient", () => {
 });
 
 describe("backdropEffects", () => {
-  it("sunce i djelomično oblačan DAN dobivaju zrake", () => {
+  it("vedro i pretežno vedro dobivaju SAMO zrake", () => {
     expect(backdropEffects(0, true)).toEqual(["rays"]);
     expect(backdropEffects(1, true)).toEqual(["rays"]);
-    expect(backdropEffects(2, true)).toEqual(["rays"]);
+  });
+
+  /*
+   * Popravak 6.8.2026.: kod 2 je prije vraćao samo `["rays"]`, isto kao
+   * čisto sunce, pa se "djelomično oblačno" na uređaju vidjelo kao
+   * "vedro, samo malo manje vedro" — bez ijednog oblaka u pozadini.
+   */
+  it("DJELOMIČNO oblačan dan dobiva zrake I oblake", () => {
+    expect(backdropEffects(2, true)).toEqual(["rays", "clouds"]);
+  });
+
+  it("pravo oblačno ostaje bez zraka — po tome se razlikuje", () => {
+    expect(backdropEffects(3, true)).toEqual(["clouds"]);
   });
 
   it("kiša, rosulja i pljuskovi dobivaju kišu", () => {
@@ -255,6 +271,33 @@ describe("warningColor / warningFg", () => {
     expect(warningColor(4)).toBe("#E63946");
     expect(warningFg(2)).toBe("#141414"); // kontrast na žutoj
     expect(warningFg(4)).toBe("#FFFFFF");
+  });
+});
+
+describe("windStrength", () => {
+  it("ispod 10 m/s nema značke", () => {
+    expect(windStrength(0)).toBe("calm");
+    expect(windStrength(20)).toBe("calm");
+    // 35 km/h = 9.7 m/s — još uvijek ispod praga.
+    expect(windStrength(35.9)).toBe("calm");
+  });
+
+  it("od 10 m/s bijela, od 17 m/s crvena zastava", () => {
+    expect(windStrength(WIND_FLAG_KMH)).toBe("strong");
+    expect(windStrength(50)).toBe("strong");
+    expect(windStrength(WIND_STORM_KMH - 0.1)).toBe("strong");
+    expect(windStrength(WIND_STORM_KMH)).toBe("storm");
+    expect(windStrength(120)).toBe("storm");
+  });
+
+  it("pragovi odgovaraju 10 i 17 m/s (ulaz je km/h)", () => {
+    expect(WIND_FLAG_KMH / 3.6).toBeCloseTo(10, 1);
+    expect(WIND_STORM_KMH / 3.6).toBeCloseTo(17, 1);
+  });
+
+  it("olujna zastava dijeli crvenu s najvišom razinom upozorenja", () => {
+    expect(WIND_FLAG_COLORS.storm).toBe(warningColor(4));
+    expect(WIND_FLAG_COLORS.strong).toMatch(HEX);
   });
 });
 

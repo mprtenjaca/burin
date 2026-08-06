@@ -59,6 +59,19 @@ export function tempUnitLabel(unit: TempUnit): string {
   return unit === "C" ? "°C" : "°F";
 }
 
+/**
+ * Kratka oznaka koja se lijepi na BROJ u gustim prikazima (Markov odabir
+ * 6.8.2026.): Celzijus je zadan pa mu slovo ne treba — "24°". Fahrenheit
+ * ga MORA imati, inače je "75°" neodredivo i izgleda kao pogrešna
+ * temperatura u istoj aplikaciji.
+ *
+ * Za samostalne oznake (legende, DHMZ kartica) ostaje `tempUnitLabel`,
+ * gdje je i "°C" na mjestu.
+ */
+export function tempUnitSuffix(unit: TempUnit): string {
+  return unit === "C" ? "°" : "°F";
+}
+
 export function windUnitLabel(unit: WindUnit): string {
   return unit === "kmh" ? "km/h" : "m/s";
 }

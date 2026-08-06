@@ -20,6 +20,12 @@ export type LayerProps = {
    * i gustoću. Slojevi bez oborine je ignoriraju.
    */
   intensity?: "light" | "moderate" | "heavy";
+  /**
+   * Gustoća sloja: `"full"` je zadano (oblačno), `"sparse"` je rjeđe i
+   * blijeđe — koristi ga djelomično oblačno, gdje oblaci stoje UZ zrake
+   * sunca pa ne smiju prekriti nebo (6.8.2026.).
+   */
+  density?: "full" | "sparse";
 };
 
 /** Množitelj TRAJANJA po jačini: manji broj = brže pada. */

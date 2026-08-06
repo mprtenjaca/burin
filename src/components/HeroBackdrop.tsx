@@ -68,7 +68,15 @@ export const HeroBackdrop = memo(function HeroBackdrop({
    * kao da boje gotovo i nema. Topla vremena ostaju kraća — ondje
    * gradijent mora prepustiti mjesto karticama.
    */
-  const deep = effects.includes("clouds") || effects.includes("fog");
+  /*
+   * DJELOMIČNO OBLAČNO NE RAČUNA SE KAO "duboko" (6.8.2026.): ono od
+   * 6.8.2026. nosi i `clouds` uz `rays`, ali paleta mu je topla i kratka
+   * kao suncu. Bez ove iznimke bi mu se gradijent produbio i promijenio
+   * izgled ekrana koji je već odobren. Duboko je samo PRAVO oblačno —
+   * dakle oblaci BEZ sunčanih zraka.
+   */
+  const sparseClouds = effects.includes("clouds") && effects.includes("rays");
+  const deep = (effects.includes("clouds") && !sparseClouds) || effects.includes("fog");
   const mid = deep ? "0.34" : "0.24";
   const low = deep ? "0.62" : "0.46";
   const end = deep ? "0.9" : "0.74";
@@ -102,6 +110,8 @@ export const HeroBackdrop = memo(function HeroBackdrop({
             height={height}
             scrollY={scrollY}
             intensity={intensity}
+            /* Oblaci uz zrake su rijetki i blijedi — vidi CloudsLayer. */
+            density={name === "clouds" && sparseClouds ? "sparse" : "full"}
           />
         );
       })}

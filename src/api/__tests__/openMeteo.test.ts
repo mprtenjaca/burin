@@ -7,6 +7,7 @@ const rawCurrent = {
   weather_code: 1,
   is_day: 1,
   wind_speed_10m: 10.4,
+  wind_gusts_10m: 22.7,
   wind_direction_10m: 180,
   relative_humidity_2m: 42,
   pressure_msl: 1013.2,
@@ -53,6 +54,8 @@ describe("Open-Meteo mapperi", () => {
     expect(c.code).toBe(1);
     expect(c.isDay).toBe(true);
     expect(c.windSpeed).toBe(10.4);
+    // Udari nose značku bure — moraju proći kroz mapper (6.8.2026.).
+    expect(c.windGusts).toBe(22.7);
     expect(c.windDir).toBe(180);
     expect(c.humidity).toBe(42);
     expect(c.pressure).toBe(1013.2);
