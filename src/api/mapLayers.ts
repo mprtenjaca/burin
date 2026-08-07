@@ -174,11 +174,26 @@ export const MAP_LAYERS: MapLayer[] = [
     needsKey: true,
     render: "raster",
     opacity: 1,
-    // Izvor je na alfi 76/255 (30 %) — bez ovoga je karta blijeda u odnosu
-    // na referencu (Vrijeme&Radar). Zasićenje vraća boju, kontrast razdvaja
-    // susjedne razrede temperature.
-    saturation: 0.55,
-    contrast: 0.25,
+    /*
+     * POJAČANO NA MAKSIMUM (Markov nalaz 8.8.2026.: „temperaturni layer je
+     * blijed").
+     *
+     * Izmjereno dekodiranjem pločice: alfa je **76/255 (30 %) na SVAKOM
+     * pikselu**, dakle 70 % onoga što se vidi dolazi od podloge karte, ne
+     * od temperature. To je ograničenje besplatnog OWM izvora — pločica je
+     * takva kakva jest, a `raster-opacity` iznad 1.0 ne ide.
+     *
+     * Provjerene i odbačene ideje:
+     *  - TAMNA podloga (kao kod naoblake): kroma ostaje ista (77 → 76),
+     *    boja samo potamni umjesto da oživi.
+     *  - Još jače zasićenje: iznad ~1.0 se boje počnu lomiti u susjedne
+     *    razrede (žuto → zeleno), pa karta laže o temperaturi.
+     *
+     * 0.9 / 0.45 je najviše što se dobiva bez tih nuspojava. Karta je i
+     * dalje blijeda u odnosu na V&R — oni ne koriste besplatni OWM.
+     */
+    saturation: 0.9,
+    contrast: 0.45,
     maxNativeZ: 12,
     tileSize: 256,
     // Podaci sežu do 12, koliko i karta — nema rastezanja ni razloga za rez.
