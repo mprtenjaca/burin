@@ -6,12 +6,7 @@ import { clockTime, convertTemp, convertWind, tempUnitSuffix, windUnitLabel } fr
 import { readableOn, weatherGradient, WIND_FLAG_KMH } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
-import {
-  ambientForWeather,
-  filled,
-  iconForWeather,
-  type WidgetIconName,
-} from "./iconNames";
+import { ambientForWeather, filled, iconForWeather, type WidgetIconName } from "./iconNames";
 import type { WidgetProps } from "./props";
 
 /**
@@ -71,7 +66,7 @@ const WIDGET_DARK_PALETTES: Record<string, [string, string, string]> = {
    *
    * Sunce se čita iz BIJELOG SJAJA u kutu i iz ikone, ne iz podloge.
    */
-  partlyDay: ["#3A6B98", "#2C567E", "#204464"],
+  partlyDay: ["#4A7BA8", "#36628E", "#284D70"],
   /*
    * VEDAR DAN je PLAVO NEBO u widgetu (Markov odabir 7.8.2026.).
    *
@@ -82,7 +77,12 @@ const WIDGET_DARK_PALETTES: Record<string, [string, string, string]> = {
    *
    * Sunce ostaje u ikoni i u zrakama — ne u podlozi.
    */
-  sunDay: ["#3E76AA", "#2F5F8E", "#234B72"],
+  /*
+   * Posvijetljeno 8.8.2026. zajedno s aplikacijom — vidi `PALETTES` u
+   * `weatherLook.ts`. Bijeli tekst i dalje prolazi (srednji stop 5.50:1),
+   * a widget i heroj ostaju ISTA boja; test pada ako se raziđu.
+   */
+  sunDay: ["#4F86BC", "#3A6C9E", "#2B5780"],
 };
 
 /**
@@ -150,16 +150,7 @@ function gustsForWidget(kmh: number | undefined, unit: WindUnit): number | null 
  * ista funkcija služi i za SADAŠNJOST (iz `current`) i za BUDUĆE sate
  * (iz `hourly`) — vidi `widgetEntries`.
  */
-function toProps(
-  bundle: WeatherBundle,
-  temp: number,
-  code: number,
-  isDay: boolean,
-  tempUnit: TempUnit,
-  windUnit: WindUnit,
-  gustsKmh: number | undefined,
-  iconPath: IconResolver,
-): WidgetProps {
+function toProps(bundle: WeatherBundle, temp: number, code: number, isDay: boolean, tempUnit: TempUnit, windUnit: WindUnit, gustsKmh: number | undefined, iconPath: IconResolver): WidgetProps {
   const stops = widgetGradient(code, isDay);
   const today = bundle.daily[0];
   const deg = (c: number) => Math.round(convertTemp(c, tempUnit));
@@ -208,25 +199,10 @@ function toProps(
  * Izvezeno zasebno od `pushWidget` da se može testirati bez nativnog
  * modula — `expo-widgets` je nativan i u testovima nije dostupan.
  */
-export function widgetEntries(
-  bundle: WeatherBundle,
-  tempUnit: TempUnit,
-  windUnit: WindUnit,
-  now: number = Date.now(),
-  iconPath: IconResolver = NO_ICONS,
-): { date: Date; props: WidgetProps }[] {
+export function widgetEntries(bundle: WeatherBundle, tempUnit: TempUnit, windUnit: WindUnit, now: number = Date.now(), iconPath: IconResolver = NO_ICONS): { date: Date; props: WidgetProps }[] {
   const first = {
     date: new Date(now),
-    props: toProps(
-      bundle,
-      bundle.current.temp,
-      bundle.current.code,
-      bundle.current.isDay,
-      tempUnit,
-      windUnit,
-      bundle.current.windGusts,
-      iconPath,
-    ),
+    props: toProps(bundle, bundle.current.temp, bundle.current.code, bundle.current.isDay, tempUnit, windUnit, bundle.current.windGusts, iconPath),
   };
 
   /*
@@ -241,16 +217,7 @@ export function widgetEntries(
     .slice(0, TIMELINE_HOURS)
     .map(({ h, at }) => ({
       date: new Date(at),
-      props: toProps(
-        bundle,
-        h.temp,
-        h.code,
-        h.isDay,
-        tempUnit,
-        windUnit,
-        h.windGusts,
-        iconPath,
-      ),
+      props: toProps(bundle, h.temp, h.code, h.isDay, tempUnit, windUnit, h.windGusts, iconPath),
     }));
 
   return [first, ...future];
@@ -263,11 +230,7 @@ export function widgetEntries(
  * modula, ili Android): widget je ukras, a **nikad ne smije srušiti
  * aplikaciju**. Isti obrazac kao lijeni uvoz `expo-localization`.
  */
-export async function pushWidget(
-  bundle: WeatherBundle,
-  tempUnit: TempUnit,
-  windUnit: WindUnit,
-): Promise<void> {
+export async function pushWidget(bundle: WeatherBundle, tempUnit: TempUnit, windUnit: WindUnit): Promise<void> {
   /*
    * ANDROID IDE SVOJIM PUTEM (popravak 8.8.2026.).
    *
@@ -289,11 +252,7 @@ export async function pushWidget(
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { requestWidgetUpdate } = require("react-native-android-widget") as {
-        requestWidgetUpdate: (o: {
-          widgetName: string;
-          renderWidget: (info: unknown) => unknown;
-          widgetNotFound?: () => void;
-        }) => Promise<void>;
+        requestWidgetUpdate: (o: { widgetName: string; renderWidget: (info: unknown) => unknown; widgetNotFound?: () => void }) => Promise<void>;
       };
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { renderAndroidWidget } = require("./android/render") as {
@@ -309,8 +268,7 @@ export async function pushWidget(
         ["BurinSmall", "BurinMedium"].map((widgetName) =>
           requestWidgetUpdate({
             widgetName,
-            renderWidget: (info) =>
-              renderAndroidWidget(info as { widgetName: string; width: number }),
+            renderWidget: (info) => renderAndroidWidget(info as { widgetName: string; width: number }),
             widgetNotFound: () => {},
           }),
         ),
@@ -392,7 +350,7 @@ export async function pushWidget(
       const g = globalThis as { __burinWidgetShape?: string };
       if (types !== g.__burinWidgetShape) {
         g.__burinWidgetShape = types;
-        console.log(`[burin] widget šalje ${entries.length} unosa — ${types}`);
+        // console.log(`[burin] widget šalje ${entries.length} unosa — ${types}`);
       }
     }
 

@@ -44,17 +44,30 @@ const PALETTES = {
    * Tamna tema dijeli iste boje: widget ima JEDNU verziju bez obzira na
    * temu, pa je i ovdje razlika između tema samo smetnja.
    */
+  /*
+   * POSVIJETLJENO ~12 % (Markov ispravak 8.8.2026.: „malo tmurno
+   * izgleda, samo za vedar dan").
+   *
+   * Prve vrijednosti su preuzete iz WIDGETA, gdje su namjerno potamnjene
+   * jer je pločica malena i gleda se u prolazu. Na cijelom ekranu je isti
+   * ton ispao tmuran za VEDRO nebo.
+   *
+   * Granica je srednji stop: `readableOn` prebacuje tekst u tamni iznad
+   * luminancije 0.19, a heroj je građen za bijeli. Novi srednji je na
+   * **0.141** — vedrije, ali sa sigurnom rezervom. Zlatni akcent na dnu
+   * drži 4.65:1.
+   */
   sunDay: {
-    light: ["#3E76AA", "#2F5F8E", "#234B72"],
-    dark: ["#3E76AA", "#2F5F8E", "#234B72"],
+    light: ["#4F86BC", "#3A6C9E", "#2B5780"],
+    dark: ["#4F86BC", "#3A6C9E", "#2B5780"],
   },
   /*
    * DJELOMIČNO OBLAČNO prati vedro, samo malo tamnije — naoblaka nebo
    * PRIGUŠUJE, ne pretvara ga u drugu boju. Iste vrijednosti kao widget.
    */
   partlyDay: {
-    light: ["#3A6B98", "#2C567E", "#204464"],
-    dark: ["#3A6B98", "#2C567E", "#204464"],
+    light: ["#4A7BA8", "#36628E", "#284D70"],
+    dark: ["#4A7BA8", "#36628E", "#284D70"],
   },
   cloud: {
     light: ["#97A0A8", "#A9B2B9", "#BCC4CA"],

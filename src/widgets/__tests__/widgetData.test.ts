@@ -197,7 +197,7 @@ describe("widgetEntries", () => {
      * u ikoni i u zrakama, ne u podlozi.
      */
     const [first] = widgetEntries(bundle(), "C", "ms", NOW);
-    expect(first.props.stops[0]).toBe("#3E76AA");
+    expect(first.props.stops[0]).toBe("#4F86BC");
   });
 
   it("bez dnevnih podataka ne pada, nego pada na trenutnu temperaturu", () => {

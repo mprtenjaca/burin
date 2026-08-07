@@ -1,16 +1,22 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet } from "react-native";
-import Svg, { Line, Path } from "react-native-svg";
+import Svg, { Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { SLOPE, rnd, type LayerProps } from "./shared";
 
 /**
- * SUNCE — mirne kose zrake koje naizmjenično TINJAJU (ne klize), plus
- * tiho svjetlucanje: sitne točke koje se pale i gase.
+ * SUNCE — mirne kose zrake koje naizmjenično TINJAJU (ne klize), uz
+ * mekan sjaj koji ulazi preko gornjeg desnog ruba.
  *
  * Zašto tinjanje umjesto klizanja: kad se kose crte pomiču, oko ih čita
  * kao oborinu (kiša). Sunčano vrijeme zato dobiva mirnu geometriju, a
  * život mu daje promjena SVJETLINE.
+ *
+ * ISKRICE SU MAKNUTE (Markov ispravak 8.8.2026.): sitne točke koje su se
+ * palile i gasile su se na DNEVNOM nebu čitale kao ZVIJEZDE, a zvijezde
+ * su jezik noći (`StarsLayer`). Sunce sada nosi zrake i sjaj — danju se
+ * vidi svjetlo, ne točke. (Kod je obrisan; u povijesti je pod
+ * `SparkleGroup` ako ikad zatreba odsjaj na moru.)
  */
 
 /** Zrake: [pomak od desnog ruba, širina, osnovna prozirnost]. */
@@ -39,58 +45,13 @@ const RAYS: [number, number, number][] = [
  */
 const BREATH_MS = [2100, 2900, 1700, 3300, 2400, 3700, 1900];
 
-/** Broj iskrica svjetlucanja. Malo — efekt je potpis, ne konfeti. */
-const SPARKLES = 16;
-/**
- * PRETEŽNO VEDRO dobiva MANJE iskrica (Markov ispravak 8.8.2026.).
- *
- * Otkad kod 1 crta zrake UZ oblake, na nebu je bilo i punih 16 iskrica i
- * oblaka — pretrpano za stanje koje je "vedro, ali ne posve". Isti
- * `density="sparse"` koji već prorjeđuje oblake sada prorjeđuje i njih.
- *
- * Čisto vedro (kod 0) ostaje na punom broju: ondje su iskrice jedini
- * ukras na nebu.
- */
-const SPARKLES_SPARSE = 7;
-/**
- * BLJESAK, ne tinjanje (dorada 6.8.2026.): iskrica plane za ~180 ms,
- * ugasi se za ~420 ms i onda dugo MIRUJE. Prije je paljenje trajalo
- * 2.6–4.1 s pa su točke lebdjele preko ekrana kao snijeg.
- */
-const FLASH_IN_MS = 180;
-const FLASH_OUT_MS = 420;
-/** Mirovanje između bljeskova — dugo i različito po skupini. */
-const REST_MS = [2400, 3800, 5200, 3100, 6400, 4300];
-
 /**
  * Koliko skupina dijeli jednu animaciju. Manje slojeva = brže montiranje
  * pri prebacivanju grada; dovoljno skupina da se ritam i dalje čita kao
  * nepravilan.
  */
 const RAY_GROUPS = 4;
-const SPARKLE_GROUPS = 3;
 
-/**
- * Četverokraka zvjezdica ("blic"): duži okomiti i vodoravni krak, kraći
- * dijagonalni. `k` je koliko se krivulja uvlači prema središtu — manji
- * broj daje šiljastije krakove.
- */
-function sparkPath(cx: number, cy: number, r: number): string {
-  const k = r * 0.26;
-  const d = r * 0.44;
-  return [
-    `M ${cx} ${cy - r}`,
-    `C ${cx + k} ${cy - k} ${cx + k} ${cy - k} ${cx + d} ${cy - d}`,
-    `C ${cx + k} ${cy - k} ${cx + k} ${cy - k} ${cx + r} ${cy}`,
-    `C ${cx + k} ${cy + k} ${cx + k} ${cy + k} ${cx + d} ${cy + d}`,
-    `C ${cx + k} ${cy + k} ${cx + k} ${cy + k} ${cx} ${cy + r}`,
-    `C ${cx - k} ${cy + k} ${cx - k} ${cy + k} ${cx - d} ${cy + d}`,
-    `C ${cx - k} ${cy + k} ${cx - k} ${cy + k} ${cx - r} ${cy}`,
-    `C ${cx - k} ${cy - k} ${cx - k} ${cy - k} ${cx - d} ${cy - d}`,
-    `C ${cx - k} ${cy - k} ${cx - k} ${cy - k} ${cx} ${cy - r}`,
-    "Z",
-  ].join(" ");
-}
 
 /**
  * SKUPINA zraka koje dišu zajedno — jedan `Animated.View` + jedan `Svg`
@@ -179,86 +140,6 @@ const RayGroup = memo(function RayGroup({
   );
 });
 
-/**
- * Iskrica: kratak bljesak pa dugo mirovanje. Skalira se uz prozirnost
- * (0.4 → 1) da bljesak "iskoči", umjesto da samo posvijetli.
- */
-const SparkleGroup = memo(function SparkleGroup({
-  dots,
-  restMs,
-  delayMs,
-}: {
-  dots: { x: number; y: number; r: number }[];
-  restMs: number;
-  delayMs: number;
-}) {
-  const glow = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glow, {
-          toValue: 1,
-          duration: FLASH_IN_MS,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(glow, {
-          toValue: 0,
-          duration: FLASH_OUT_MS,
-          easing: Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-        // Mirovanje: bez njega je ekran pun stalnog treperenja.
-        Animated.delay(restMs),
-      ]),
-    );
-    const timer = setTimeout(() => loop.start(), delayMs);
-    return () => {
-      clearTimeout(timer);
-      loop.stop();
-    };
-  }, [glow, restMs, delayMs]);
-
-  return (
-    <Animated.View
-      style={[
-        StyleSheet.absoluteFill,
-        {
-          /*
-           * SAMO prozirnost, BEZ skaliranja (nađeno na uređaju
-           * 6.8.2026.): `scale` na sloju preko cijelog ekrana skalira
-           * oko SREDIŠTA EKRANA, pa su zvjezdice daleko od centra
-           * putovale prema njemu i natrag — izgledalo je kao da skaču
-           * odozdo prema gore. Zvjezdica se samo pali i gasi na mjestu.
-           */
-          opacity: glow,
-        },
-      ]}
-      pointerEvents="none"
-    >
-      <Svg width="100%" height="100%">
-        {/*
-          Četverokraka zvjezdica (dva duža kraka okomito/vodoravno, dva
-          kraća dijagonalno) — kao ikona bljeska. Krugovi su izgledali
-          kao loptice koje iskaču (uređaj, 6.8.2026.).
-
-          Krakovi su BEZIER krivulje prema središtu, pa je zvjezdica
-          uska u struku i šiljasta na vrhovima.
-        */}
-        {dots.map((d) => (
-          <Path
-            key={`${d.x}-${d.y}`}
-            d={sparkPath(d.x, d.y, d.r)}
-            fill="#FFFFFF"
-            opacity={0.95}
-          />
-        ))}
-      </Svg>
-    </Animated.View>
-  );
-});
-
 export const RaysLayer = memo(function RaysLayer({
   width,
   height,
@@ -302,26 +183,41 @@ export const RaysLayer = memo(function RaysLayer({
     return groups;
   }, [width]);
 
-  /** Iskrice: determinističan raspored (bez Math.random) u gornje 2/3. */
-  const sparkleGroups = useMemo(() => {
-    const groups: { x: number; y: number; r: number }[][] = Array.from(
-      { length: SPARKLE_GROUPS },
-      () => [],
-    );
-    const total = density === "sparse" ? SPARKLES_SPARSE : SPARKLES;
-    for (let i = 0; i < total; i++) {
-      groups[i % SPARKLE_GROUPS]!.push({
-        x: rnd(i + 1) * width,
-        y: rnd(i + 41) * height * 0.62,
-        // Veće nego prije: krakovi zvjezdice moraju biti vidljivi.
-        r: 3.4 + rnd(i + 91) * 3.2,
-      });
-    }
-    return groups;
-  }, [width, height, density]);
-
   return (
     <Animated.View style={[StyleSheet.absoluteFill, shift]} pointerEvents="none">
+      {/*
+        SJAJ SUNCA U GORNJEM DESNOM KUTU (Markov zahtjev 8.8.2026.).
+
+        Isti potez kao na widgetu, ali izveden GRADIJENTOM, ne zamućenim
+        krugom: `feGaussianBlur` na Androidu zna otpasti (naučeno na
+        Android widgetu 8.8. — oblaci su ostajali tvrdi krugovi), a
+        `RadialGradient` je ISPUNA i prolazi svuda jednako.
+
+        Središte je na samom KUTU (100 %, 0 %), pa se vidi četvrtina
+        sjaja — svjetlo koje ulazi preko ruba, a ne mrlja nalijepljena
+        na nebo.
+
+        RADIJUS JE IZMJEREN, ne pogođen. Prva izvedba je imala 95 % i
+        renderom se pokazala kao promašaj: gornji desni i gornji LIJEVI
+        kut razlikovali su se za **1 razinu svjetline** — sjaj se razlio
+        preko cijelog vrha i čitao se samo kao „nebo je gore svjetlije".
+        Mjereno na tri radijusa (razlika desni−lijevi kut): 95 % → 1,
+        55 % → 18, **45 % → 35**. Tek zadnji se čita kao izvor svjetla.
+
+        Dva stopa iznad nule (0.42 → 0.16 na 35 %) drže jezgru punom
+        prije pada; s jednim stopom prijelaz izgleda kao krug s rubom.
+      */}
+      <Svg width="100%" height="100%" pointerEvents="none">
+        <Defs>
+          <RadialGradient id="sun-glow" cx="100%" cy="0%" r="45%">
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.42" />
+            <Stop offset="0.35" stopColor="#FFFFFF" stopOpacity="0.16" />
+            <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#sun-glow)" />
+      </Svg>
+
       {rayGroups.map((lines, i) => (
         <RayGroup
           key={i}
@@ -331,18 +227,8 @@ export const RaysLayer = memo(function RaysLayer({
           delayMs={Math.round(rnd(i + 7) * 2600)}
         />
       ))}
-      {sparkleGroups.map((dots, i) => (
-        <SparkleGroup
-          key={i}
-          dots={dots}
-          restMs={REST_MS[i % REST_MS.length]!}
-          // Širok raspon odmaka: bljeskovi se ne smiju poklopiti.
-          delayMs={Math.round(rnd(i + 131) * 7000)}
-        />
-      ))}
     </Animated.View>
   );
 });
 RayGroup.displayName = "RayGroup";
-SparkleGroup.displayName = "SparkleGroup";
 RaysLayer.displayName = "RaysLayer";

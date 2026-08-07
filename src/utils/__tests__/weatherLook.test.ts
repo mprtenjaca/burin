@@ -76,8 +76,8 @@ describe("weatherGradient", () => {
    * ovdje ne, ovaj test pada i time javlja da su se razišle.
    */
   it("vedro i djelomično oblačno dijele boje s widgetom", () => {
-    expect(weatherGradient(0, true, false)).toEqual(["#3E76AA", "#2F5F8E", "#234B72"]);
-    expect(weatherGradient(2, true, false)).toEqual(["#3A6B98", "#2C567E", "#204464"]);
+    expect(weatherGradient(0, true, false)).toEqual(["#4F86BC", "#3A6C9E", "#2B5780"]);
+    expect(weatherGradient(2, true, false)).toEqual(["#4A7BA8", "#36628E", "#284D70"]);
   });
 
   it("vedra noć se razlikuje od vedrog dana", () => {
