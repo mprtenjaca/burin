@@ -9,248 +9,183 @@ SDK 54 je izvorno odabran da radi u Expo Go (iOS bez Maca). Od 5.8.2026. iOS
 ide na EAS dev build (osobna Apple licenca, internal distribution), pa Expo Go
 više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
 
-**Podignuto na SDK 57 dana 7.8.2026.** (RN 0.86.2, React 19.2.3, TypeScript
-6.0.3) da se otvori `expo-widgets` za iOS widget. **Potvrđeno na uređaju**
-— aplikacija, karta i ladica rade. Widgeti postoje za obje platforme
-(`src/widgets/`, `src/widgets/android/`) i čekaju provjeru.
+**8.8.2026. — veliki plavi redizajn.** Widgeti su POTVRĐENI na uređaju
+(iOS i Android rade s podacima). Cijela aplikacija je prešla s narančaste
+na plavu: vedro nebo dijeli boje s widgetom, odabrano stanje je `ACCENT_UI`,
+nova ikona aplikacije (tamna pločica + čelično plavi zapuh). Uz to hrpa
+popravaka nađenih na uređaju — svi u Recent Decisions.
 
 ## Current Status
 
 | Što | Status | Bilješka |
 |---|---|---|
-| **iOS widget** | **Bio prazan na uređaju; popravak čeka provjeru** | Build 7.8.2026. je dao BIJELU pločicu s "undefined" posvuda, bez ijedne greške. Uzrok nađen i popravljen (vidi Recent Decisions): ikone i upis crte su bili u istom `try`, pa je pad ikona preskočio propove. Sada su odvojeni i **greške se logiraju** — ako se ponovi, u konzoli piše `[burin] widget nije osvježen:` ili `[burin] widget ikone nisu spremne:`. Build `fe2f09e5` je gotov i čeka instalaciju |
-| **Android widget** | Kod gotov, build prošao, **čeka provjeru na uređaju** | `react-native-android-widget` 0.21.0; `src/widgets/android/`. Dvije veličine (2×2, 4×2), isti izgled i podaci kao iOS. Prvi EAS build je pao na `checkDuplicateClasses` (sukob `androidx.work`) — popravljeno isključivanjem `expo-widgets` iz Android autolinkinga. Build `50b2679b` je gotov |
-| **Engleski jezik** | Kod gotov, **čeka provjeru na uređaju** | 7.8.2026. Puni prijevod + postavka Sustav/Hrvatski/English. Provjeriti: dani u 14-dnevnoj (Thu, ne čet), smjer vjetra (N/NE/E, ne S/SI/I — hrvatski "S" je sjever, engleski JUG), tekst upozorenja (en-GB iz feeda), imena regija ("Knin region") |
-| **Ikone (svijetla glavna)** | Kod gotov, **čeka provjeru na uređaju** | 7.8.2026. Papirnata podloga, potezi u tinti + koraljni srednji. iOS 18 set `light`/`dark`/`tinted`, Android tri sloja + `backgroundColor: #FAFAF8`. Provjereno renderom i mjerenjem (1024², alfa samo gdje Android traži) |
-| **Vedra noć: zvijezde + mjesec** | Kod gotov, **čeka provjeru na uređaju** | 7.8.2026. `StarsLayer`: 54 sitne koje dišu + 11 krupnih koje SIJEVAJU (bljesak 260 ms, pa mirovanje) uz sjaj oko njih. Mjesec ima pravu mijenu (`moonPhase`), rezan maskom. Prva izvedba je imala prevelik pomak sjene pa je izgledala kao pomrčina |
-| Heroj: tekst prati podlogu | Kod gotov, **čeka provjeru na uređaju** | 7.8.2026. `readableOn(stops[1])` umjesto `text-ink dark:text-paper` na 11 mjesta. Bilo je nužno jer je noć sada tamna i u SVIJETLOJ temi, pa je crni tekst padao na tamnoplavo |
-| Razmaci u heroju | Dorada u tijeku | Marko fino štima `marginBottom` na imenu mjesta (~143) i `marginTop` na opisu (~230) u `Hero.tsx`. Izmjereno: okvir brojke nosi 38.8 px praznine gore, 36.3 dolje |
-| Spinner pull-to-refresh na iPhoneu 13 | Open, ne pomiče se | `progressViewOffset={insets.top + 48}` u `app/(screens)/index.tsx`. Marko javio da povećavanje broja **više ne mijenja ništa** — na +28 se vidjela polovica, na +48 isto. Znači offset nije (jedini) uzrok; vidjeti crta li iOS spinner iza `style={{ backgroundColor: stops[0] }}` na ScrollViewu |
-| Font u widgetu je sustavski | Open, svjesno | Widget je zaseban proces i nema Space Grotesk koji `expo-font` učita u aplikaciji. Ubacivanje fonta u widget target je izvedivo, ali zaseban zahvat |
-| Traka sati u srednjem widgetu | Open, neodlučeno | Apple i V&R širinu 4×2 plaćaju trakom (6 sati / 3 dana); naš drži min/max i udare. Podaci su već tu (`hourly` ide u `updateTimeline`), pa traka ne bi tražila novo dohvaćanje. Otvoreno je pitanje ikona — SF Symbols rade odmah, ali su Appleov jezik |
-| Domet regije: kod kaže 90 km, zapis je govorio 130 | Open, nije greška u radu | `REGION_RANGE_KM = 90` u `useWarnings.ts`; stariji zapis navodi 130 km (dodano zbog grada u Čileu s hrvatskim alarmom). Zaštita radi u oba slučaja — Čile nema feed, a filtar države blokira prelazak granice. Treba samo odlučiti koji je broj točan |
-| Polača tip (zaleđe uz morsku postaju) | Open | Postaje su Šibenik/Veli Rat/Knin — sve pretople, pa korekcija **grije** mjesto na 122 m. Zemunika (21 °C, 12 km) nema u feedu; gušćeg DHMZ feeda nema |
-| 14-dnevni min/max korekcija | Open | `debiasDaily` radi, ali korekcija mjerenjem se ne primjenjuje na dnevne vrijednosti — mogući blagi nesklad s razdobljima dana |
-| Vremenske vijesti / blog | Open, neistraženo | Marko pitao ima li izvora za HR i svijet. Nije istraženo — DHMZ ima vijesti, za svijet treba provjeriti |
-| Web kamere | Odgođeno | V&R koristi whatsupcams (komercijalni, bez API-ja); scraping ne dolazi u obzir. Čeka čist izvor (HAK/TZ popis?) |
+| **Novi buildovi (iOS + Android)** | **ČEKA REBUILD** | Buildovi od 7.8. (`fe2f09e5`/`50b2679b`) su ZASTARJELI. Od tada u repo ušlo: nova ikona (varijanta 7), iOS widget popravci (`resizable` ikona, sunčani ambijent `frame`+`clipped`, širina po veličini pločice, padding 18, `hasGusts` umjesto `null`), Android `clickAction: OPEN_APP` + `requestWidgetUpdate`. Ništa od toga se ne vidi bez rebuilda |
+| **TestFlight** | **Sljedeći korak** | Upute niže u Next Step — uključuju odgovore na bundle ID, SKU i auto-submit |
+| Plavi redizajn | Kod gotov, provjera reloadom | Nebo umjesto narančaste (iste boje kao widget), zlatni akcent heroja, bento brojke 40 + bilješka naoblake, osjet+more dva reda bez naslova, kompas 144 centriran na karticu, UV/tlak obrat s prigušenom `#D9D9D3` u tamnoj temi |
+| Smjer strujnica vjetra na karti | Otvoreno | TRI izvedbe odbačene (vidi Recent Decisions — ne pokušavati ponovno). Jedino preostalo: vlastita sličica strelice registrirana u stil karte (`icon-image` u `buildWindStyle`), zaseban zahvat |
+| 14-dnevna „nema podataka" offline | Otvoreno, čeka Markovu odluku | `hourlyAll` se NAMJERNO ne sprema na disk (69 kB/grad), pa detalji dana bez mreže nemaju izvor. Opcije: (1) spremati samo za odabrani grad, (2) prorijeđeno (svaka 3. točka), (3) samo jasnija poruka |
+| Engleski jezik | Čeka provjeru na uređaju | Dani (Thu), smjer vjetra **N/NE/E**, upozorenja en-GB, regije. Kompas i DHMZ kartica su od 8.8. prevedeni (HR „S" = sjever, EN „S" = JUG!) |
+| Spinner pull-to-refresh na iPhoneu 13 | Open | `progressViewOffset` više ne mijenja ništa — vidjeti crta li iOS spinner iza `backgroundColor: stops[0]` na ScrollViewu |
+| Font u widgetu je sustavski | Open, svjesno | Widget je zaseban proces bez Space Groteska; ubacivanje fonta u target je izvediv zaseban zahvat |
+| Traka sati u srednjem widgetu | Open, neodlučeno | Podaci već idu u `updateTimeline`; otvoreno pitanje ikona (SF Symbols su Appleov jezik) |
+| Domet regije: kod 90 km, stari zapis 130 | Open, nije greška u radu | `REGION_RANGE_KM = 90` u `useWarnings.ts`; treba samo odlučiti koji broj |
+| Polača tip / 14-dnevni min-max korekcija | Open | Bez gušćeg izvora mjerenja se ne rješava; `debiasDaily` radi ali se mjerenje ne primjenjuje na dnevne vrijednosti |
+| Vremenske vijesti / web kamere | Open / odgođeno | DHMZ ima vijesti; kamere čekaju čist izvor (whatsupcams je komercijalan) |
 
 ## Next Step
 
-**Instalirati oba gotova builda i provjeriti widgete.** SDK 57 je već
-POTVRĐEN na uređaju (aplikacija i karta rade), pa je ostalo samo ono što
-nije viđeno.
-
-Buildovi od 7.8.2026., oba **gotova**:
-
-- iOS `fe2f09e5` — nosi popravak praznog widgeta
-- Android `50b2679b` — prvi widget build za Android
+### 1. Rebuild oba builda
 
 ```bash
-npx eas-cli build:list --limit 2   # linkovi za instalaciju
+npx eas-cli build --profile development --platform ios
+npx eas-cli build --profile development --platform android
 ```
 
-### 1. iOS widget — je li i dalje prazan?
+Bez toga se ne vide: nova ikona, svi widget popravci, Android klik na widget.
 
-Prethodni build je dao **bijelu pločicu s "undefined"**. Uzrok je nađen
-i popravljen, ali NIJE potvrđen na uređaju.
+### 2. TestFlight (prvi upload)
 
-Ako se ponovi, **greška je sada vidljiva** u konzoli (`npx expo start
---dev-client`, pa Metro log):
+Osobni račun = tim si samo ti, pa **nitko ne vidi build dok ga ti ne
+pozoveš**. Nema javne liste.
 
-- `[burin] widget nije osvježen:` → pao je `updateTimeline`
-- `[burin] widget ikone nisu spremne:` → pao je `syncWidgetIcons`, ali
-  crta se svejedno upisala (widget radi, samo bez ikona)
+Jednokratno, u [App Store Connectu](https://appstoreconnect.apple.com):
+My Apps → **+ New App** → bundle ID **`com.markop.burin`** (onaj BEZ
+`.ExpoWidgetsTarget` — to je widget extension i nikad ne dobiva vlastiti
+zapis), SKU **`burin`** (interno, korisnici ne vide, ne može se mijenjati).
 
-Tiho gutanje grešaka je maknuto baš zato što se prvi put tražilo
-naslijepo.
+Po buildu — dva u jedan:
 
-### 2. Widgeti — redoslijed provjere
+```bash
+npx eas-cli build --profile production --platform ios --auto-submit
+```
 
-1. **Dodavanje na zaslon** — iOS: dugi pritisak → „+“ → Burin (četiri
-   veličine). Android: dugi pritisak → Widgeti → Burin (dvije)
-2. **Podaci** — Android traži da je aplikacija BAREM JEDNOM dohvatila
-   vrijeme prije dodavanja (handler čita `burin:last-weather`)
-3. **Gradijent do ruba** — bez bijelog/crnog okvira
-4. **Ikone** — moraju se pojaviti
-5. **Mala pločica** — najveći vizualni rizik: zvijezde, pahulje i kiša
-   moraju se vidjeti i na njoj, ne samo na srednjoj
-6. **Zaključani zaslon (iOS)** — pravokutni (pune ikone, H/L) i kružni (luk)
-7. **Tintani način (iOS)** — gradijent i ambijent moraju NESTATI
+Obrada ~10–30 min, pa se build pojavi u kartici TestFlight. Prvi put pita
+za enkripciju: aplikacija koristi samo HTTPS → „standard/exempt". Da nikad
+više ne pita, dodati u `app.config.ts`:
+`ios.infoPlist.ITSAppUsesNonExemptEncryption: false`.
 
-### 3. Ostalo iz ovog kruga, još neviđeno
+Tko vidi build:
+- **Ti**: Internal Testing grupa (tvoj Apple ID) — odmah, bez reviewa
+- **Kolega kojeg TI dodaš**: External Testing grupa → e-mail → pozivnica u
+  TestFlight aplikaciju. Prvi build u external grupi prolazi Beta App
+  Review (~1 dan); sljedeći buildovi iste verzije idu odmah
+- **Nitko drugi** — jedino NE kreirati public link
+- Buildovi istječu nakon **90 dana**
 
-Engleski (Postavke → Jezik; **N/NE/E** za smjer vjetra), svijetla ikona
-na zaslonu, zvijezde koje SIJEVAJU na vedroj noći, prijelaz heroja u
-kartice bez ruba, bijeli tekst na noćnom heroju u SVIJETLOJ temi.
+### 3. Provjera na uređaju (reload za JS, rebuild za ostalo)
+
+Sunčani widget (tekst se mora vidjeti — bio gurnut iz kadra), mala pločica
+(brojke — bila je rastegnuta na 360 px), ikona u widgetu (`resizable`),
+klik na Android widget otvara aplikaciju, promjena grada osvježava Android
+widget, radar staje na z=9, temperaturni sloj jači (`doubleUp`), UV/tlak u
+tamnoj temi (prigušena bijela), veliki kompas, tražilica: cijeli red
+klikabilan + akcijske ikone rade na dodir.
 
 Radni tijek: Marko gleda na uređaju, javi što bode, popravlja se odmah.
 
-**SVAKA izmjena widgeta traži REBUILD** — i konfiguracije i samog
-rasporeda (provjereno u izvoru 7.8.2026.). Widget bundle se ne poslužuje
-s Metroa: `WidgetsJSRuntime.swift` ga čita iz `Bundle.main` kao
-`ExpoWidgets.bundle`, dakle datoteku ugrađenu u instalaciju. Reload
-osvježi aplikaciju, ali widget ostane na starom kodu.
-
-Android je drugačiji: ondje se handler vrti u običnom JS kontekstu, pa
-izmjene rasporeda idu reloadom kao i ostatak aplikacije.
-
-Ako se temperatura još dira: jedino što ostaje je **gušći izvor mjerenja**.
-Izmjereno je da se štimanjem težina više ne dobiva (visina i manji domet su
-*gori*), a Polača se bez podatka iz Ravnih kotara ne može riješiti.
+**SVAKA izmjena iOS widgeta traži REBUILD** — widget bundle se čita iz
+`Bundle.main`, ne s Metroa. Android widget handler je običan JS pa izmjene
+rasporeda idu reloadom; ali `clickAction` i config su nativni.
 
 **Vjetar nema korekciju mjerenjem.** Temperatura ide kroz `debiasHourly` +
 `observationDelta`, a `windSpeed`/`windGusts` se prenose iz modela kakvi su.
-Na obali model na mreži od ~25 km podcjenjuje kanaliziranu buru — ako zastava
-bude sustavno preblaga, uzrok je tu, ne u pragovima.
 
 ## Recent Decisions
 
 | Odluka | Zašto |
 |---|---|
-| Vedar dan i djelomično oblačno su PLAVI i u aplikaciji | Markov odabir 8.8.2026.: widget je 7.8. prešao na plavo (narančasta ondje nije trpjela bijeli tekst), pa su aplikacija i pločica pokazivale isto vrijeme u dvije posve različite boje. Aplikacija sada preuzima ISTE vrijednosti (`#3E76AA/#2F5F8E/#234B72` i `#3A6B98/#2C567E/#204464`), provjereno testom koji pada ako se raziđu. Posljedice su NAMJERNE: `readableOn` na tim tonovima vraća BIJELI tekst (0.107 < 0.19), a heroj je tamniji nego prije. Tamna tema dijeli iste boje jer ih widget ionako ne razlikuje |
-| Radar ide na pločice od **512 px**, ne 256 | Nađeno na uređaju 8.8.2026.: pri približavanju je oluja bila razmrljana u kvadrate, dok je ista na RainViewerovoj karti ostajala oštra. Uzrok NIJE `maxNativeZ` nego veličina pločice — tražili smo najmanju. Izmjereno (z=7, Zadar): 256 px → 6073 B i 3869 neprozirnih piksela, **512 px → 17030 B i 13687** uz istu paletu od 65 boja, dakle pravi detalj a ne naduvana slika. Zid na z=8 i dalje postoji i vrijedi za obje veličine (pločice na z=8 i z=9 su bajt-identične), pa `maxNativeZ` ostaje 7. `tileSize` je zato prešao iz fiksne vrijednosti u polje sloja — ako se raziđe s URL-om, MapLibre skalira u krivi okvir i bude gore nego prije |
-| Radar se ZAUSTAVLJA na z=9, jer podaci staju na z=7 | Nakon prelaska na 512 px radar je i dalje bio „izmuljan" pri približavanju. Uzrok nije glačanje (`1_1` je uključen i provjeren — bez njega je čak manje detalja) nego čisto RASTEZANJE: iznad `maxNativeZ` svaka razina učetverostručuje površinu po pikselu podatka, pa je na z=12 jedan piksel razvučen na **32×32 px**. Zato `maxUserZoom` po sloju: radar i naoblaka staju na 9, temperatura i vjetar idu do 12. Pločica od 512 px nosi jednu razinu viška (512@z7 = gustoća 256@z8), pa je stvarno rastezanje na z=9 još uvijek samo 2×2 px |
-| Više strujnica vjetra se dobiva SIJANJEM, ne gušćom mrežom | Mreža se ne smije zgusnuti: model je na ~0.1°, pa bi gušće točke vratile iste brojeve i trošile satnu kvotu (izmjereno 6.8.). Ali `sampleWind` interpolira vjetar na BILO KOJOJ točki, pa se između čvorova smiju posijati dodatni početci strujnica bez ijednog novog upita — 154 točke daju **616 strujnica**. Pomaci moraju biti NESIMETRIČNI, inače se strujnice poslože u vidljivu rešetku |
-| Boje u legendi ne smiju se ponavljati | Nađeno na uređaju 8.8.2026.: nova skala vjetra je imala dva puta `#FFFFFF`, a `LayerLegend` je boju koristio kao React `key` — duplikat je srušio ekran karte. Popravljeno na dva načina: ključ je sada INDEKS (redoslijed je fiksan, pa je to ispravan ključ), a drugi stupanj skale je ipak malo topliji od bijele |
-| Zelena je maknuta iz skale vjetra | Markov ispravak 8.8.2026.: na plavoj podlozi sloja vjetra zelena se čitala kao vlastita informacija (oborina? vegetacija?) umjesto kao jačina. Skala sada ide bijelo → jantarno, dakle u JEDNOM smjeru (toplije = jače), i ne uvodi drugi ton koji se natječe s podlogom. `LayerLegend` mora pratiti — to su dva mjesta |
-| Strelice vjetra: ni SIMBOL ni `line-gradient` ne rade | Za smjer strujnica su izmjerene i odbačene DVIJE izvedbe (8.8.2026.), obje bi se tiho ne nacrtale: (1) `symbol` sloj s „▶" duž crte — CARTO poslužuje glifove samo za osnovni ASCII, raspon 9472–9727 se preuzme ali je PRAZAN (dekodiran `.pbf`: nema ni U+25B6 ni „→"); (2) `line-gradient` — specifikacija ga izričito zabranjuje uz crtice (`"requires": [{"!": "line-dasharray"}]`), pa bi gradijent otpao. Radi rješenje s DVA sloja crtica: rep je kraći, tanji i blijedi te zaostaje za glavom (`TAIL_LAG`), pa se potez prema naprijed puni. Svi kadrovi repa moraju zbrojiti na isti ciklus kao glava — inače rep i glava putuju različitim brzinama i razilaze se |
-| Traka sati se reže PRI CRTANJU, ne pri dohvatu | Nađeno na uređaju 8.8.2026.: u 15:40 je prva kolona bila „15" i pisala kišu dok je vani bilo pretežno vedro. `mapHourly` reže od punog sata PRI DOHVATU, a upit stoji 30 min — pa je prva kolona sat koji TRAJE, s prognozom starom do pola sata. `futureHours(hours, now)` sada reže pri renderu prema `useNow` (otkucava svaku minutu), pa traka prelazi na sljedeći sat čim otkuca puni sat, bez novog dohvata. Kad su svi sati prošli vraća zadnje poznato — bolje nego prazna traka |
-| Na TAMNIM podlogama ide `ACCENT_STEEL`, ne `ACCENT_UI` | Izmjereno 8.8.2026. pri prebacivanju karte na plavo: na traci karte (#171717–#323231 nakon 85 % ink-a) `ACCENT_UI` pada na **2.55:1** — LOŠIJE od koraljne koju mijenja. `ACCENT_STEEL` drži 3.85–5.38:1 i jednako je jasno plav. Zato: `ACCENT_UI` na svijetlim podlogama i kao ISPUNA s bijelim tekstom (5.03:1), `ACCENT_STEEL` kao tekst/ikona na tamnom. Čipovi karte ostaju na `ACCENT_UI` jer su ispunjeni — ondje se mjeri bijeli tekst NA njima, ne oni na karti |
-| Odabrano stanje je PLAVO (`ACCENT_UI`), koraljna ostaje za instrumente | Markov odabir 8.8.2026.: nakon prelaska na plavo nebo narančasta je ostala jedina topla mrlja i djelovala kao ostatak starog dizajna. `ACCENT_UI` (#2C6FC4, ista boja kao `HERO_COOL`/`stripAccent`) sada nosi odabrano stanje u postavkama, čipovima karte, razdobljima dana i ladici. Izmjereno: koraljna na bijeloj kartici daje **3.03:1** (pada prag), plava **5.03:1**; na tamnoj plava drži 3.46:1. `ACCENT_CORAL` ostaje ondje gdje boja nosi ZNAČENJE (skala UV-a, oborina u 14-dnevnoj, radar, spremanje grada) — ondje govori „pozor", ne „odabrano" |
-| Wordmark OSTAJE koraljan | Provjereno 8.8.2026. i namjerno nije mijenjano: kontrast ne presuđuje (koraljna je bolja na tamnom 6.08 vs 3.67, plava na svijetlom 4.40 vs 2.65), pa je to odluka o identitetu, ne o čitljivosti. Logo je jedino mjesto gdje boja marke preživljava; da i on postane plav, aplikacija bi bila posve jednobojna. Na gradijentu ga ionako gazi `heroAccent` |
-| Odmak animacije ide u FAZU, ne u odgodu pokretanja | Nađeno na uređaju 8.8.2026. na snijegu, uzrok DVAJU kvarova odjednom: skupine su startale kroz `setTimeout` do 4 s, pa je (1) skupina koja čeka stajala nepomično i snijeg se čitao kao da „kreće od pola ekrana", a (2) čekao je i `swayLoop`, pa su pahulje visjele na FIKSNOM bočnom pomaku — statičan pomak uz pad izgleda kao vodoravni trag. Petlje sada kreću odmah, a razlika među skupinama dolazi iz početne vrijednosti (`setValue`). Pravilo vrijedi za SVAKI sloj koji dijeli petlju među skupinama |
-| Traka sati ima VLASTITI akcent (`stripAccent`), ne `heroAccent` | Nađeno na uređaju 8.8.2026.: nakon prelaska na zlatnu, postotci oborine u traci su nestali. Traka IZGLEDA kao dio heroja, ali ne stoji na njegovom nebu — dno gradijenta se stapa u podlogu stranice, pa su postotci na SVIJETLOM. Izmjereno: zlatna ondje daje **1.56:1**, hladna plava **4.81:1** (svijetla tema) i **3.46:1** (tamna). Ista greška u malom: jedan akcent za dvije različite podloge. Prvi pokušaj popravka je bio da i traka preuzme `readableOn` — to je sve pobijelilo i traka je nestala, jer podloga ondje NIJE tamna |
-| Zaglavlje ladice prati GRADIJENT, stavke ispod prate TEMU | Zaglavlje crta gradijent vremena, pa mu tekst mora ići kroz `readableOn(stops[1])` kao u heroju — inače je na tamnoplavom vedrom danu `ink` bio taman na tamnom i wordmark se gubio. Stavke ispod stoje na `mist`/`night` podlozi i ostaju na `text-ink dark:text-paper`; granica je točno rub zaglavlja |
-| Akcent na vedrom heroju je ZLATNA, ne narančasta | Otkad je nebo plavo, obje dosadašnje boje padaju na dnu gradijenta (#234B72): hladna plava **1.80:1**, topla narančasta **2.18:1** — plavo na plavom se utopi. Zlatna `#F4C542` prolazi sa **5.56:1** (djelomično oblačno 6.23:1) i nosi toplinu koju je podloga izgubila. `HERO_WARM` je time ostao bez pozivatelja i obrisan |
-| Naoblaka je STUPNJEVANA: 0 ≠ 1 ≠ 2 | Nađeno na uređaju 8.8.2026. (Roč i Pazin): feed je javljao „pretežno vedro" (WMO 1), a aplikacija je crtala isto čisto sunce kao za potpuno vedro — bez ijednog oblaka. Sada: 0 = samo zrake, **1 = zrake + rijetki oblaci**, 2 = zrake + oblaci. Grana ide po WMO KODU unutar `backdropEffects`, ne po novom ključu palete — boja je za 0 i 1 ista, pa bi zaseban ključ značio duplu paletu i ovdje i u widgetu bez ijedne razlike u boji |
-| Vedro i kišno razlikuje ZASIĆENOST, ne svjetlina | Pretpostavka pri pisanju testa je bila da je vedro svjetlije — izmjereno netočno: vedro je 350, kišno 449, jer je vedro preuzelo widgetovu potamnjenu plavu a kišna paleta nije mijenjana. Prava razlika je čistoća boje: vedro 108 razmaka između crvenog i plavog kanala, kiša 46, oblačno 17. Fizikalno točno — naoblaka oduzima boju |
-| Okvir ambijenta se računa PO VELIČINI pločice, ne konstantom | Prvi popravak visine (isti dan) uveo je `TILE_W = 360`, što je otprilike točno za 4×2 ali DVOSTRUKO PREVIŠE za 2×2 (~158 px). Mali widget je time dobio ambijent širok 360 px, korijenski stack se rastegnuo s njim i sadržaj je izašao iz kadra — **ostala je samo slika, bez ijedne brojke**, dok je veliki radio. Isti kvar kao s visinom, samo po drugoj osi. Pouka: `environment.widgetFamily` je jedini pouzdan izvor dimenzije |
-| Sadržaj widgeta na iOS-u treba VEĆI razmak nego na Androidu | Uz istih 14 px Android je izgledao prozračnije, a iOS pretijesno uz rub. Razlika nije u broju: iOS oko widgeta sam dodaje sustavne margine, a `Backdrop` ih isključuje s `ignoreSafeArea()` da gradijent ide do ruba — pa otpadnu i za sadržaj. 18 px vraća otprilike ono što je iOS oduzeo |
-| Model NIJE mjerenje — pri provjeri vremena gledati DHMZ | 7.8.2026. je ECMWF za Roč davao „vedro", a najbliža postaja (Pazin, 18.6 km) je u istom terminu javljala **grmljavinu**; nad mjestom je stvarno bilo oblačno. Model je prognoza za točku i može promašiti naoblaku, pa se pri odgovaranju na „kakvo je vrijeme sada" prvo gleda `hrvatska_n.xml`, a model služi samo za ono što postaje ne mjere |
-| Ambijent widgeta MORA imati `frame` + `clipped` | Nađeno NA UREĐAJU 8.8.2026.: na VEDROM danu je s pločice nestajalo sve osim velike brojke — ni mjesto, ni opis, ni min/max. Kiša i oblačno su bili uredni, pa je izgledalo kao greška u tekstu. Nije: `ZStack` u SwiftUI-u poprimi veličinu NAJVEĆEG djeteta, a sunčane zrake su duge `FULL_LEN` = 226 px u pločici od 158 px. Ambijentalni stack je time narastao na 226 px, s njim i korijenski, pa je sadržaj bio gurnut izvan kadra. Kiša ima crte do 32 px, oblaci krugove do 64 — oboje stane, zato se kvar vidio SAMO na suncu. Svih 6 ambijentalnih stackova je sada vezano na veličinu pločice |
-| `size` na `Image` vrijedi samo za SF Symbole | Nađeno NA UREĐAJU 8.8.2026.: ikona vremena je bila golema i odrezana rubom pločice. U tipovima piše „fixed size of the **system image**" — naši PNG-ovi su datoteke i crtaju se u SVOJOJ punoj veličini dok im se izričito ne dopusti skaliranje. Sam `frame` ne pomaže: on odredi PROSTOR, a preveliku sliku samo OBREŽE. Treba `resizable()` → `aspectRatio({contentMode:"fit"})` → `frame()`, tim redom |
-| `null` NE SMIJE u propove widgeta | Nađeno NA UREĐAJU 8.8.2026.: `Exception in HostFunction` iz `updateTimeline`, pa widget nije dobio nijedan prop i crtao je „undefined" posvuda. Propovi prelaze u nativni `[String: Any]` (`WidgetsRecords.swift`), gdje JS `null` nema parnjaka. Odsutnost se izražava BOOLEANOM (`hasGusts`), a broj nosi 0. Test `nijedan prop nikad nije null` čuva pravilo za sve buduće propove |
-| Android widget se osvježava `requestWidgetUpdate`, ne sam | Nađeno NA UREĐAJU 8.8.2026.: widget je ostajao na STAROM GRADU nakon promjene mjesta. `pushWidget` je zvao samo iOS `updateTimeline`, a za Android ništa — ondje se widget budio sam tek na `updatePeriodMillis`, a to je 30 min (Androidov minimum). Crtež je zato izvučen u `android/render.tsx`, jer ga sada zovu DVA mjesta (headless zadatak i aplikacija) i izgled se ne smije razići |
-| Meki rubovi na Androidu idu `radialGradient`, ne `feGaussianBlur` | Nađeno NA UREĐAJU 8.8.2026.: oblaci su imali tvrde rubove — vidio se obris kruga umjesto mrlje. `RemoteViews` ne izvršava SVG filtere pouzdano, pa blur otpadne i ostane goli `<circle>`. Gradijent nije filter nego ISPUNA, pa prolazi svuda. Izmjereno renderom: luminancija preko ruba ide 83→76→80, najveći skok 2 razine na 5 px |
-| Ambijentalni slojevi se prorjeđuju na slabijim uređajima | Kiša je štucala na Galaxyju S10e. Uzrok nije animacija (transformi idu nativnim driverom) nego CRTEŽ: 63 `<Line>` sa `strokeDasharray` i okruglim krajevima, sve rasterizirano na CPU-u. Ispod Androida API 33: 32 crte i ravni krajevi. Prorjeđivanje mora nositi IZVORNI indeks, jer o njemu ovise uzorak i faza — inače se vraća vodoravni prazan „val" nađen 6.8. |
-| `autoIncrement` ide na SVE profile, ne samo `production` | Nađeno 7.8.2026.: svaki dev build je izlazio kao **1.0.0 (1)**. Uz `appVersionSource: "remote"` broj drži EAS, ali ga podiže **samo profil koji ima `autoIncrement`** — `development` ga nije imao, pa je stajao na 1 zauvijek. Nije kozmetika: **iOS odbija instalirati dvije gradnje s istim `version` + `buildNumber`**, pa se novi build ne pojavi ili ostane stari. `version` u `app.config.ts` ostaje ručan (1.0.0) — to je marketinška verzija i mijenja se namjerno, dok build number mora rasti sam |
-| Ladica se otvara `navigation.openDrawer()`, ne `DrawerActions` | Od **SDK 56** `expo-router` odbija uvoz iz `@react-navigation/*` u kodu aplikacije — `expo export` pukne s izričitom greškom. U cijelom projektu je to bila **jedna linija** (`DrawerActions` u `index.tsx`); `DrawerContent` je već zvao `closeDrawer()` kao metodu. `@react-navigation/drawer` je time postao mrtav teret i **izbačen** — expo-router nosi vlastitu kopiju (potvrđeno: hash bundlea je nakon izbacivanja **identičan**) |
-| Pri dizanju SDK-a očekivati ČETIRI vrste sitnih zapreka | Iz upgradea 54 → 57 (7.8.2026.), sve već primijenjene u configu ali korisne za sljedeći put: (1) paketi koji se prestanu autolinkati moraju u `plugins` — `expo install --fix` ih traži ali ih **ne može upisati** u dinamičan `app.config.ts`, pa naredba završi kodom 1 iako je uspjela; (2) `tsconfig` `types` je IZRIČIT popis, pa se izgubljeni tipovi (`node`) moraju dodati ručno; (3) paketi ugniježđeni pod `expo/node_modules` trebaju `moduleNameMapper` u jestu, inače svi suiteovi padnu; (4) uvoz koji je knjižnica zabranila (`@react-navigation/*`) puca tek na `expo export`, ne na typecheck |
-| `'widget'` direktiva izdvaja TIJELO funkcije u zaseban paket | Nađeno NA UREĐAJU 7.8.2026.: widget se nije prikazao uz `ReferenceError: Can't find variable: Backdrop`. Direktiva ne označava samo funkciju — njeno tijelo ide u **zaseban paket** koji se izvršava u WidgetKit procesu, uz vlastite stubove za react i react-native (`expo-widgets/bundle/`). Sve u dosegu MODULA ostaje u paketu aplikacije i widgetu je NEDOSTUPNO, pa su sve pomoćne komponente i konstante morale unutra. Iz istog razloga se zovu kao FUNKCIJE (`Backdrop({...})`), ne kao JSX (`<Backdrop />`): jsx stub zna složiti stablo od poznatih `@expo/ui` komponenti, ali ne montira našu vlastitu. **Typecheck, testovi i `expo export` su svi prošli** — greška je bila vidljiva tek na uređaju |
-| `expo-widgets` je ISKLJUČEN iz Android autolinkinga | Gradle je pao na `checkDuplicateClasses` (EAS build 7.8.2026., reproducirano lokalno): **oba widget paketa traže `androidx.work` u različitim verzijama** — `react-native-android-widget` traži `work-runtime:2.8.1`, a `expo-widgets` preko Glancea vuče `work-runtime-ktx:2.7.1`. Gradle podigne prvi na 2.8.1, `-ktx` ostane na 2.7.1, iste klase u dva paketa. Rješenje: `expo.autolinking.android.exclude` u `package.json` — ondje ionako radi ništa (vidi red ispod), a iOS ostaje netaknut |
-| Widget ikone su ODVOJENA briga od upisa crte | Nađeno NA UREĐAJU 7.8.2026.: widget se crtao kao bijela pločica s "undefined" posvuda, bez ijedne greške. Uzrok: `syncWidgetIcons` i `updateTimeline` su stajali u ISTOM `try`, pa je pad ikona preskakao upis crte — widget je ostajao bez ijednog propa. Uz to je `catch` bio prazan, pa se ništa nije vidjelo. Sada su dva odvojena `try` bloka i **greške se logiraju** (`console.warn`), a ne gutaju. `expo-file-system` i `expo-asset` su time postali IZRAVNE ovisnosti — bili su samo tranzitivni, pa `require` u nativnom buildu nije bio zajamčen |
-| `expo-widgets` na Androidu je KOSTUR — ne koristi se | Provjereno u izvoru 7.8.2026.: `ExpoWidgetsGlanceWidget.kt` ima 17 redaka i crta doslovno `Text(widgetName)`, a `WidgetsModule.kt` registrira samo ime. Config prima `android` blok, pa izgleda kao da radi — ali iza njega nema izvedbe. Android zato ide kroz `react-native-android-widget` |
-| Android widget je ispao LAKŠI od iOS-a | Suprotno od prve procjene (koja je govorila o RemoteViews i PNG-ovima): `SvgWidget` prima **SVG kao string**, pa gradijent s tri stopa i cijeli ambijent idu kao prava grafika umjesto slaganja od pravokutnika. `backgroundGradient` u knjižnici prima samo dvije boje, pa se SVG koristi i zbog toga. Handler se izvršava u JS-u, pa čita AsyncStorage IZRAVNO — nema App Groupa, nema kopiranja ikona, podaci su svježi u trenutku crtanja |
-| `index.js` postoji samo zbog Android widgeta | Headless zadatak mora biti registriran PRIJE nego RN pokrene aplikaciju, jer ga Android zove i kad aplikacija ne radi. Sve ide kroz `require`, ne `import`: ES uvozi se **hoistaju**, pa bi se `expo-router/entry` izvršio prvi bez obzira na redoslijed u datoteci, i zadatak bi ostao neregistriran |
-| Widget ima JEDNU verziju, uvijek tamnu | Tema telefona se ne prati (Markov odabir 7.8.2026.): pločica izgleda isto ujutro i navečer, jer korisnik ne mijenja temu zbog widgeta. Sve palete su potamnjene inačice onih iz aplikacije — isti ton, spuštena svjetlina dok bijeli tekst ne prijeđe **4.5:1**. Izmjereno svaku; najniže je djelomično oblačno sa 4.78:1. `dark` je time ispao iz cijelog lanca |
-| Vedar dan u widgetu je PLAVO NEBO, ne žuto sunce | Žuta iz aplikacije (`#F4C542`) daje bijelom tekstu **1.63:1**, a potamnjena postaje pečena narančasta u kojoj sunčan dan izgleda kao prašina (provjereno renderom). Plava (`#3E76AA`) prolazi sa **4.80:1** i čita se kao vedro NEBO — što je i točnije. Sunce ostaje u ikoni i u sjaju, ne u podlozi. Djelomično oblačno je isto plavo, samo tamnije: naoblaka nebo prigušuje, ne pretvara ga u narančasto |
-| Ambijent widgeta se slaže od `Rectangle` i `Circle` | Nema `Path` ni `Canvas`, pa se prave krivulje ne mogu crtati. Kose crte su zarotirani pravokutnici pod **29°** — izračunato iz `SLOPE = 0.55` u aplikaciji, da se poklapaju s kišom i zrakama na ekranu. Duljina 226 px je isto izračunata: 158 / cos(29°) = 181 px za visinu pločice, plus rezerva da se rez ne vidi. Oblaci i sjaj su zamućeni krugovi (`blur`) |
-| MALA pločica vidi samo pojas ±79 px od sredine | Uzrok dvaju bugova nađenih na pregledu (7.8.2026.): zvijezde, pahulje i kiša su bile raspoređene po širini SREDNJE pločice, pa je na maloj ostajala jedna-dvije ili nijedna. Sve što mora raditi na obje veličine mora biti unutar tog pojasa |
-| Ikone widgeta su PNG, ne SVG ni SF Symbols | Putanje se ne mogu crtati (nema `Path`), pa se glifovi renderiraju u `sharp` i učitavaju kroz `<Image uiImage>`. SF Symbols se NE koriste — to je Appleov vizualni jezik, a widget koji ga posudi izgleda kao Appleov widget. Vjetar je glif „Zapuh“ iz ikone aplikacije, iste putanje |
-| Zaključani zaslon dobiva PUNE ikone | iOS ondje crta u `vibrant` načinu: sve svede na jedan ton i masku, pa se prazna unutrašnjost obrisne ikone ne razlikuje od podloge, a tanke linije se stanje do neprimjetnosti. Zato i Apple ondje koristi `*.fill` simbole. Otud 20 ikona umjesto 10 |
-| Preklopljene ikone se režu MASKOM, ne ispunom | Mjesec iza oblaka je prvo bio samo obris, pa se linija mjeseca vidjela KROZ oblak i izgledalo je kao dva prstena koja se sijeku (Marko uočio). Ispuna ne dolazi u obzir jer je podloga gradijent — nema jedne boje. Maska ne dodaje boju, samo uklanja ono što je iza. Isto primijenjeno na sunce iza oblaka i munju |
-| Tintanu verziju widgeta iOS radi SAM | Ne postoji zasebna „tinted“ pločica koju bismo crtali — sustav uzme isti raspored i pretvori ga u jednobojnu masku (`widgetRenderingMode === "accented"`). Kod samo IZOSTAVLJA gradijent i ambijent u tom načinu, jer bi ostale nasumične sive crte preko ničega. To je druga stvar od `icon-tinted.png`, koji je ikona aplikacije |
-| Gradijent u widgetu ide `Rectangle` + `foregroundStyle`, ne `containerBackground` | **Ispravak prvotnog zaključka** (7.8.2026.): dokumentacijska stranica `@expo/ui` NE navodi oblike, pa je prvo zapisano da crtaćih primitiva nema. Čitanje instaliranih tipova pokazalo je suprotno — `@expo/ui/swift-ui/Shapes` izvozi **`Rectangle`, `Circle`, `Ellipse`, `Capsule`, `RoundedRectangle`**. Prava granica je drugdje: `containerBackground`, `background` i `backgroundOverlay` primaju samo `Color` (jednu boju), a **jedini** modifikator koji prima `linearGradient` je `foregroundStyle` — koji boji SADRŽAJ. Zato podloga = `Rectangle` s `foregroundStyle` kao najdublji sloj `ZStacka`, uz **obavezan `ignoreSafeArea()`** (bez njega iOS ostavi margine i vidi se okvir oko gradijenta). Smjer je isti dijagonalni (0,0)→(0.6,1) kao u heroju. Pouka: **tipove čitati iz `node_modules`, ne iz dokumentacije** |
-| Widget dobiva IZRAČUNATE boje i tekstove, ne WMO kod | Widget je zaseban proces: ne vidi AsyncStorage, ne ide na mrežu i **ne izvršava naš JS**, pa ne može uvesti `weatherLook.ts` ni `t`. Sve se računa u aplikaciji (`widgetData.ts`) i pošalje kao plosnati primitivi. Time paleta i pragovi ostaju na JEDNOM mjestu — promjena boje vremena stigne u widget bez ijedne izmjene u njemu |
-| Tip propova widgeta stoji u ZASEBNOJ datoteci (`props.ts`) | `BurinWidget.tsx` uvlači `expo-widgets` i `@expo/ui/swift-ui`, oboje nativno. Dok je tip živio tamo, `widgetData.ts` ga je uvozom povukao i **srušio vlastite testove** ("Cannot find native module 'ExpoWidgets'"). Isto pravilo koje je već naučeno na `MapTimeline` + AsyncStorage. `pushWidget` zato radi `require` LIJENO i u `try` — tako i Android prolazi (`expo export` potvrdio) |
-| Widget se puni `updateTimeline`, ne `updateSnapshot` | iOS **budžetira** buđenja widgeta (~40–70 dnevno) i sam odlučuje kad — snapshot bi do večeri prikazivao jutarnju temperaturu. Šalje se 12 sati unaprijed iz `hourly` (već korigiranog mjerenjem), pa widget ostaje točan i bez ijednog buđenja aplikacije. Tekući sat se **preskače** jer ga već nosi unos iz `current` — dva unosa s istim datumom su neispravna crta |
-| Widget podatke dobiva `updateSnapshot`, ne čitanjem AsyncStoragea | Widget je zaseban proces u drugom kontejneru i **fizički ne vidi** AsyncStorage aplikacije (na iOS-u je to datoteka u sandboxu). Dijeljenje ide preko App Groupa, a `expo-widgets` to pakira u `updateSnapshot()` / `updateTimeline()`. Svi potrebni podaci su ionako već u `burin:last-weather` — nema novog dohvaćanja |
-| `updateTimeline` za buduće sate, ne samo `updateSnapshot` | iOS **budžetira** osvježavanje widgeta (~40–70 buđenja dnevno) i sam odlučuje kad. `updateTimeline` unaprijed upiše niz unosa iz `hourly[]`, pa widget ostaje točan i kad ga sustav ne probudi — bez toga bi pokazivao zastarjelu temperaturu |
-| Lock screen widget je JEDNOBOJAN, i to je u redu | iOS `accessoryRectangular` renderira u jednom tonu — gradijenta tu nema i ne može biti. Dijeli podatke s velikim widgetom, ali ne izgled; ide unutra jer je gotovo besplatan, ne zato što će izgledati kao aplikacija |
-| Značka bure ide po UDARIMA, ne po stalnom vjetru | Izmjereno 6.8.2026. za Polaču: ECMWF daje 4.2 m/s stalnog uz **9.1 m/s u udarima**. Bura se osjeti i pamti po udarima; po stalnom vjetru se značka u zaleđu ne bi upalila gotovo nikad. V&R prikazuje isto (njihovih 11 m/s nisu ni model ni DHMZ postaja — Zadar je tada mjerio 3.1 m/s) |
-| Prag značke 10 m/s (bijela) / 17 m/s (crvena) | Markov odabir po V&R-u. 17.2 m/s je i granica 8 Beauforta (olujno), pa se skala poklapa s pomorskom prognozom. Ispod praga NEMA značke — inače stoji uvijek i prestane nositi informaciju |
-| Značka vjetra je VJETRULJA, ne zastava | Vjetrulja je instrument za vjetar pa se sama čita kao "vjetar"; zastava je signal i značenje nosi samo bojom. Marko dao izvorni SVG. Izvedba: stup + TRI pune pruge s **PROZIRNIM rasjecima** (naizmjenične pruge SU oblik — bez rasjeka je znak puni blok). Crvena za olujno je ista na svim podlogama, jer crveno znači opasnost; jarbol nikad nije crven |
-| Značka ima TRI tona po podlozi, ne dva | `card` (#6E6E69) za bijele kartice, `hero` (#9A9A93) za obojeni gradijent, `dark` (bijela) za tamno. Jedan `onLight` za oboje je heroju davao ton kartice i izgledao pretežak. **Bijela na bijeloj kartici je nevidljiva** — dok je rukav imao obris se nazirala, s prozirnim rasjecima je obris otpao |
-| SVG ikonu provjeriti RENDEROM u PNG prije uređaja | Dvije izvedbe su pale NA UREĐAJU (krug = "mala točka", pa bijela na bijelom). Render u `sharp` je uhvatio treću grešku bez telefona: `strokeWidth: 2` + široke pruge na rukavu visokom ~11 jedinica pojedu svu bijelu površinu, pa je znak izgledao siv. Isto je pokazalo da 64×64 viewBox nosi trećinu praznine — odatle "izgleda sitno" |
-| Koordinate u SVG-u se IZRAČUNAJU, ne pogađaju | Rubovi rukava se sužavaju (gore 12 → 16.5, dolje 28 → 23.5 na x = 21 → 52), pa pruge moraju pratiti tu jednadžbu da "leže" u perspektivi. `viewBox` isto: granice su izračunate rotacijom vrhova oko (21,18). Kod wordmarka je pogađanje odrezalo kovrču (luk seže do x=22, kadar je bio do 21) |
-| `transform-origin` i `skewX` iz weba ne postoje u react-native-svg | Markov SVG ih koristi. Rotacija mora ići kao `rotate(kut, cx, cy)` — bez zadanog centra ide oko (0,0) i rukav odleti izvan kadra |
-| Djelomično oblačno = zrake + oblaci | Prije je vraćalo samo `["rays"]`, isto kao čisto sunce, pa se na uređaju vidjelo kao "vedro, samo malo manje vedro" — bez ijednog oblaka. Oblaci dolaze u `density="sparse"` (3 umjesto 5, blijeđi, gornja trećina), a paleta NE prelazi u "duboku" — inače bi se promijenio već odobren izgled |
-| m/s je zadana jedinica vjetra | DHMZ, pomorska prognoza i Beaufort u Hrvatskoj govore u m/s, pa i pragovi bure imaju smisla samo tako. `persist` znači da postojeće instalacije **zadržavaju** stari `kmh` — zadana vrijednost vrijedi za nove |
-| Fahrenheit dobiva slovo, Celzijus ne | Celzijus je zadan pa mu slovo ne treba ("24°"); "75°" bez slova je neodredivo. Na velikoj brojci F stoji ISPOD kružića (poravnat s njim slijeva, spušten na dno znamenki), a NE desno od njega |
-| 14 dana ostaje bez slova jedinice | Kolone MIN/MAX su 38 px (`KOL_TEMP`); "-15°F" u dvije kolone jedna do druge se ne uklopi. Zaglavlje kolona ionako kaže što je što |
-| Jedinice se u `MapTimeline` prosljeđuju PROPOM, ne čitaju iz storea | `useSettings` u tom modulu uvuče AsyncStorage, a njegovi testovi su čista logika bez nativnih modula — cijeli suite se prestao pokretati ("NativeModule: AsyncStorage is null") |
-| Tipkovnica se u tražilici ne otvara sama | Ekran je i popis spremljenih i povijesti — najčešći potez je dodir na poznat grad, a tipkovnica je preko toga skakala i zaklanjala pola liste. Time je i parametar `focus=0` postao nepotreban pa je maknut |
-| GPS u tražilici se traži TEK NA DODIR | Dizati sustavni dijalog za dozvolu samo zato što je korisnik otvorio tražilicu je nametljivo. Iznimka: kad je mjesto s heroja već "Moja lokacija", dozvola je očito dana pa se red puni odmah |
-| Hamburger OSTAJE desno, tražilica lijevo | Ladica izlazi zdesna; hamburger slijeva bi značio "tapni lijevo, panel dođe zdesna". V&R ima obrnuto jer im se i ladica otvara ulijevo — kopirati samo položaj gumba dalo bi najgore od oboje |
-| Wordmark je "Podcrt" — logo je UPLETEN u slog | Marko odabrao među 6 prijedloga. Nema zasebne ikone slijeva: riječ `burin` + srednji zapuh glifa koji se uvija DESNO od riječi, u visini slova. Akcent time NOSI cijeli logo, pa na toplim podlogama (zaglavlje ladice) mora dobiti `heroAccent` — inače se koraljna utopi i ostane samo tekst |
-| Boja aktivne stavke u ladici prati podlogu | Rep gradijenta zaglavlja se prelijeva preko prvih stavki s gradovima (`FADE_H = 130`), pa tamo koraljna gubi kontrast → `cityAccent` = `heroAccent`. Grupe KARTE i APLIKACIJA stoje na mist podlozi i ostaju koraljne. Tražilica isto ostaje koraljna — njeni redovi nisu na gradijentu |
-| Hrvatska = ručna tablica regija, ostatak Europe = geokodiranje | Meteoalarm NE objavljuje granice ni koordinate regija — samo ime i EMMA ID. Regija po zemlji: Italija 19, Austrija 116, **Njemačka 409**, pa ručna tablica nije izvediva. HR ostaje ručna jer je provjerena i točna |
-| Filtar države pri geokodiranju regije je OBAVEZAN | Izmjereno: "Velebit channel" bez njega geokodira u Velebit u **Srbiji** — mjesto bi dobilo upozorenje iz krive zemlje |
-| Sve što ide na disk mora biti malo | `hourlyAll` (16 dana × 24 h) je ~69 kB po gradu; `persist` ga je serijalizirao na JS threadu pri svakoj promjeni mjesta. Ne piše se na disk — 413 kB → 35 kB za 6 gradova |
-| Skupa montiranja odgoditi za jedan kadar | Sadržaj ispod pregiba (bento, 14 dana, MapLibre) i skeleton pri promjeni grada: hero se vidi prvi, pa ne smije čekati najskuplji dio ekrana |
-| Animirani elementi idu u SKUPINE koje dijele petlju | Po element = po `Animated.View` + petlja se ne skalira: sunce je montiralo 31 sloj, snijeg 26. Nepravilnost se čuva razlikama unutar skupine (položaj, veličina, faza) |
-| `pressed` stil na Pressableu NE radi uz NativeWind | NativeWind pretvara `className` u `style` i prepisuje `style={({pressed}) => …}`. Odziv na dodir ide preko `onPressIn`/`onPressOut` i vlastitog stanja |
-| Animirani slojevi trebaju rezervu platna, izračunatu | Svi rezovi na rubovima (magla, oblaci, kiša) imali su isti uzrok. Rezerva mora pokriti i FIKSNE pomake, ne samo udio visine — kiša je u ladici presušila jer je 1.3 × 200 px < 464 px ambijentalnog pomaka |
-| `width="100%"` u SVG-u bez `viewBox` daje kvadrat | Nađeno na uređaju (veo magle). Uvijek izričite dimenzije |
-| Zrake sunca se NE pomiču, samo dišu | Kad se kose crte kližu, oko ih čita kao oborinu. Sunčano vrijeme dobiva mirnu geometriju + promjenu svjetline |
-| Dizajn se zaključava u HTML mockupu prije koda | 7 iteracija u browseru prije ijedne linije redizajna; isto za logo i wordmark (artifact s prijedlozima). Jeftinije od ciklusa build→pogledaj→popravi |
-| Vizualno se provjerava NA UREĐAJU, ne u kodu | **Nijedan** vizualni bug do sada nije uhvaćen provjerama: odrezana velika brojka, kvadrat magle, skakanje zvjezdica, swipe u krivi ekran, flex hero na pola visine, traka sati izvan ruba, pad na Zagrebu, 4 kruga kartografskih bugova, tri promašene izvedbe vjetrulje — sve je prošlo typecheck, testove i `expo export`. Za SVG ikone render u PNG (`sharp`) hvata dio grešaka prije telefona, ali ne zamjenjuje ga |
-| react-query queryFn NIKAD ne smije vratiti `undefined` | Ruši ekran greškom "Query data cannot be undefined". `fetchSeaTemperature` zato vraća `null` za kopno, a hook ga pretvara u `undefined` za `WeatherBundle` |
-| `keepPreviousData` na upitima vezanim uz poziciju karte | Bez toga svaki pomak mijenja `queryKey`, `data` na tren nestane i kontrole vremenske crte se onemoguće — izgleda kao da je aplikacija pukla |
-| Boja akcenta ovisi o podlozi (`heroAccent`) | Koraljna `#EE6E3C` je zadana, ali na toplim narančastim gradijentima heroja se utapa — tamo prelazi u čeličnu plavu. Instrumenti u karticama su uvijek koraljni jer su kartice neutralne |
-| Veličine ciljaju starije korisnike | Pravilo kroz cijeli UI: ništa sitno ispod 11px, ništa bitno ispod 65 % kontrasta. Iz toga su izašle i kratice razdoblja dana ("Popodne" umjesto "Poslijepodne") |
-| Radar `maxNativeZ` je 7, ne 8 | Nađeno NA UREĐAJU: pri približavanju se pokazivala siva pločica "Zoom Level Not Supported". Izmjereno dekodiranjem: RainViewer od z=8 vraća HTTP 200 i bajt-identičnu sliku (1370 B, md5 2cc6649e) na SVIM koordinatama — **ta slika JE taj natpis**. Ranija bilješka "iznad 8 nema novih podataka" je bila točno zapažanje s krivim zaključkom |
-| Vjetar je vlastiti sloj, ne OWM pločica | Besplatni `wind_new` je polje boja bez smjera — izgledao je gotovo isto kao naoblaka. Sada: kratke crtice iz Open-Meteo mreže (154 točke, jedan upit, 364 ms) koje klize u smjeru strujanja |
-| Crtice se animiraju `line-dasharray`, ne pomicanjem geometrije | Geometrija bi se morala slati nativnom sloju 8×/s (stotine linija); dasharray je promjena stila koju GL primi odmah. Svi kadrovi moraju imati isti zbroj ciklusa i nenegativne članove — inače crtice pulsiraju umjesto da teku |
-| Smjer vjetra se interpolira preko u/v, ne stupnjeva | Prosjek 350° i 10° u stupnjevima daje 180° — točno suprotno od stvarnog (0°) |
-| OWM slojevi dobivaju `raster-saturation`/`contrast` | Izmjereno: `temp_new` ima alfu **76/255 na svakom pikselu** (30 % vidljivosti) — izvor je poluproziran pa boje izlaze isprane. `raster-opacity` to ne može (1.0 je maksimum), zasićenje i kontrast mogu |
-| Animacija karte izmjenom `raster-opacity`, ne `tiles` | Izmjereno u knjižnici (MLRNSource.kt): `tiles` na živom izvoru se NE primjenjuje — native ga čita samo u `makeSource()`. Paint se primjenjuje odmah (`setReactStyle` → `addStyles()`). Zato: aktivni okvir + susjedi s opacity 0 (GL inačica starog 0.01-trika), key po URL-u |
-| Zoom granice globalne (4–12), ne po sloju | MapLibre iznad `maxzoom` izvora rasteže pločicu i nikad ne traži nepostojeću — "zoom level not supported" strukturno ne postoji. `maxZoom` po sloju obrisan iz `MapLayer` |
-| Open-Meteo ima SATNU kvotu (~600/h) | Probijena testiranjem mreže vjetra (154 točke po upitu) → HTTP 429 na SVA tri sloja koja o njemu ovise. Zato: duži `staleTime`, grublje zaokruživanje kadra, odmak među pokušajima i vidljiva poruka umjesto mrtvih kontrola |
-| Sva mjerenja izmjeriti, ne procijeniti | Više puta je "logična" ideja izmjerena kao pogoršanje (postajno učenje, GFS, puna korekcija, težina po visini) |
-| Mjeriti protiv termometra, ne protiv Vrijeme&Radara | Bug je 3 commita bio nevidljiv jer je slučajno približavao V&R-u na Starigradu, dok je štetio na 12 drugih mjesta |
-| `PRIMARY_MODEL` se izvozi iz `openMeteo` i dijeli s `bias` | Bias se MORA učiti iz modela koji se prikazuje. Dok su bili razdvojeni, učio se `best_match` a prikazivao ECMWF: odmak 2.66 vs 2.40 °C, pogrešan predznak u Lici i Istri |
-| ECMWF IFS kao glavni model, ne `best_match` | Izmjereno 0.97 vs 1.83 °C promašaja jutarnjih minimuma na 12 mjesta; najbolji na 8/12 |
-| Udaljenost kažnjavati JEDNOM u `observationDelta` | Množenje prosjeka s `bestCloseness` je puštalo ~30 % stvarne razlike. Leave-one-out: 1.99 vs 2.37 °C. Arhiva noćnu grešku ne vidi (Polača: nauči +0.14 uz stvarnih +4 °C) |
-| Domet korekcije 60 km, ne 40 | DHMZ u međuterminima objavi ~29 postaja; na 40 km je pola zemlje bez korekcije. Izmjereno 1.99 vs 2.09 °C |
-| Prigušenje pristranosti po dosljednosti, ne fiksni faktor | Fiksni 0.75 gušio stvarnu dosljednu grešku; puna korekcija pojačava šum (1.86 vs 1.67 °C) |
-| Korekcija iz prosjeka 3 DHMZ postaje, ne najbliže | Leave-one-out: 1.73 vs 1.91 °C; jedna nereprezentativna postaja (aerodrom u udolini) ne odlučuje sama |
-| Ne učiti pristranost iz DHMZ postaja | Izmjereno da pogoršava — okolne postaje su u drugom reljefu, greška se ne prenosi preko krajolika |
-| Ne vagati postaje po visini, ne smanjivati domet (15–25 km) | Oboje izmjereno gore od sadašnjeg (2.46–2.63 vs 2.44 °C) — s ~29 postaja ostane se bez ijedne reference |
-| Ne tražiti prognozu s kopnene točke za obalna mjesta | Izmjereno: 5 km u kopno od Starigrada = 623 m n.v. i 20.9 °C — vrijeme Velebita, ne mjesta |
-| iOS ide na EAS dev build, ne Expo Go | Osobna Apple licenca + jedini developer → internal distribution bez TestFlighta. Otvara nativne module (MapLibre, widget) i ukida razlog za SDK 54 |
-| OWM 1.0 pločice primaju `&date=<unix>` | Nedokumentirano, ali izmjereno: −48 h do +120 h daju različite slike (MD5). Bez toga klizanje po crti mijenja samo oznaku |
-| OWM slojevi bez dodatnog prigušenja (`opacity: 1`) | Pločice su već poluprozirne u izvoru (maks. alfa 76/255 temp, 12/255 naoblaka). Množenje ispod 1 ih je gasilo — naoblaka na ~4 % vidljivosti |
-| Strelice vjetra ne postoje u besplatnom OWM-u | `wind_new` je polje boja; `WND` sa strelicama vraća 401. Animirane crte na njihovom webu su klijentska animacija, ne pločica → radit ćemo vlastiti sloj iz Open-Metea |
-| yr.no / MET Norway ne pokriva Hrvatsku | Nowcast: "location is outside the geographic area supported"; sva radarska područja su norveška |
-| Open-Meteo nema tile endpoint | 404 — služi samo JSON po točki. Za obojene slojeve preko površine nema alternative OWM-u |
+| TestFlight buildovi su nevidljivi dok se tester ne pozove | Osobni račun = tim si samo ti. Internal grupa (ti) bez reviewa; external po e-mailu uz jednokratni Beta review; **public link nikad** — to je jedino što bi build otvorilo svima |
+| Ikona aplikacije je varijanta 7: tamna pločica + plavi zapuh | Markov odabir 8.8. između 10 prijedloga. Podloga `#141821` (blagi plavi pomak — čista crna uz plavi potez izgleda kao odsutnost boje), bijeli vanjski potezi, `ACCENT_STEEL` srednji. Svijetla i tamna su ISTA pločica: ikona koja mijenja podlogu s temom prestaje biti isti znak, a widget ionako ima jednu verziju |
+| Ikonski gumbi: pravi padding + `pointerEvents="none"` na ikonu | Nađeno na uređaju 8.8.: dodir NA glif nije radio, tek desno od njega. Lucide ikone su SVG (`react-native-svg`), koji na Androidu zna PROGUTATI dodir umjesto da ga pusti Pressableu; a sama ikona 22 px + nevidljivi `hitSlop` je premala meta. Pravilo za svaki ikonski gumb: `p-2` (uz `-m-2` da glif ostane na mjestu) + ikona u omotu bez dodira |
+| Red tražilice je CIJELI Pressable | Prije je gumb bio samo stupac s imenom, pa je desna polovica (vjetrulja, ikona, temperatura) bila mrtva zona. Ugniježđeni akcijski gumb i dalje pobjeđuje za svoje područje — RN daje dodir najdubljem hvataču |
+| `inverted` kartice (UV, tlak): obrat OSTAJE, ali s prigušenom bijelom | Markov izbor 8.8. u DVA kruga: prvo je tamno-na-tamnom odbijeno (obrat mu se sviđa), pa je čista papirnata u tamnoj temi (17.6:1 prema podlozi — bliješti) zamijenjena prigušenom `#D9D9D3` (~12:1). Crtice tlaka su KORALJNE — topla skala na disku draža od plave. Svijetla tema netaknuta |
+| Popisi se osvježavaju JEDNIM batch upitom pri pokretanju | Ladica i tražilica čitaju temperaturu iz keša koji je punio samo puni dohvat otvorenog mjesta — ostali gradovi su držali stare brojke. `useRefreshSavedCities` (korijen aplikacije): spremljeni + odabrani + povijest u JEDNOM multi-koordinatnom upitu (Open-Meteo prima liste odvojene zarezom), samo mjesta koja VEĆ imaju keš (svaka koordinata troši kvotu, a `refreshCurrent` ostale ionako preskače), prag 10 min, i na povratak u aplikaciju. Upisuje SAMO `current` — paket bez prognoze bi offline srušio ekran. Neuspjeh (`null`) nikad ne briše staro |
+| Vedar dan i djelomično oblačno su PLAVI i u aplikaciji | Markov odabir 8.8.: widget je 7.8. prešao na plavo, pa su aplikacija i pločica pokazivale isto vrijeme u dvije boje. Aplikacija preuzima ISTE vrijednosti (`#3E76AA/#2F5F8E/#234B72` i `#3A6B98/#2C567E/#204464`), test pada ako se raziđu. Posljedice NAMJERNE: `readableOn` vraća bijeli tekst, heroj je tamniji. Obje teme dijele boje |
+| Akcent na vedrom heroju je ZLATNA (`HERO_GOLD`) | Na novom plavom dnu gradijenta hladna plava daje 1.80:1, stara topla 2.18:1 — obje padaju. Zlatna `#F4C542` prolazi s 5.56:1 i nosi toplinu koju je podloga izgubila |
+| Traka sati ima VLASTITI akcent (`stripAccent`), ne `heroAccent` | Traka NE stoji na nebu — dno gradijenta se stapa u podlogu stranice, pa su postotci na SVIJETLOM. Zlatna tamo daje 1.56:1 i nestane; fiksna hladna plava drži 4.81/3.46:1 na obje teme. Pokušaj da traka uzme `readableOn` je sve pobijelio — podloga joj NIJE tamna |
+| Odabrano stanje je PLAVO (`ACCENT_UI` #2C6FC4) | Nakon plavog neba narančasta je izgledala kao ostatak starog dizajna. Ista boja kao `HERO_COOL`/`stripAccent` — jedna plava za „odabrano": postavke, čipovi karte, razdoblja dana, ladica (aktivan grad FIKSNO — `heroAccent` je tamo vraćao zlatnu, 1.63:1 na bijeloj kartici), tražilica. Koraljna (3.03:1 na bijelom — pada) ostaje gdje boja znači „pozor": UV skala, oborine u 14-dnevnoj, radar, crtice tlaka |
+| Na TAMNIM podlogama ide `ACCENT_STEEL`, ne `ACCENT_UI` | Na traci karte (~#171717–#323231) `ACCENT_UI` pada na 2.55:1 — lošije od koraljne koju mijenja; `ACCENT_STEEL` drži 3.85–5.38:1. Ispunjeni elementi (čipovi) ostaju `ACCENT_UI` jer se tamo mjeri BIJELI TEKST NA njima (5.03:1) |
+| Zapuh u wordmarku je PLAV, po podlozi | Koraljna je ostala samo zadani prop. Početna zove `ACCENT_UI` (svijetla stranica), karta i ladica `ACCENT_STEEL` (tamne trake) — jedna plava ne prolazi obje podloge, mjereno za svaku |
+| Zaglavlje ladice prati GRADIJENT, stavke ispod prate TEMU | Zaglavlje crta gradijent vremena → tekst kroz `readableOn(stops[1])` kao heroj. Stavke stoje na mist/night podlozi i drže `text-ink dark:text-paper`; granica je rub zaglavlja |
+| Naoblaka je STUPNJEVANA: WMO 0 ≠ 1 ≠ 2 | Roč/Pazin su javljali „pretežno vedro", a crtalo se čisto sunce. Sada: 0 = zrake, 1 = zrake + RIJETKI oblaci (+ manje iskrica, 7 umjesto 16), 2 = zrake + oblaci. Grana po WMO kodu u `backdropEffects` — boja je za 0 i 1 ista, pa zaseban ključ palete nema smisla. Grmljavina je dobila oblake IZA kiše i munje |
+| Model NIJE mjerenje — pri pitanju „kakvo je vrijeme" gledati DHMZ | ECMWF je za Roč davao „vedro" dok je Pazin (18.6 km) javljao GRMLJAVINU i stvarno je bilo oblačno. Prvo `hrvatska_n.xml`, model samo za ono što postaje ne mjere |
+| Traka sati se reže PRI CRTANJU (`futureHours`), ne pri dohvatu | `mapHourly` reže od punog sata pri dohvatu, a upit stoji 30 min — u 15:40 je prva kolona bila „15" s prognozom starom pola sata („piše kiša, a vani vedro"). Rez pri renderu prema `useNow`; kad su svi sati prošli, vraća zadnje poznato |
+| Odmak animacije ide u FAZU, ne u odgodu pokretanja | Snijeg: `setTimeout` do 4 s prije `start()` → skupina stoji zamrznuta („kreće od pola ekrana") i visi na fiksnom bočnom pomaku (vodoravni tragovi). Petlje kreću odmah, razlika skupina kroz `setValue` početne vrijednosti. Vrijedi za svaki sloj sa skupinama |
+| Radar: pločice **512 px**, kamera staje na **z=9** | Dva odvojena nalaza. (1) 512 px nosi 3.5× više piksela od 256 uz istu paletu — pravi detalj; `tileSize` je polje sloja i MORA pratiti URL. (2) RainViewer besplatni API staje na z=7 — piše u njihovoj dokumentaciji („Maximum zoom level is 7") i dokazano: 4 RAZLIČITE pločice na z=8 vraćaju bajt-identičan placeholder. Njihova aplikacija zumira dalje jer NE koristi javni endpoint. Zato `maxUserZoom` PO SLOJU na kameri: radar/naoblaka 9, temperatura/vjetar 12 |
+| Temperaturni sloj karte: pločica se crta DVAPUT (`doubleUp`) | OWM `temp_new` ima alfu 76/255 na SVAKOM pikselu — 70 % viđenog je podloga. `raster-opacity` > 1 ne postoji; tamna podloga ne pomaže (kroma ista); zasićenje iznad ~1.0 lomi boje u susjedne razrede. Dva sloja istog izvora: alfa 30 → 51 %, kroma 53 → 89, bez novog dohvaćanja |
+| Smjer strujnica vjetra: TRI izvedbe odbačene — ne pokušavati | (1) `symbol` s „▶": CARTO glifovi su samo osnovni ASCII (dekodiran `.pbf` — raspon prazan); (2) `line-gradient`: spec ga IZRIČITO zabranjuje uz `line-dasharray`; (3) drugi sloj crtica (rep): typecheck čist, a NA UREĐAJU ruši ekran — dva dash sloja nad istim izvorom mijenjana svakih 130 ms native ne podnosi. Preostaje vlastita sličica u stilu karte |
+| Više strujnica SIJANJEM, ne gušćom mrežom; skala bijelo→jantarno | Model je na ~0.1° pa gušće točke vraćaju iste brojeve i troše kvotu; ali `sampleWind` interpolira bilo gdje → dodatni počeci između čvorova besplatno (154 točke → 616 strujnica). Pomaci NESIMETRIČNI da se ne vidi rešetka. Zelena maknuta — na plavoj podlozi se čitala kao vlastita informacija; `LayerLegend` mora pratiti (dva mjesta) |
+| Skupa montiranja odgoditi za jedan kadar — i SKUPE POSLOVE iza prijelaza | Prošireno 8.8.: uz sadržaj ispod pregiba na početnoj, isti obrazac dobile tražilica (~20 `PlaceRow` redova) i pelud. `pushWidget` ide kroz `InteractionManager.runAfterInteractions` — svjež dohvat slijeće točno u kadar prijelaza, a widget crta oba Android widgeta i serijalizira iOS crtu; njegova točnost se mjeri u minutama |
+| Ambijent widgeta: `frame` na VELIČINU PLOČICE + `clipped`, po `widgetFamily` | Dva kvara istog uzroka: SwiftUI `ZStack` poprimi veličinu najvećeg djeteta. Zrake od 226 px u pločici od 158 → sadržaj gurnut iz kadra (samo na SUNCU — kiša 32 px, oblaci 64 px stanu). Pa onda konstanta 360 px širine → mala pločica (158) rastegnuta, „samo slika bez brojki". Dimenzija se čita iz `environment.widgetFamily`. Sadržaj iOS widgeta uz to treba padding 18, ne 14: `ignoreSafeArea()` na pozadini ukida i sustavne margine sadržaja (Android s istih 14 izgleda prozračnije jer taj sloj nema) |
+| `size` na `@expo/ui` `Image` vrijedi samo za SF Symbole | Ikona iz datoteke se crta u PUNOJ veličini dok se ne doda `resizable()` → `aspectRatio({fit})` → `frame()`, tim redom; sam `frame` preveliku sliku samo OBREŽE (golema odrezana ikona na uređaju) |
+| `null` NE SMIJE u propove widgeta | `Exception in HostFunction`: propovi prelaze u Swift `[String: Any]`, gdje JS `null` nema parnjaka — crta se ne upiše i widget crta „undefined" posvuda. Odsutnost = boolean (`hasGusts`), broj = 0. Test čuva pravilo za sve buduće propove |
+| Android widget se osvježava `requestWidgetUpdate`, crtež u `android/render.tsx` | `pushWidget` je zvao samo iOS put pa je widget ostajao na starom gradu do 30 min (`updatePeriodMillis` minimum). Sada dva pozivatelja (headless handler + aplikacija) dijele isti crtež da se ne raziđu |
+| Meki rubovi na Androidu: `radialGradient`, ne `feGaussianBlur` | `RemoteViews` ne izvršava SVG filtere pouzdano — blur otpadne i ostane goli krug (tvrdi rubovi oblaka). Gradijent je ISPUNA pa prolazi svuda; izmjereno renderom (skok 2 razine na 5 px) |
+| Ambijentalni slojevi se prorjeđuju na slabijim uređajima | Kiša štucala na S10e: 63 `<Line>` sa dash + round caps rasterizirano na CPU-u. Ispod Android API 33: 32 crte, ravni krajevi. Prorjeđivanje nosi IZVORNI indeks (uzorak i faza ovise o njemu) — inače se vraća vodoravni prazni „val" |
+| `autoIncrement` ide na SVE profile, ne samo `production` | Uz `appVersionSource: "remote"` broj podiže samo profil koji ga ima — dev je stajao na 1 zauvijek, a iOS odbija instalirati dvije gradnje s istim brojem. `version` u `app.config.ts` ostaje ručan |
+| Ladica se otvara `navigation.openDrawer()`, ne `DrawerActions` | Od SDK 56 `expo-router` odbija uvoz iz `@react-navigation/*` — `expo export` pukne. `@react-navigation/drawer` izbačen (hash bundlea identičan) |
+| Pri dizanju SDK-a očekivati ČETIRI vrste sitnih zapreka | (1) paketi koji se prestanu autolinkati moraju ručno u `plugins`; (2) `tsconfig` `types` je izričit popis; (3) paketi pod `expo/node_modules` traže jest `moduleNameMapper`; (4) zabranjeni uvozi pucaju tek na `expo export` |
+| `'widget'` direktiva izdvaja TIJELO funkcije u zaseban paket | Sve u dosegu MODULA je widgetu NEDOSTUPNO (`ReferenceError: Backdrop`) — pomoćne komponente i konstante unutra, i zovu se kao FUNKCIJE, ne JSX. Typecheck/testovi/export sve prođu — greška se vidi tek na uređaju |
+| `expo-widgets` je ISKLJUČEN iz Android autolinkinga | `checkDuplicateClasses`: oba widget paketa traže `androidx.work` u različitim verzijama. `expo.autolinking.android.exclude` u `package.json`; na Androidu je `expo-widgets` ionako KOSTUR (crta `Text(widgetName)`) |
+| Widget ikone su ODVOJENA briga od upisa crte; greške se logiraju | Pad ikona u istom `try` je preskakao `updateTimeline` → bijela pločica bez greške. Dva bloka + `console.warn` (`[burin] widget nije osvježen:` / `ikone nisu spremne:`). `expo-file-system` i `expo-asset` su izravne ovisnosti |
+| Android widget: `SvgWidget` prima SVG string; handler čita AsyncStorage izravno | Gradijent s tri stopa i ambijent kao prava grafika; nema App Groupa. `index.js` postoji samo da registrira headless zadatak PRIJE expo-routera (require, ne import — hoisting) |
+| Widget ima JEDNU verziju, uvijek tamnu | Tema telefona se ne prati; palete su potamnjene inačice (bijeli tekst ≥ 4.5:1, najniže 4.78). Vedar dan u widgetu je PLAVO NEBO — žuta ne trpi bijeli tekst (1.63:1) |
+| Ambijent iOS widgeta od `Rectangle`/`Circle`; MALA pločica vidi ±79 px | Nema `Path`/`Canvas`. Kose crte = rotirani pravokutnici pod 29°. Sve što mora raditi na obje veličine mora biti u pojasu ±79 px od sredine |
+| Ikone widgeta su PNG (`sharp`), lock screen dobiva PUNE, preklopi se režu MASKOM | SF Symbols se ne koriste (Appleov jezik). `vibrant` način stanji obrise → `*-fill` set. Maska ne dodaje boju na gradijent podloge. Tintanu verziju iOS radi sam — kod samo izostavi gradijent i ambijent u `accented` načinu |
+| Gradijent u widgetu: `Rectangle` + `foregroundStyle` + `ignoreSafeArea()` | `containerBackground`/`background` primaju samo `Color`; jedini modifikator s `linearGradient` je `foregroundStyle`. Pouka: **tipove čitati iz `node_modules`, ne iz dokumentacije** |
+| Widget dobiva IZRAČUNATE boje i tekstove kroz `updateTimeline` (12 h) | Widget ne izvršava naš JS i ne vidi AsyncStorage (App Group). iOS budžetira buđenja (~40–70/dan) pa snapshot zastarijeva. Tekući sat se preskače (duplikat datuma = neispravna crta). Tip propova u zasebnom `props.ts` (nativni uvozi ruše testove) |
+| Značka bure: po UDARIMA, pragovi 10/17 m/s, vjetrulja s prozirnim rasjecima | Bura se pamti po udarima (Polača: 4.2 stalno, 9.1 udari). 17.2 = 8 Bf. Tri tona po podlozi (`card`/`hero`/`dark`). SVG provjeriti RENDEROM u PNG prije uređaja; koordinate se IZRAČUNAJU (`rotate(kut,cx,cy)` — `transform-origin` ne postoji u react-native-svg) |
+| m/s zadan; Fahrenheit dobiva slovo (ispod kružića), 14 dana bez slova | DHMZ i pomorska prognoza govore m/s. `persist` čuva stari izbor postojećih instalacija |
+| Jedinice u `MapTimeline` propom, ne iz storea | `useSettings` bi uvukao AsyncStorage i srušio testove čiste logike — isto pravilo kao `props.ts` u widgetu |
+| Tražilica: tipkovnica se ne otvara sama; GPS TEK NA DODIR; hamburger desno | Najčešći potez je dodir na poznat grad. Iznimka za GPS: kad je heroj već „Moja lokacija". Ladica izlazi zdesna pa gumb desno |
+| Hrvatska = ručna tablica 14 EMMA regija, Europa = geokodiranje + OBAVEZAN filtar države | Meteoalarm ne objavljuje granice; Njemačka ima 409 regija. Bez filtra „Velebit channel" geokodira u Srbiju |
+| Sve što ide na disk mora biti malo | `hourlyAll` (69 kB/grad) se NE piše na disk — `persist` serijalizira na JS threadu. (Posljedica: 14-dnevni detalji offline nemaju izvor — otvoreno u Statusu) |
+| Animirani elementi u SKUPINAMA koje dijele petlju; `useNativeDriver: true` uvijek | Po element = 31 sloj na suncu. Platno s IZRAČUNATOM rezervom (pokriti i fiksne pomake); `width="100%"` bez `viewBox` daje kvadrat; zrake sunca se NE pomiču, samo dišu |
+| `pressed` stil na Pressableu NE radi uz NativeWind | `className` → `style` prepisuje funkciju. Odziv kroz `onPressIn/Out` + vlastito stanje |
+| Dizajn se zaključava u HTML mockupu; vizualno se provjerava NA UREĐAJU | Nijedan vizualni bug nije uhvaćen provjerama — svi su prošli typecheck, testove i export. Render SVG-a u PNG (`sharp`) hvata dio prije telefona |
+| react-query `queryFn` nikad `undefined`; `keepPreviousData` na upitima uz poziciju karte | „Query data cannot be undefined"; bez `keepPreviousData` svaki pomak karte gasi kontrole |
+| Veličine ciljaju starije korisnike | Ništa sitno ispod 11 px, ništa bitno ispod 65 % kontrasta |
+| Animacija karte izmjenom `raster-opacity`, ne `tiles`; crtice vjetra `line-dasharray`; smjer preko u/v | `tiles` na živom izvoru native ignorira. Geometrija 8×/s je preskupa; svi dash kadrovi moraju imati isti zbroj. Prosjek stupnjeva 350°/10° daje 180° |
+| OWM slojevi: `saturation`/`contrast` (alfa 76/255 u izvoru), `opacity: 1`, `&date=<unix>` radi | `raster-opacity` iznad 1 ne ide; množenje ispod 1 gasi naoblaku (12/255). `&date` je nedokumentiran ali daje različite slike −48 h do +120 h |
+| Open-Meteo ima SATNU kvotu (~600/h) — resetira se na puni sat | Probijena testiranjem mreže vjetra (154 koordinate = 154 poziva!). Duži `staleTime`, batch upiti, vidljiva poruka. **Ne trošiti kvotu na testiranje** — provjeravati kodom i lokalno |
+| Sva mjerenja izmjeriti; protiv termometra, ne protiv V&R | Više je „logičnih" ideja izmjereno kao pogoršanje. Bug je 3 commita bio nevidljiv jer je slučajno približavao V&R-u |
+| `PRIMARY_MODEL` (ECMWF IFS) dijele prikaz i bias; korekcija: prosjek 3 DHMZ postaje, domet 60 km, kazna za udaljenost JEDNOM, prigušenje po dosljednosti | Sve leave-one-out izmjereno (1.99 vs 2.37 °C itd.). NE učiti iz DHMZ postaja, NE vagati po visini, NE smanjivati domet, NE tražiti prognozu s kopnene točke za obalna mjesta |
+| iOS ide na EAS dev build, ne Expo Go | Osobna licenca + jedini developer → internal distribution. EAS pakira LOKALNO stablo, push i build su neovisni |
+| yr.no ne pokriva HR; Open-Meteo nema tile endpoint; OWM besplatni nema strelice vjetra | Zato: Open-Meteo JSON po točki + OWM pločice + vlastiti sloj vjetra |
 
 ## Development
 
 ```bash
 npx expo start --dev-client   # dev server; JS izmjene idu reloadom, BEZ rebuilda
 npm run typecheck             # tsc --noEmit
-npm test                      # jest, 263 testa u 25 skupina
+npm test                      # jest, 280 testova u 26 skupina
 node scripts/generate-widget-icons.mjs  # 20 ikona widgeta (traži sharp)
 npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 npx expo run:android          # nativni dev build
-node scripts/generate-icons.mjs      # ikone iz SVG glifa (traži sharp)
+node scripts/generate-icons.mjs      # ikone aplikacije (varijanta 7; traži sharp)
 ```
 
 **Rebuild treba pri dodavanju nativnog modula, pri promjeni ikona I pri
 SVAKOJ izmjeni iOS widgeta** — `assets/*.png` se ugrađuju u build, a widget
-bundle se čita iz `Bundle.main` (vidi Recent Decisions). Font, SVG
-gradijenti i ambijentalne animacije su JS — vidljive običnim reloadom.
-**Android widget je iznimka**: njegov handler je običan JS, pa izmjene
-rasporeda idu reloadom.
+bundle se čita iz `Bundle.main`. Font, SVG gradijenti i ambijentalne
+animacije su JS — vidljive običnim reloadom. **Android widget je iznimka**:
+handler je običan JS (ali `clickAction`/config su nativni).
 
-EAS dev build (bez Maca, bez TestFlighta — internal distribution; `eas.json`
-postoji, profil `development`):
+EAS (dev + TestFlight):
 
 ```bash
-npx eas-cli login                                          # jednokratno
-npx eas-cli device:create                                  # jednokratno po iOS uređaju
-npx eas-cli build --profile development --platform ios     # ~8 min
-npx eas-cli build --profile development --platform android # ~25 min
-npx eas-cli build:list --limit 2                           # linkovi za instalaciju
+npx eas-cli build --profile development --platform ios      # dev build, ~8 min
+npx eas-cli build --profile development --platform android  # ~25 min
+npx eas-cli build --profile production --platform ios --auto-submit  # TestFlight, 2-u-1
+npx eas-cli build:list --limit 2                            # linkovi za instalaciju
 ```
 
-**EAS ne povlači s GitHuba** — pakira LOKALNO radno stablo, uključujući
-necommitane izmjene. Push i build su neovisni.
+**EAS ne povlači s GitHuba** — pakira LOKALNO radno stablo. Metro na
+Windowsima povremeno padne s `EMFILE: too many open files` — nije aplikacija,
+restart `npx expo start --dev-client -c` čisti (trajno rješenje: Watchman).
 
-Provjera prije commita: `typecheck` + `test` + `expo export` moraju biti čisti.
-**Za sve vizualno to nije dovoljno** — svaki kartografski bug i svaki bug
-redizajna (hero na pola visine, traka izvan ruba, pad na Zagrebu) prošao je
+Provjera prije commita: `typecheck` + `test` + `expo export` moraju biti
+čisti. **Za sve vizualno to nije dovoljno** — svaki vizualni bug je prošao
 sve tri provjere i bio vidljiv tek na uređaju.
 
 ## Architecture
@@ -260,132 +195,80 @@ react-query upita (trenutno 10 min, prognoza 30 min, AQI/more 30–60 min,
 DHMZ 10 min, pristranost 12 h) i primjenjuje korekcije u **ovom redoslijedu**:
 
 1. `debiasHourly` / `debiasDaily` — ukloni naučenu pristranost modela
-   (rješava prognozu za sutra i dalje)
 2. `observationDelta` + `correctHourly` — pripiši ostatak razlike mjerenju
-   DHMZ postaja (rješava "sada")
 
 Redoslijed je bitan: obrnuto bi se ista greška ispravila dvaput. Hero i prvi
-sat u traci koriste **isti** `delta` da se ne razlikuju.
+sat u traci koriste **isti** `delta`. `fetchForecast` spaja ECMWF (temperature)
+i `best_match` (UV/vidljivost/zadnja 2 dana). Svi vanjski izvori sigurni na
+neuspjeh.
 
-`fetchForecast` spaja dva izvora (`mergeForecasts`): temperature iz ECMWF-a,
-UV/vidljivost i zadnja 2 dana iz `best_match`.
+**Osvježavanje popisa** (8.8.2026.): `useRefreshSavedCities` u korijenu
+aplikacije — jedan multi-koordinatni `fetchCurrentBatch` (spremljeni +
+odabrani + povijest, samo već keširana mjesta) pri pokretanju i povratku,
+prag 10 min. Upisuje samo `current` kroz `refreshCurrent` u `lastWeather`.
 
-Svi vanjski izvori su sigurni na neuspjeh: DHMZ nevaljan XML → `null` →
-tihi prelaz na Open-Meteo; bez arhive → pristranost 0; bez OWM ključa →
-OWM čipovi sivi uz napomenu, Radar i ostatak rade.
+**Karta**: vlastiti tok (`MAP_LAYERS`, `mapLayerTileUrl`, `useTimelineHours`).
+MapLibre GL, jedna živa karta, pločice `beforeId` ispod imena. Animacija
+izmjenom `raster-opacity` na montiranim susjedima. `maxUserZoom` po sloju
+na kameri (radar 9). Radar 512 px; `temp_new` se crta dvaput (`doubleUp`).
+Vjetar: strujnice iz Open-Meteo mreže + sijanje dodatnih početaka; skala
+bijelo→jantarno.
 
-**Karta** ima vlastiti tok, odvojen od `WeatherBundle`: `MAP_LAYERS` opisuje
-slojeve, `mapLayerTileUrl` gradi URL pločice (radar iz RainViewer okvira, OWM
-uz `&date=` sa satnice), a `useTimelineHours` dohvaća lagan zaseban upit za
-centar karte — karti ne trebaju ni korekcije mjerenjem ni DHMZ, samo sirova
-krivulja za tu točku.
+**Izgled**: `weatherLook.ts` je izvor istine — `weatherGradient` (plavo nebo,
+isto kao widget), `backdropEffects` (WMO 1 = zrake + rijetki oblaci; grmljavina
+= oblaci + kiša + bljeskovi), `heroAccent` (zlatna/hladna), `stripAccent`,
+`ACCENT_UI`/`ACCENT_STEEL`/`ACCENT_CORAL`, `readableOn`. `HeroBackdrop` +
+`components/backdrop/` (petlje u skupinama, faza umjesto odgode, prorjeđivanje
+na slabijim uređajima kroz `IS_LOW_END`/`thin` u `shared.ts`).
 
-Render karte je **MapLibre GL** (`@maplibre/maplibre-react-native` 11.3.6,
-nativni modul — ne radi u Expo Go): jedna živa karta za sve slojeve (bez
-`key` remounta), CARTO vektorski stil kao podloga (`baseStyleFor`), vremenske
-pločice kao `RasterSource` + raster `Layer` umetnute `beforeId:
-MAP_LABELS_LAYER_ID` da imena ostanu iznad boja. Animacija/klizanje: montiran
-je aktivni korak + susjedi (opacity 0, predučitavanje), korak mijenja samo
-`raster-opacity` — `tiles` na živom izvoru se ne smije mijenjati (ne radi
-ništa), a remount vidljivog izvora bi treperio.
+**Upozorenja** (`useWarnings`): HR ručna tablica 14 EMMA regija, Europa
+geokodiranje + filtar države.
 
-**Izgled** (redizajn + ambijent, 6.8.2026.): `weatherLook.ts` je izvor istine
-— `weatherGradient` (WMO + doba dana + tema → 3 stopa), `backdropEffects`
-(WMO → **niz** slojeva, pa susnježica = kiša + snijeg, grmljavina = kiša +
-bljeskovi, **djelomično oblačno = zrake + oblaci**), `precipIntensity`,
-`heroAccent`, `windStrength` + `WIND_FLAG_COLORS`, `dewPoint`, `pollenInfo`,
-`warningColor`, `readableOn`. Sve čiste i testirane.
-
-`HeroBackdrop` crta gradijent i bira ambijentalne slojeve iz
-`components/backdrop/` (sve u `react-native-svg`, bez nativnog modula).
-Pravila za slojeve: `useNativeDriver: true` uvijek (JS driver štuca nakon
-reloada), elementi u skupinama koje dijele petlju, platno s izračunatom
-rezervom, bešavne petlje (pomak ciklusa = period uzorka). **Isti slojevi
-idu i u zaglavlje ladice.** `density="sparse"` daje rjeđu i blijeđu inačicu
-sloja (koristi ga djelomično oblačno, gdje oblaci stoje uz sunčane zrake).
-
-**Vjetar i jedinice:** `WindFlag` (vjetrulja) čita **udare** iz
-`current.windGusts` u km/h i sam odlučuje hoće li se nacrtati — ispod 10 m/s
-vraća `null`, pa se pozivatelji ne bave pragom. Ton se zadaje propom
-(`card` / `hero` / `dark`) jer isti znak stoji i na bijeloj kartici i na
-gradijentu. Jedinice se svugdje pretvaraju iz metričkih (`convertTemp`,
-`convertWind`); `tempUnitSuffix` daje "°" za Celzijus i "°F" za Fahrenheit.
-`MapTimeline` jedinice prima **propom**, ne iz storea — `useSettings` bi u
-taj modul uvukao AsyncStorage i srušio njegove testove čiste logike.
-
-Tipografija je Space Grotesk kroz `font-grotesk*` klase — RN nema sintetički
-bold, pa je svaka debljina zasebna klasa. Naslovi su **normalna slova**, ne
-verzal s razmakom (maknuto 6.8.2026. kao generičko).
-
-**Upozorenja** (`useWarnings`): dva puta — Hrvatska preko ručne tablice 14
-EMMA regija (`emmaRegions.ts`), ostatak Europe (38 zemalja) preko
-geokodiranja imena regije uz **obavezan filtar države**. Bez feeda ili bez
-pogotka: prazan niz, traka se ne prikazuje.
-
-**Widgeti** (7.8.2026.) dijele JEDAN izvor istine — `widgetData.ts` pretvara
-`WeatherBundle` u plosnate propove (boje, jedinice, pragovi, prijevodi već
-izračunati). `useWeatherBundle` ga zove nakon svakog uspješnog dohvata.
-Odatle se dvije platforme razilaze:
-
-- **iOS** (`expo-widgets`): widget je zaseban proces koji NE izvršava naš
-  JS, pa mu se propovi guraju unaprijed (`updateTimeline`, 12 sati) preko
-  App Groupa. Raspored mora biti CIJEL unutar `'widget'` funkcije.
-- **Android** (`react-native-android-widget`): handler se vrti u JS-u i
-  čita AsyncStorage izravno, pa nema App Groupa ni guranja — podaci se
-  čitaju u trenutku crtanja.
-
-Sve nativno se dira samo kroz LIJENE `require` unutar `try`, pa
-`widgetData` ostaje čista logika koja se testira, a Android build ne vidi
-iOS pakete.
+**Widgeti** dijele `widgetData.ts` (bundle → plosnati propovi; `hasGusts`,
+nikad `null`). iOS: `expo-widgets`, propovi unaprijed kroz `updateTimeline`
+(App Group), raspored CIJEL u `'widget'` funkciji, ambijent vezan `frame` +
+`clipped` na `widgetFamily`. Android: `react-native-android-widget`, crtež u
+`android/render.tsx` s DVA pozivatelja — headless handler (sustav) i
+`pushWidget` → `requestWidgetUpdate` (promjena grada/podataka). `pushWidget`
+se odgađa `InteractionManager`-om iza prijelaza.
 
 ## Files
 
 ```
-app/_layout.tsx       Drawer (ladica zdesna) — sadrži (screens) i map
-app/(screens)/        Stack: index (početna, korijen), search, warnings,
-                      pollen, preview, settings, sources — swipe-back radi
-                      jer je početna KORIJEN stacka, a ladica prije
-                      navigacije radi `dismissAll`
-app/map.tsx           fullscreen karta, izvan stacka (vlastite kontrole)
-src/api/              openMeteo, dhmz, meteoalarm, meteoalarmEurope,
-                      rainviewer, owm, mapLayers, windGrid, windStyle,
-                      bias, weather, client, types
-src/store/            settings, cities, lastWeather, searchHistory,
-                      mapTimeline (zustand + AsyncStorage)
-src/components/       Hero, HeroBackdrop, HourlyStrip, BentoGrid, WarningBar,
-                      Wordmark ("Podcrt"), WindFlag (vjetrulja), MapPin,
-                      Skeleton, SunCycle, DailyList, DayDetails, DhmzCard,
-                      MapTimeline, LayerChips...
-src/components/backdrop/  ambijentalni slojevi po vremenu: RaysLayer,
-                      RainLayer, SnowLayer, CloudsLayer, FogLayer,
-                      LightningLayer + shared.ts (LayerProps, rnd, SLOPE)
-src/hooks/            useWeatherBundle, useWarnings, useNow, useRadarFrames,
-                      useTimelineHours, useWindGrid, useWindStyle, useLocation
-src/utils/            weatherCodes, weatherLook, emmaRegions, format, geo, dayParts
-src/theme/colors.ts   paper/ink/night/mint + mist (podloga) i coal (tamna kartica)
+app/_layout.tsx       Drawer (ladica zdesna); useRefreshSavedCities u korijenu
+app/(screens)/        Stack: index (korijen), search, warnings, pollen,
+                      preview, settings, sources — swipe-back radi jer je
+                      početna korijen stacka; search/pollen montiraju liste
+                      kadar nakon ekrana
+app/map.tsx           fullscreen karta, izvan stacka
+src/api/              openMeteo (+fetchCurrentBatch), dhmz, meteoalarm(+Europe),
+                      rainviewer, owm, mapLayers, windGrid, windStyle, bias,
+                      weather, client, types
+src/store/            settings, cities, lastWeather (+refreshCurrent),
+                      searchHistory, mapTimeline
+src/components/       Hero, HeroBackdrop, HourlyStrip, BentoGrid (Card/Value/
+                      Compass/PressureGauge), WarningBar, Wordmark, WindFlag,
+                      MapPin, Skeleton, SunCycle, DailyList, DayDetails,
+                      DhmzCard, MapTimeline, LayerChips, LayerLegend...
+src/components/backdrop/  RaysLayer, RainLayer, SnowLayer, CloudsLayer,
+                      FogLayer, LightningLayer + shared.ts (IS_LOW_END, thin)
+src/hooks/            useWeatherBundle, useRefreshSavedCities, useWarnings,
+                      useNow, useRadarFrames, useTimelineHours, useWindGrid,
+                      useWindStyle, useLocation
+src/utils/            weatherCodes, weatherLook, emmaRegions, format
+                      (+futureHours), geo, dayParts
 src/i18n/hr.ts        SVI UI stringovi (kanonski rječnik = izvor tipa)
-index.js              ulazna točka; registrira Android widget zadatak pa
-                      tek onda diže expo-router (require, ne import)
-src/widgets/          iOS widget: BurinWidget (raspored + ambijent),
-                      widgetData (most iz WeatherBundle u propove,
-                      DIJELI ga i Android), props/iconNames (čisti
-                      tipovi), widgetIcons (PNG-ovi u App Group)
-src/widgets/android/  Android widget: BurinAndroidWidget (raspored,
-                      ambijent kao SVG), widgetTaskHandler (headless —
-                      čita AsyncStorage, bez hookova)
-assets/widget/        20 PNG ikona widgeta (obrisne + `-fill`)
-scripts/generate-icons.mjs  ikone iz glifa "Zapuh" (traži sharp)
-scripts/generate-widget-icons.mjs  ikone widgeta (traži sharp)
-docs/                 LOKALNO, u .gitignoreu od 6.8.2026. — zapisi odluka i
-                      specovi su radni materijal; opće odluke žive OVDJE
-                      (Recent Decisions) i u README-u
+index.js              registrira Android widget zadatak pa diže expo-router
+src/widgets/          iOS: BurinWidget, widgetData (most, dijeli i Android),
+                      props/iconNames, widgetIcons
+src/widgets/android/  BurinAndroidWidget, widgetTaskHandler, render (zajednički
+                      crtež za handler i requestWidgetUpdate)
+assets/widget/        20 PNG ikona widgeta
+scripts/generate-icons.mjs         ikone aplikacije (varijanta 7)
+scripts/generate-widget-icons.mjs  ikone widgeta
+docs/                 LOKALNO, u .gitignoreu — zapisi odluka su radni
+                      materijal; opće odluke žive OVDJE i u README-u
 ```
 
 **Razvojni ekran:** Postavke → *Pregled pozadina po vremenu* (`/preview`)
-prikazuje svih 15 kombinacija vremena s pravim `HeroBackdrop`-om. Postoji
-jer se snijeg i magla ne mogu vidjeti u kolovozu.
-
-Karta: `src/api/mapLayers.ts` je jedini izvor istine o slojevima (`MAP_LAYERS`
-— id, oznaka, URL, prozirnost, zoom granice, vrsta vremenske crte). Dodavanje
-sloja = jedan unos. `MapTimeline` + `useMapTimeline` (zustand) drže crtu
-zajedničkom za sve slojeve, pa prebacivanje čipa ne resetira sat ni play.
+prikazuje svih 15 kombinacija vremena s pravim `HeroBackdrop`-om.
