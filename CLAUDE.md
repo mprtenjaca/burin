@@ -2,12 +2,16 @@
 
 # Burin — status projekta
 
-Minimalistička vremenska aplikacija za Hrvatsku. Expo SDK 54, TypeScript
+Minimalistička vremenska aplikacija za Hrvatsku. Expo SDK 57, TypeScript
 strict, Expo Router + Drawer, NativeWind, zustand + AsyncStorage, react-query.
 
 SDK 54 je izvorno odabran da radi u Expo Go (iOS bez Maca). Od 5.8.2026. iOS
 ide na EAS dev build (osobna Apple licenca, internal distribution), pa Expo Go
 više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
+
+**Podignuto na SDK 57 dana 7.8.2026.** (RN 0.86.2, React 19.2.3, TypeScript
+6.0.3) da se otvori `expo-widgets` za iOS widget. Prošlo čisto: typecheck,
+243 testa, `expo export`, `expo-doctor` 20/20. **Čeka provjeru na uređaju.**
 
 ## Current Status
 
@@ -25,13 +29,14 @@ više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
 | Vremenske vijesti / blog | Open, neistraženo | Marko pitao ima li izvora za HR i svijet. Nije istraženo — DHMZ ima vijesti, za svijet treba provjeriti |
 | Web kamere | Odgođeno | V&R koristi whatsupcams (komercijalni, bez API-ja); scraping ne dolazi u obzir. Čeka čist izvor (HAK/TZ popis?) |
 | **iOS widget** | Istraženo 7.8.2026., **čeka odluku o SDK upgradeu** | `expo-widgets` (Expo, prvoklasni) piše widget u TypeScriptu preko `@expo/ui/swift-ui` — **bez Swifta**. Ali najstarije izdanje je `sdk-55`, a ovisi o `@expo/ui` koji ide u paru sa SDK-om → **traži upgrade 54 → 57**. Dizajn: SAMO gradijent (vidi Recent Decisions), veličine `systemSmall` + `systemMedium` + `accessoryRectangular` |
-| SDK upgrade 54 → 57 | Predložen, **provjereno da je nizak rizik** | Izmjereno 7.8.2026., ne procijenjeno: MapLibre 11.3.6 **već ima Fabric codegen** (`componentProvider` za MLRNMapView/RasterSource/Layer/Camera), Reanimated 4.5.3 traži RN 0.83–0.86 a SDK 57 nosi **0.86**, NativeWind 4.2.6 je već najnoviji, Node 22.13.1 zadovoljava. Uklanjanja iz SDK 55 ne diraju projekt (nema `newArchEnabled`, `expo-av`, `notification`, `edgeToEdgeEnabled`) |
+| **SDK upgrade 54 → 57** | **Izveden 7.8.2026., čeka provjeru na uređaju** | RN 0.81.5 → **0.86.2**, React 19.1 → **19.2.3**, TS 5.9 → **6.0.3**. Sve tri provjere + `expo-doctor` 20/20 čisti. Predviđanje se potvrdilo: MapLibre 11.3.6 **nije trebao dizanje** (već nosi Fabric codegen), Reanimated je otišao na 4.5.1, NativeWind ostao. Četiri zapreke, sve male — vidi Recent Decisions |
 | Android widget | Open, nakon iOS-a | v1.1; `burin:last-weather` (zustand persist) je pripremljen kao pohrana. `react-native-android-widget` radi na SDK 54 već sad. **Vjetrulja se ne može nacrtati u RemoteViews** (nema SVG-a) — trebat će PNG po tonu ili pojednostavljen glif |
 
 ## Next Step
 
-**Pokrenuti EAS rebuild, pa provjeriti engleski i ikone.** Rebuild je sada
-OBAVEZAN — `expo-localization` je nativni modul, a ikone su nativni asseti:
+**Pokrenuti EAS rebuild, pa provjeriti SDK 57 + engleski + ikone.** Rebuild
+je sada OBAVEZAN iz tri razloga: novi SDK (RN 0.86.2), `expo-localization`
+je nativni modul, a ikone su nativni asseti:
 
 ```bash
 npx eas-cli build --profile development --platform ios
@@ -41,6 +46,13 @@ Dok build ne stigne, aplikacija radi normalno (jezik pada na hrvatski,
 ručni odabir u Postavkama radi) — uvoz je namjerno lijen i u `try`.
 
 Nakon builda provjeriti:
+
+0. **SDK 57 — da se uopće diže i da karta radi.** Ovo je najveći rizik
+   ovog builda: `expo export` provjerava JS, ali **ne** nativni sloj.
+   MapLibre je najosjetljiviji (nova arhitektura je od SDK 55 obavezna,
+   a on nosi vlastiti Fabric codegen) → otvoriti kartu, prebaciti
+   slojeve, pustiti animaciju radara. Pa ladica: hamburger mora otvoriti
+   ladicu (`openDrawer()` je prepisan), swipe-back mora raditi
 
 1. **Engleski** — Postavke → Jezik. Dani u 14-dnevnoj ("Thu", ne "čet"),
    smjer vjetra (**N/NE/E**, ne S/SI/I — hrvatski "S" je sjever, engleski
@@ -60,25 +72,27 @@ Nakon builda provjeriti:
 Radni tijek: Marko gleda na iPhoneu, javi što bode, popravlja se odmah.
 Nakon builda su sve daljnje izmjene ovog kruga opet JS-only (reload).
 
-### Zatim: odluka o SDK upgradeu 54 → 57 (zbog widgeta)
+### Zatim: iOS widget (`expo-widgets`)
 
-iOS widget traži `expo-widgets`, koji **nema izdanje za SDK 54**. Upgrade je
-7.8.2026. provjeren kao nizak rizik (brojke u tablici gore) — ono što je
-prije držalo projekt na 54 (Expo Go) otpalo je 5.8. s MapLibreom, jer
-aplikacija u Expo Gou ionako više ne radi. Testiranje se upgradeom **ne
-mijenja**: i dalje EAS dev build, isti `--profile development`.
-
-Redoslijed kad se odluči:
+SDK upgrade je **izveden** i time je `expo-widgets` otvoren. Widget se radi
+**tek nakon** što ovaj build prođe provjeru na uređaju — inače se dvije
+nepoznanice (novi SDK i novi nativni target) traže u istom buildu.
 
 ```bash
-npx expo install expo@^57.0.0 --fix     # SDK + uparivanje ovisnosti
-npm run typecheck && npm test           # prije ijednog builda
-npx expo export --platform android      # puni Metro/Babel/NativeWind pipeline
-npx eas-cli build --profile development --platform ios
+npx expo install expo-widgets
 ```
 
-Widget se radi **tek nakon** što upgrade prođe provjeru na uređaju — inače
-se dvije nepoznanice (novi SDK i novi nativni target) traže u istom buildu.
+Dizajn je zaključan (vidi Recent Decisions): **samo gradijent**, jer
+`@expo/ui/swift-ui` nema ni jedan crtaći primitiv. Veličine `systemSmall`
++ `systemMedium` + `accessoryRectangular` (lock screen je jednobojan).
+Sadržaj: temperatura, opis, mjesto, dnevni min/max i udari vjetra.
+
+Podaci idu `updateSnapshot()` / `updateTimeline()` iz `useWeatherBundle`
+nakon uspješnog dohvata — sve potrebno je već u `burin:last-weather`.
+Widget **ne može** čitati AsyncStorage (drugi proces, drugi kontejner).
+
+Widget je nativni target → **svaka promjena konfiguracije traži rebuild**,
+ali samo mijenjanje TS izgleda ide reloadom.
 
 Ako se temperatura još dira: jedino što ostaje je **gušći izvor mjerenja**.
 Izmjereno je da se štimanjem težina više ne dobiva (visina i manji domet su
@@ -93,6 +107,10 @@ bude sustavno preblaga, uzrok je tu, ne u pragovima.
 
 | Odluka | Zašto |
 |---|---|
+| Ladica se otvara `navigation.openDrawer()`, ne `DrawerActions` | Od **SDK 56** `expo-router` odbija uvoz iz `@react-navigation/*` u kodu aplikacije — `expo export` pukne s izričitom greškom. U cijelom projektu je to bila **jedna linija** (`DrawerActions` u `index.tsx`); `DrawerContent` je već zvao `closeDrawer()` kao metodu. `@react-navigation/drawer` je time postao mrtav teret i **izbačen** — expo-router nosi vlastitu kopiju (potvrđeno: hash bundlea je nakon izbacivanja **identičan**) |
+| `expo-font` i `expo-status-bar` moraju biti u `plugins` | SDK 57 ih više ne autolinka. `expo install --fix` ih traži, ali ih **ne može sam upisati** jer je config dinamičan (`app.config.ts`) — zato naredba završi izlaznim kodom 1 iako je instalacija uspjela. Lako se pročita kao neuspjeh upgradea, a nije |
+| `tsconfig` mora imati `"types": ["jest", "node"]` | `types` je IZRIČIT popis — što nije navedeno, ne učitava se. Baza Expa je do SDK 54 nosila node tipove, od 57 ne, pa su testovi ostali bez `global` i `require.resolve` (4 greške). `@types/node` je bio instaliran cijelo vrijeme, samo neuključen |
+| `expo-modules-core` treba `moduleNameMapper` u jestu | Na SDK 57 taj paket živi **ugniježđen** (`node_modules/expo/node_modules/`), a `jest-expo@57` ga ne deklarira kao ovisnost i traži ga u korijenu → **sva 23 suitea** padnu na "Cannot find module". Mapiranje na pravu putanju rješava; ne dirati strukturu `node_modules` |
 | Widget nosi SAMO gradijent, bez ambijentalnih slojeva | Izmjereno u dokumentaciji 7.8.2026.: `@expo/ui/swift-ui` **nema ni jedan crtaći primitiv** — nema `Path`, `Circle`, `Rectangle`, `Canvas`. Zvijezde, oblaci, kiša, mjesečev srp i vjetrulja se dakle ne mogu nacrtati ni kao mirna slika. Ali `foregroundStyle({type:"linearGradient", colors, startPoint, endPoint})` prima **točno onaj oblik koji `weatherGradient()` već vraća**, pa cijeli sustav paleta prelazi bez ijedne nove linije logike. Identitet ionako NOSI paleta — narančasto sunce, tamnoplava noć, siva naoblaka — pa widget izgleda kao heroj s ugašenim ambijentom |
 | Widget podatke dobiva `updateSnapshot`, ne čitanjem AsyncStoragea | Widget je zaseban proces u drugom kontejneru i **fizički ne vidi** AsyncStorage aplikacije (na iOS-u je to datoteka u sandboxu). Dijeljenje ide preko App Groupa, a `expo-widgets` to pakira u `updateSnapshot()` / `updateTimeline()`. Svi potrebni podaci su ionako već u `burin:last-weather` — nema novog dohvaćanja |
 | `updateTimeline` za buduće sate, ne samo `updateSnapshot` | iOS **budžetira** osvježavanje widgeta (~40–70 buđenja dnevno) i sam odlučuje kad. `updateTimeline` unaprijed upiše niz unosa iz `hourly[]`, pa widget ostaje točan i kad ga sustav ne probudi — bez toga bi pokazivao zastarjelu temperaturu |

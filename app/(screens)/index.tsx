@@ -1,4 +1,3 @@
-import { DrawerActions } from "@react-navigation/native";
 import { router, useNavigation } from "expo-router";
 import { Menu, Search, type LucideIcon } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
@@ -32,8 +31,22 @@ import { colors } from "@/theme/colors";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { weatherGradient } from "@/utils/weatherLook";
 
+/**
+ * Ladica se otvara METODOM na navigaciji, ne `dispatch`-em akcije
+ * (SDK 57, 7.8.2026.).
+ *
+ * Od SDK 56 `expo-router` više ne dopušta uvoz iz `@react-navigation/*`
+ * u kodu aplikacije, pa `DrawerActions.openDrawer()` otpada. Zamjena je
+ * `navigation.openDrawer()` — isti poziv koji `DrawerContent` već koristi
+ * za `closeDrawer()`, dakle ponašanje je nepromijenjeno.
+ *
+ * Tip je strukturalan, kao `DrawerNav` u `DrawerContent`: `useNavigation`
+ * iz expo-routera je generički i ne zna da je roditelj ladica.
+ */
+type DrawerNav = { openDrawer: () => void };
+
 export default function HomeScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation() as unknown as DrawerNav;
   const { dark } = useThemeColors();
   const window = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -347,7 +360,7 @@ export default function HomeScreen() {
           <Wordmark color={dark ? colors.paper : colors.ink} textSize={16} />
         </Animated.View>
         <TopButton
-          onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+          onPress={() => navigation.openDrawer()}
           label={t.drawer.cities}
           bgOpacity={buttonBg}
           dark={dark}

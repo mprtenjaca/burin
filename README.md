@@ -1,6 +1,6 @@
 # Burin
 
-Minimalistička vremenska aplikacija za Hrvatsku — React Native + Expo SDK 54,
+Minimalistička vremenska aplikacija za Hrvatsku — React Native + Expo SDK 57,
 TypeScript strict. Veliki hero s gradijentom koji prati vrijeme, animirane
 ambijentalne pozadine, bento kartice s instrumentima i karta s vremenskim
 slojevima. Sve veličine i kontrasti ciljaju i starije korisnike: ništa sitno
@@ -120,8 +120,12 @@ se ista greška ispravlja dvaput.
 6. Nativni folderi `android/`/`ios/` se **ne commitaju** (Expo CNG; `prebuild`
    ih regenerira). Isto i `docs/` — zapisi odluka su radni materijal, opće
    odluke žive u `CLAUDE.md`.
-7. **SDK 54, ne 57** — izvorno spušteno zbog Expo Go. Od 5.8.2026. to više nije
-   ograničenje (iOS ide na EAS dev build), ali dizanje SDK-a je zaseban zahvat.
+7. **SDK 57** (od 7.8.2026.) — projekt je izvorno bio na 54 zbog Expo Goa. To
+   je otpalo 5.8. s MapLibreom (aplikacija u Expo Gou ionako više ne radi), a
+   upgrade je izveden da se otvori `expo-widgets` za iOS widget. Zapreke su
+   bile male i sve su opisane u `CLAUDE.md` (Recent Decisions): jedan uvoz iz
+   `@react-navigation`, dva plugina u config, `types` u tsconfigu i jedno
+   jest mapiranje.
 8. **Karta na MapLibre GL** — jedna živa karta za sve slojeve, vremenske
    pločice kao raster slojevi umetnuti `beforeId` da imena gradova ostanu iznad
    boja. Animacija ide izmjenom `raster-opacity` na montiranim susjednim
@@ -170,9 +174,15 @@ se ista greška ispravlja dvaput.
 
 ## Sljedeći koraci (v1.1)
 
-- Android widget (react-native-android-widget) — čita postojeću pohranu
-  `burin:last-weather`
+- **iOS widget** (`expo-widgets`) — layout u TypeScriptu preko
+  `@expo/ui/swift-ui`, bez Swifta. Samo gradijent po vremenu (ta knjižnica
+  nema crtaće primitive), veličine `systemSmall`/`systemMedium` + lock
+  screen. Podaci iz `burin:last-weather` preko `updateTimeline()`
+- Android widget (react-native-android-widget) — nakon iOS-a; čita istu
+  pohranu, ali RemoteViews ne može nacrtati vjetrulju (nema SVG-a)
 - Preuređivanje spremljenih gradova povlačenjem
+- Dodatni jezici — engleski je gotov, `src/i18n` prima nove kao objekt
+  tipa `Dict`
 - Gušći izvor mjerenja za zaleđe (Polača: postaje su sve pretople, korekcija
   grije mjesto na 122 m)
 - Korekcija dnevnih min/max (`debiasDaily` radi, ali se mjerenje ne primjenjuje
@@ -180,5 +190,3 @@ se ista greška ispravlja dvaput.
 - Vremenske vijesti — DHMZ ima feed, za svijet treba izvor
 - Web kamere — čeka izvor s API-jem (whatsupcams je komercijalni, scraping ne
   dolazi u obzir)
-- Dodatni jezici — `src/i18n` je već strukturiran (novi jezik = novi objekt
-  tipa `Dict`)

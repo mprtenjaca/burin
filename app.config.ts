@@ -61,6 +61,14 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-dev-client",
+    /*
+     * Od SDK 57 se ova dva moraju NAVESTI IZRIJEKOM (7.8.2026.). Prije su
+     * se autolinkirala; `expo install --fix` ih traži u `plugins`, ali ih
+     * ne može sam upisati jer je ovo dinamički config (`app.config.ts`),
+     * pa je dodano ručno.
+     */
+    "expo-font",
+    "expo-status-bar",
     // Čita jezik sustava za zadani jezik sučelja (6.8.2026.). Samo čitanje
     // postavke uređaja — nema dozvola ni nativnog koda našeg pisanja.
     "expo-localization",
