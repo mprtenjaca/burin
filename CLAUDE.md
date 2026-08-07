@@ -101,8 +101,14 @@ dohvata — sve potrebno je već u `burin:last-weather`. Widget **ne može**
 čitati AsyncStorage (drugi proces, drugi kontejner), pa ide preko App
 Groupa `group.com.markop.burin`.
 
-Widget je nativni target → **svaka promjena konfiguracije traži rebuild**,
-ali samo mijenjanje TS izgleda ide reloadom.
+**SVAKA izmjena widgeta traži REBUILD** — i konfiguracije i samog
+rasporeda (provjereno u izvoru 7.8.2026.). Widget bundle se ne poslužuje
+s Metroa: `WidgetsJSRuntime.swift` ga čita iz `Bundle.main` kao
+`ExpoWidgets.bundle`, dakle datoteku ugrađenu u instalaciju. Reload
+osvježi aplikaciju, ali widget ostane na starom kodu.
+
+Android je drugačiji: ondje se handler vrti u običnom JS kontekstu, pa
+izmjene rasporeda idu reloadom kao i ostatak aplikacije.
 
 Ako se temperatura još dira: jedino što ostaje je **gušći izvor mjerenja**.
 Izmjereno je da se štimanjem težina više ne dobiva (visina i manji domet su
@@ -122,6 +128,7 @@ bude sustavno preblaga, uzrok je tu, ne u pragovima.
 | `expo-font` i `expo-status-bar` moraju biti u `plugins` | SDK 57 ih više ne autolinka. `expo install --fix` ih traži, ali ih **ne može sam upisati** jer je config dinamičan (`app.config.ts`) — zato naredba završi izlaznim kodom 1 iako je instalacija uspjela. Lako se pročita kao neuspjeh upgradea, a nije |
 | `tsconfig` mora imati `"types": ["jest", "node"]` | `types` je IZRIČIT popis — što nije navedeno, ne učitava se. Baza Expa je do SDK 54 nosila node tipove, od 57 ne, pa su testovi ostali bez `global` i `require.resolve` (4 greške). `@types/node` je bio instaliran cijelo vrijeme, samo neuključen |
 | `expo-modules-core` treba `moduleNameMapper` u jestu | Na SDK 57 taj paket živi **ugniježđen** (`node_modules/expo/node_modules/`), a `jest-expo@57` ga ne deklarira kao ovisnost i traži ga u korijenu → **sva 23 suitea** padnu na "Cannot find module". Mapiranje na pravu putanju rješava; ne dirati strukturu `node_modules` |
+| `'widget'` direktiva izdvaja TIJELO funkcije u zaseban paket | Nađeno NA UREĐAJU 7.8.2026.: widget se nije prikazao uz `ReferenceError: Can't find variable: Backdrop`. Direktiva ne označava samo funkciju — njeno tijelo ide u **zaseban paket** koji se izvršava u WidgetKit procesu, uz vlastite stubove za react i react-native (`expo-widgets/bundle/`). Sve u dosegu MODULA ostaje u paketu aplikacije i widgetu je NEDOSTUPNO, pa su sve pomoćne komponente i konstante morale unutra. Iz istog razloga se zovu kao FUNKCIJE (`Backdrop({...})`), ne kao JSX (`<Backdrop />`): jsx stub zna složiti stablo od poznatih `@expo/ui` komponenti, ali ne montira našu vlastitu. **Typecheck, testovi i `expo export` su svi prošli** — greška je bila vidljiva tek na uređaju |
 | `expo-widgets` na Androidu je KOSTUR — ne koristi se | Provjereno u izvoru 7.8.2026.: `ExpoWidgetsGlanceWidget.kt` ima 17 redaka i crta doslovno `Text(widgetName)`, a `WidgetsModule.kt` registrira samo ime. Config prima `android` blok, pa izgleda kao da radi — ali iza njega nema izvedbe. Android zato ide kroz `react-native-android-widget` |
 | Android widget je ispao LAKŠI od iOS-a | Suprotno od prve procjene (koja je govorila o RemoteViews i PNG-ovima): `SvgWidget` prima **SVG kao string**, pa gradijent s tri stopa i cijeli ambijent idu kao prava grafika umjesto slaganja od pravokutnika. `backgroundGradient` u knjižnici prima samo dvije boje, pa se SVG koristi i zbog toga. Handler se izvršava u JS-u, pa čita AsyncStorage IZRAVNO — nema App Groupa, nema kopiranja ikona, podaci su svježi u trenutku crtanja |
 | `index.js` postoji samo zbog Android widgeta | Headless zadatak mora biti registriran PRIJE nego RN pokrene aplikaciju, jer ga Android zove i kad aplikacija ne radi. Sve ide kroz `require`, ne `import`: ES uvozi se **hoistaju**, pa bi se `expo-router/entry` izvršio prvi bez obzira na redoslijed u datoteci, i zadatak bi ostao neregistriran |

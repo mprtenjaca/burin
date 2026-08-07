@@ -35,30 +35,43 @@ import type { WidgetProps } from "./props";
  * naš ostali JS**. Zato ovdje NEMA uvoza iz `@/utils` ni `@/store` —
  * sve se izračuna u aplikaciji i pošalje gotovo.
  *
- * Direktiva `'widget'` u tijelu funkcije govori prevoditelju da ovo ide
- * u nativni WidgetKit target, a ne u paket aplikacije.
- */
-
-/**
- * Podnožje ("14:20 · 24/11") stoji na 70 % prozirnosti, kao prigušeni
- * tekst u heroju. Isti odnos, ne ista vrijednost — widget je manji, pa
- * bi 75 % ovdje bilo pretiho.
- */
-const MUTED = 0.7;
-
-/**
- * Gradijent ide kao `Rectangle` s `foregroundStyle`, NE kao
- * `containerBackground` (izmjereno u tipovima 7.8.2026.).
+ * SVE JE UNUTAR JEDNE FUNKCIJE (popravak 7.8.2026., nađen na uređaju:
+ * "ReferenceError: Can't find variable: Backdrop").
  *
- * `containerBackground`, `background` i `backgroundOverlay` primaju samo
- * `Color` — jednu boju, bez gradijenta. Jedini modifikator koji prima
- * `linearGradient` je `foregroundStyle`, a on boji SADRŽAJ. Zato se
- * podloga crta kao pravokutnik ispod svega u `ZStacku`.
+ * Direktiva `'widget'` ne označava samo funkciju — ona njeno TIJELO
+ * izdvaja u ZASEBAN PAKET koji se izvršava u WidgetKit procesu, uz
+ * vlastite stubove za react i react-native (vidi `expo-widgets/bundle/`).
+ * Sve što stoji u dosegu MODULA ostaje u paketu aplikacije i widgetu je
+ * nedostupno — pa su pomoćne komponente i konstante morale unutra.
  *
- * Smjer (0,0) → (0.6,1) je isti dijagonalni kao u heroju
- * (`HeroBackdrop`), da widget i ekran izgledaju kao ista aplikacija.
+ * Zbog istog razloga se pomoćne komponente zovu kao FUNKCIJE
+ * (`Backdrop({...})`), ne kao JSX elementi: stub za jsx-runtime zna
+ * složiti stablo od poznatih komponenti `@expo/ui`, ali ne i montirati
+ * našu vlastitu funkcijsku komponentu.
  */
-function Backdrop({ stops }: { stops: [string, string, string] }) {
+function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
+  "widget";
+
+  /**
+   * Podnožje ("14:20 · 24/11") stoji na 70 % prozirnosti, kao prigušeni
+   * tekst u heroju. Isti odnos, ne ista vrijednost — widget je manji, pa
+   * bi 75 % ovdje bilo pretiho.
+   */
+  const MUTED = 0.7;
+
+  /**
+   * Gradijent ide kao `Rectangle` s `foregroundStyle`, NE kao
+   * `containerBackground` (izmjereno u tipovima 7.8.2026.).
+   *
+   * `containerBackground`, `background` i `backgroundOverlay` primaju samo
+   * `Color` — jednu boju, bez gradijenta. Jedini modifikator koji prima
+   * `linearGradient` je `foregroundStyle`, a on boji SADRŽAJ. Zato se
+   * podloga crta kao pravokutnik ispod svega u `ZStacku`.
+   *
+   * Smjer (0,0) → (0.6,1) je isti dijagonalni kao u heroju
+   * (`HeroBackdrop`), da widget i ekran izgledaju kao ista aplikacija.
+   */
+  function Backdrop({ stops }: { stops: [string, string, string] }) {
   return (
     <Rectangle
       modifiers={[
@@ -77,69 +90,69 @@ function Backdrop({ stops }: { stops: [string, string, string] }) {
       ]}
     />
   );
-}
+  }
 
-/**
- * AMBIJENT — suptilni sloj preko gradijenta (7.8.2026.).
- *
- * Aplikacija ovdje crta prave animirane slojeve (`HeroBackdrop`), ali
- * widget nema ni `Path` ni `Canvas`, pa se koristi ono što postoji:
- * `Rectangle` zarotiran u kosu crtu i `Circle` za točke i mrlje.
- *
- * Pravila su ista kao u aplikaciji:
- *  - kose crte idu pod **29°** (`SLOPE = 0.55` u `backdrop/shared.ts`),
- *    da se poklapaju s kišom i zrakama na ekranu
- *  - sunčane zrake se NE kližu i ovdje su mirne — mirna geometrija je
- *    ono što razlikuje vedro vrijeme od oborine
- *  - sve stoji na vrlo niskoj prozirnosti: ambijent se NE smije natjecati
- *    s temperaturom, koja je jedini razlog zašto widget postoji
- */
-const AMBIENT = 0.1;
+  /**
+   * AMBIJENT — suptilni sloj preko gradijenta (7.8.2026.).
+   *
+   * Aplikacija ovdje crta prave animirane slojeve (`HeroBackdrop`), ali
+   * widget nema ni `Path` ni `Canvas`, pa se koristi ono što postoji:
+   * `Rectangle` zarotiran u kosu crtu i `Circle` za točke i mrlje.
+   *
+   * Pravila su ista kao u aplikaciji:
+   *  - kose crte idu pod **29°** (`SLOPE = 0.55` u `backdrop/shared.ts`),
+   *    da se poklapaju s kišom i zrakama na ekranu
+   *  - sunčane zrake se NE kližu i ovdje su mirne — mirna geometrija je
+   *    ono što razlikuje vedro vrijeme od oborine
+   *  - sve stoji na vrlo niskoj prozirnosti: ambijent se NE smije natjecati
+   *    s temperaturom, koja je jedini razlog zašto widget postoji
+   */
+  const AMBIENT = 0.1;
 
-/**
- * GORNJA GRANICA prozirnosti bilo kojeg ambijentalnog elementa.
- *
- * Postoji da se suptilnost ne može slučajno probiti (Markov naglasak
- * 7.8.2026.: "al suptilno sve"). Prva izvedba je zvijezde vodila na 0.8 —
- * to više nije ambijent nego uzorak koji se natječe s temperaturom.
- *
- * Widget je malen i gleda se u prolazu: ambijent smije samo NAGOVIJESTITI
- * vrijeme, a brojka mora ostati jedino što se čita s udaljenosti.
- */
-const AMBIENT_MAX = 0.28;
+  /**
+   * GORNJA GRANICA prozirnosti bilo kojeg ambijentalnog elementa.
+   *
+   * Postoji da se suptilnost ne može slučajno probiti (Markov naglasak
+   * 7.8.2026.: "al suptilno sve"). Prva izvedba je zvijezde vodila na 0.8 —
+   * to više nije ambijent nego uzorak koji se natječe s temperaturom.
+   *
+   * Widget je malen i gleda se u prolazu: ambijent smije samo NAGOVIJESTITI
+   * vrijeme, a brojka mora ostati jedino što se čita s udaljenosti.
+   */
+  const AMBIENT_MAX = 0.28;
 
-/** Prozirnost uz zaštitu od probijanja granice. */
-const dim = (a: number) => Math.min(a, AMBIENT_MAX);
+  /** Prozirnost uz zaštitu od probijanja granice. */
+  const dim = (a: number) => Math.min(a, AMBIENT_MAX);
 
-/** Kut kosih elemenata — isti kao `SLOPE` u ambijentalnim slojevima. */
-const SLOPE_DEG = 29;
+  /** Kut kosih elemenata — isti kao `SLOPE` u ambijentalnim slojevima. */
+  const SLOPE_DEG = 29;
 
-/**
- * Duljina trake koja presijeca CIJELU pločicu, od vrha do dna.
- *
- * Izračunato, ne pogođeno: pri nagibu od 29° treba 158 / cos(29°) =
- * 181 px da se prijeđe visina pločice (obje veličine su visoke 158 pt).
- * 226 je to plus 25 % rezerve, da krajevi ostanu izvan kadra i da se
- * rez ne vidi kao ravna linija.
- */
-const FULL_LEN = 226;
+  /**
+   * Duljina trake koja presijeca CIJELU pločicu, od vrha do dna.
+   *
+   * Izračunato, ne pogođeno: pri nagibu od 29° treba 158 / cos(29°) =
+   * 181 px da se prijeđe visina pločice (obje veličine su visoke 158 pt).
+   * 226 je to plus 25 % rezerve, da krajevi ostanu izvan kadra i da se
+   * rez ne vidi kao ravna linija.
+   */
+  const FULL_LEN = 226;
 
-/** Jedna kosa crta (kiša, zrake): tanki pravokutnik pod nagibom. */
-function Streak({
+  /** Jedna kosa crta (kiša, zrake): tanki pravokutnik pod nagibom. */
+  function Streak({
   x,
   y,
   len,
   w,
   tint,
   alpha,
-}: {
+  }: {
   x: number;
   y: number;
   len: number;
   w: number;
   tint: string;
   alpha: number;
-}) {
+  }) {
   return (
     <Rectangle
       modifiers={[
@@ -151,24 +164,24 @@ function Streak({
       ]}
     />
   );
-}
+  }
 
-/** Jedna točka (zvijezda, pahulja) ili meka mrlja (oblak) uz `soft`. */
-function Dot({
+  /** Jedna točka (zvijezda, pahulja) ili meka mrlja (oblak) uz `soft`. */
+  function Dot({
   x,
   y,
   r,
   tint,
   alpha,
   soft = 0,
-}: {
+  }: {
   x: number;
   y: number;
   r: number;
   tint: string;
   alpha: number;
   soft?: number;
-}) {
+  }) {
   const mods = [
     frame({ width: r * 2, height: r * 2 }),
     foregroundStyle(tint),
@@ -177,17 +190,17 @@ function Dot({
   ];
   // `blur` pretvara krug u mekanu mrlju — tako se crtaju oblaci.
   return <Circle modifiers={soft ? [...mods, blur(soft)] : mods} />;
-}
+  }
 
-/**
- * Ambijent po vremenu. Vraća `null` za vremena koja nemaju svoj sloj —
- * bolje čist gradijent nego nasumičan ukras.
- *
- * Položaji su FIKSNI, ne slučajni: widget se crta iznova pri svakom
- * osvježenju, pa bi `Math.random` premještao crte i pri svakom buđenju
- * davao drugu sliku (isti razlog zašto `StarsLayer` koristi `rnd`).
- */
-function Ambient({ kind, tint }: { kind: AmbientKind; tint: string }) {
+  /**
+   * Ambijent po vremenu. Vraća `null` za vremena koja nemaju svoj sloj —
+   * bolje čist gradijent nego nasumičan ukras.
+   *
+   * Položaji su FIKSNI, ne slučajni: widget se crta iznova pri svakom
+   * osvježenju, pa bi `Math.random` premještao crte i pri svakom buđenju
+   * davao drugu sliku (isti razlog zašto `StarsLayer` koristi `rnd`).
+   */
+  function Ambient({ kind, tint }: { kind: AmbientKind; tint: string }) {
   if (kind === "none") return null;
 
   if (kind === "rays") {
@@ -225,13 +238,13 @@ function Ambient({ kind, tint }: { kind: AmbientKind; tint: string }) {
      */
     return (
       <ZStack>
-        <Dot x={190} y={-30} r={72} tint="#FFFFFF" alpha={0.2} soft={34} />
-        <Dot x={168} y={-24} r={40} tint="#FFFFFF" alpha={0.14} soft={20} />
-        <Streak x={74} y={0} len={FULL_LEN} w={11} tint={tint} alpha={0.24} />
-        <Streak x={98} y={0} len={FULL_LEN} w={6} tint={tint} alpha={0.19} />
-        <Streak x={118} y={0} len={FULL_LEN} w={9} tint={tint} alpha={0.22} />
-        <Streak x={140} y={0} len={FULL_LEN} w={4} tint={tint} alpha={0.16} />
-        <Streak x={156} y={0} len={FULL_LEN} w={3} tint={tint} alpha={0.14} />
+        {Dot({ x: 190, y: -30, r: 72, tint: "#FFFFFF", alpha: 0.2, soft: 34 })}
+        {Dot({ x: 168, y: -24, r: 40, tint: "#FFFFFF", alpha: 0.14, soft: 20 })}
+        {Streak({ x: 74, y: 0, len: FULL_LEN, w: 11, tint: tint, alpha: 0.24 })}
+        {Streak({ x: 98, y: 0, len: FULL_LEN, w: 6, tint: tint, alpha: 0.19 })}
+        {Streak({ x: 118, y: 0, len: FULL_LEN, w: 9, tint: tint, alpha: 0.22 })}
+        {Streak({ x: 140, y: 0, len: FULL_LEN, w: 4, tint: tint, alpha: 0.16 })}
+        {Streak({ x: 156, y: 0, len: FULL_LEN, w: 3, tint: tint, alpha: 0.14 })}
       </ZStack>
     );
   }
@@ -256,17 +269,17 @@ function Ambient({ kind, tint }: { kind: AmbientKind; tint: string }) {
      */
     return (
       <ZStack>
-        <Streak x={8} y={-34} len={30} w={2.4} tint={tint} alpha={0.22} />
-        <Streak x={24} y={6} len={24} w={2.2} tint={tint} alpha={0.18} />
-        <Streak x={40} y={-48} len={32} w={2.4} tint={tint} alpha={0.23} />
-        <Streak x={54} y={-12} len={26} w={2.2} tint={tint} alpha={0.19} />
-        <Streak x={70} y={26} len={22} w={2} tint={tint} alpha={0.17} />
-        <Streak x={84} y={-38} len={30} w={2.4} tint={tint} alpha={0.23} />
-        <Streak x={100} y={2} len={26} w={2.2} tint={tint} alpha={0.19} />
-        <Streak x={116} y={-24} len={28} w={2.4} tint={tint} alpha={0.22} />
-        <Streak x={132} y={22} len={22} w={2} tint={tint} alpha={0.17} />
-        <Streak x={148} y={-44} len={30} w={2.2} tint={tint} alpha={0.21} />
-        <Streak x={164} y={-8} len={24} w={2.2} tint={tint} alpha={0.19} />
+        {Streak({ x: 8, y: -34, len: 30, w: 2.4, tint: tint, alpha: 0.22 })}
+        {Streak({ x: 24, y: 6, len: 24, w: 2.2, tint: tint, alpha: 0.18 })}
+        {Streak({ x: 40, y: -48, len: 32, w: 2.4, tint: tint, alpha: 0.23 })}
+        {Streak({ x: 54, y: -12, len: 26, w: 2.2, tint: tint, alpha: 0.19 })}
+        {Streak({ x: 70, y: 26, len: 22, w: 2, tint: tint, alpha: 0.17 })}
+        {Streak({ x: 84, y: -38, len: 30, w: 2.4, tint: tint, alpha: 0.23 })}
+        {Streak({ x: 100, y: 2, len: 26, w: 2.2, tint: tint, alpha: 0.19 })}
+        {Streak({ x: 116, y: -24, len: 28, w: 2.4, tint: tint, alpha: 0.22 })}
+        {Streak({ x: 132, y: 22, len: 22, w: 2, tint: tint, alpha: 0.17 })}
+        {Streak({ x: 148, y: -44, len: 30, w: 2.2, tint: tint, alpha: 0.21 })}
+        {Streak({ x: 164, y: -8, len: 24, w: 2.2, tint: tint, alpha: 0.19 })}
       </ZStack>
     );
   }
@@ -283,16 +296,16 @@ function Ambient({ kind, tint }: { kind: AmbientKind; tint: string }) {
      */
     return (
       <ZStack>
-        <Dot x={-58} y={-48} r={1.9} tint={tint} alpha={0.28} />
-        <Dot x={-34} y={-18} r={1.3} tint={tint} alpha={0.18} />
-        <Dot x={-8} y={-54} r={1.7} tint={tint} alpha={0.25} />
-        <Dot x={16} y={-30} r={1.2} tint={tint} alpha={0.16} />
-        <Dot x={44} y={-50} r={2} tint={tint} alpha={0.28} />
-        <Dot x={64} y={-22} r={1.3} tint={tint} alpha={0.18} />
-        <Dot x={-48} y={12} r={1.2} tint={tint} alpha={0.15} />
-        <Dot x={30} y={8} r={1.4} tint={tint} alpha={0.17} />
-        <Dot x={96} y={-44} r={1.5} tint={tint} alpha={0.22} />
-        <Dot x={126} y={-16} r={1.2} tint={tint} alpha={0.15} />
+        {Dot({ x: -58, y: -48, r: 1.9, tint: tint, alpha: 0.28 })}
+        {Dot({ x: -34, y: -18, r: 1.3, tint: tint, alpha: 0.18 })}
+        {Dot({ x: -8, y: -54, r: 1.7, tint: tint, alpha: 0.25 })}
+        {Dot({ x: 16, y: -30, r: 1.2, tint: tint, alpha: 0.16 })}
+        {Dot({ x: 44, y: -50, r: 2, tint: tint, alpha: 0.28 })}
+        {Dot({ x: 64, y: -22, r: 1.3, tint: tint, alpha: 0.18 })}
+        {Dot({ x: -48, y: 12, r: 1.2, tint: tint, alpha: 0.15 })}
+        {Dot({ x: 30, y: 8, r: 1.4, tint: tint, alpha: 0.17 })}
+        {Dot({ x: 96, y: -44, r: 1.5, tint: tint, alpha: 0.22 })}
+        {Dot({ x: 126, y: -16, r: 1.2, tint: tint, alpha: 0.15 })}
       </ZStack>
     );
   }
@@ -307,15 +320,15 @@ function Ambient({ kind, tint }: { kind: AmbientKind; tint: string }) {
      */
     return (
       <ZStack>
-        <Dot x={-62} y={-42} r={4} tint={tint} alpha={0.28} soft={0.5} />
-        <Dot x={-30} y={-2} r={3.2} tint={tint} alpha={0.22} soft={0.5} />
-        <Dot x={-4} y={-48} r={4.4} tint={tint} alpha={0.28} soft={0.5} />
-        <Dot x={26} y={18} r={3.4} tint={tint} alpha={0.21} soft={0.5} />
-        <Dot x={54} y={-30} r={3.8} tint={tint} alpha={0.26} soft={0.5} />
-        <Dot x={20} y={-16} r={2.6} tint={tint} alpha={0.19} soft={0.5} />
-        <Dot x={-44} y={26} r={2.8} tint={tint} alpha={0.2} soft={0.5} />
-        <Dot x={92} y={2} r={3.4} tint={tint} alpha={0.23} soft={0.5} />
-        <Dot x={124} y={-36} r={3} tint={tint} alpha={0.21} soft={0.5} />
+        {Dot({ x: -62, y: -42, r: 4, tint: tint, alpha: 0.28, soft: 0.5 })}
+        {Dot({ x: -30, y: -2, r: 3.2, tint: tint, alpha: 0.22, soft: 0.5 })}
+        {Dot({ x: -4, y: -48, r: 4.4, tint: tint, alpha: 0.28, soft: 0.5 })}
+        {Dot({ x: 26, y: 18, r: 3.4, tint: tint, alpha: 0.21, soft: 0.5 })}
+        {Dot({ x: 54, y: -30, r: 3.8, tint: tint, alpha: 0.26, soft: 0.5 })}
+        {Dot({ x: 20, y: -16, r: 2.6, tint: tint, alpha: 0.19, soft: 0.5 })}
+        {Dot({ x: -44, y: 26, r: 2.8, tint: tint, alpha: 0.2, soft: 0.5 })}
+        {Dot({ x: 92, y: 2, r: 3.4, tint: tint, alpha: 0.23, soft: 0.5 })}
+        {Dot({ x: 124, y: -36, r: 3, tint: tint, alpha: 0.21, soft: 0.5 })}
       </ZStack>
     );
   }
@@ -344,13 +357,13 @@ function Ambient({ kind, tint }: { kind: AmbientKind; tint: string }) {
     return (
       <ZStack>
         {/* Sjena ispod oblaka — prvo, da bude ispod njega. */}
-        <Dot x={104} y={2} r={38} tint="#000000" alpha={0.1} soft={20} />
+        {Dot({ x: 104, y: 2, r: 38, tint: "#000000", alpha: 0.1, soft: 20 })}
         {/* Tijelo oblaka: podnožje pa dva vrha. */}
-        <Dot x={96} y={-18} r={30} tint="#FFFFFF" alpha={0.17} soft={12} />
-        <Dot x={128} y={-30} r={24} tint="#FFFFFF" alpha={0.16} soft={11} />
-        <Dot x={70} y={-28} r={20} tint="#FFFFFF" alpha={0.14} soft={10} />
+        {Dot({ x: 96, y: -18, r: 30, tint: "#FFFFFF", alpha: 0.17, soft: 12 })}
+        {Dot({ x: 128, y: -30, r: 24, tint: "#FFFFFF", alpha: 0.16, soft: 11 })}
+        {Dot({ x: 70, y: -28, r: 20, tint: "#FFFFFF", alpha: 0.14, soft: 10 })}
         {/* Drugi, manji i blijeđi oblak gore desno — dubina. */}
-        <Dot x={166} y={-52} r={18} tint="#FFFFFF" alpha={0.1} soft={9} />
+        {Dot({ x: 166, y: -52, r: 18, tint: "#FFFFFF", alpha: 0.1, soft: 9 })}
       </ZStack>
     );
   }
@@ -363,35 +376,35 @@ function Ambient({ kind, tint }: { kind: AmbientKind; tint: string }) {
    */
   return (
     <ZStack>
-      <Dot x={-70} y={-40} r={28} tint="#000000" alpha={0.07} soft={15} />
-      <Dot x={-24} y={-52} r={21} tint="#000000" alpha={0.055} soft={12} />
-      <Dot x={56} y={-38} r={32} tint="#000000" alpha={0.065} soft={16} />
-      <Dot x={116} y={-48} r={23} tint="#000000" alpha={0.05} soft={12} />
+      {Dot({ x: -70, y: -40, r: 28, tint: "#000000", alpha: 0.07, soft: 15 })}
+      {Dot({ x: -24, y: -52, r: 21, tint: "#000000", alpha: 0.055, soft: 12 })}
+      {Dot({ x: 56, y: -38, r: 32, tint: "#000000", alpha: 0.065, soft: 16 })}
+      {Dot({ x: 116, y: -48, r: 23, tint: "#000000", alpha: 0.05, soft: 12 })}
     </ZStack>
   );
-}
+  }
 
-/**
- * Ikona vremena. Crta se samo kad putanja postoji — dok se PNG-ovi ne
- * prepišu u dijeljeni folder (prvi kadar nakon instalacije) ostaje prazno,
- * a raspored se ne mijenja jer ikona stoji u svojem stupcu.
- *
- * `uiImage` čita datoteku SINKRONO, ali ikone su ~1.5 kB i widget se crta
- * rijetko, pa je to prihvatljivo.
- */
-function Icon({ path, size, tint }: { path: string; size: number; tint: string }) {
+  /**
+   * Ikona vremena. Crta se samo kad putanja postoji — dok se PNG-ovi ne
+   * prepišu u dijeljeni folder (prvi kadar nakon instalacije) ostaje prazno,
+   * a raspored se ne mijenja jer ikona stoji u svojem stupcu.
+   *
+   * `uiImage` čita datoteku SINKRONO, ali ikone su ~1.5 kB i widget se crta
+   * rijetko, pa je to prihvatljivo.
+   */
+  function Icon({ path, size, tint }: { path: string; size: number; tint: string }) {
   if (!path) return null;
   return <Image uiImage={path} size={size} color={tint} modifiers={[frame({ width: size, height: size })]} />;
-}
+  }
 
-/**
- * MALI WIDGET (2×2) — mjesto, velika brojka, opis, pa min/max.
- *
- * Vjetar se OVDJE NE PRIKAZUJE ni kad puše: kvadrat od 2×2 nosi četiri
- * reda i peti bi ih sve stisnuo. Udari idu samo na srednji widget, gdje
- * ima mjesta uz brojku.
- */
-function SmallLayout(props: WidgetProps) {
+  /**
+   * MALI WIDGET (2×2) — mjesto, velika brojka, opis, pa min/max.
+   *
+   * Vjetar se OVDJE NE PRIKAZUJE ni kad puše: kvadrat od 2×2 nosi četiri
+   * reda i peti bi ih sve stisnuo. Udari idu samo na srednji widget, gdje
+   * ima mjesta uz brojku.
+   */
+  function SmallLayout(props: WidgetProps) {
   return (
     <VStack alignment="leading" spacing={0}>
       {/* Mjesto lijevo, ikona vremena desno — kao V&R u malom widgetu. */}
@@ -402,7 +415,7 @@ function SmallLayout(props: WidgetProps) {
           {props.place}
         </Text>
         <Spacer />
-        <Icon path={props.icon} size={20} tint={props.fg} />
+        {Icon({ path: props.icon, size: 20, tint: props.fg })}
       </HStack>
 
       <Spacer />
@@ -428,20 +441,20 @@ function SmallLayout(props: WidgetProps) {
       </Text>
     </VStack>
   );
-}
+  }
 
-/**
- * SREDNJI WIDGET (4×2) — isto plus udari vjetra desno.
- *
- * Podjela je lijevo/desno, a ne dva stupca ravnopravno: brojka mora
- * ostati glavna. `Spacer` između njih tjera desni stupac na rub.
- */
-function MediumLayout(props: WidgetProps) {
+  /**
+   * SREDNJI WIDGET (4×2) — isto plus udari vjetra desno.
+   *
+   * Podjela je lijevo/desno, a ne dva stupca ravnopravno: brojka mora
+   * ostati glavna. `Spacer` između njih tjera desni stupac na rub.
+   */
+  function MediumLayout(props: WidgetProps) {
   return (
     <HStack spacing={0}>
       <VStack alignment="leading" spacing={0}>
         <HStack spacing={6}>
-          <Icon path={props.icon} size={18} tint={props.fg} />
+          {Icon({ path: props.icon, size: 18, tint: props.fg })}
           <Text
             modifiers={[font({ size: 14, weight: "semibold" }), foregroundStyle(props.fg)]}
           >
@@ -484,7 +497,7 @@ function MediumLayout(props: WidgetProps) {
         */}
         {props.gusts !== null && (
           <HStack spacing={4}>
-            <Icon path={props.windIcon} size={16} tint={props.fg} />
+            {Icon({ path: props.windIcon, size: 16, tint: props.fg })}
             <Text
               modifiers={[font({ size: 15, weight: "bold" }), foregroundStyle(props.fg)]}
             >
@@ -505,17 +518,17 @@ function MediumLayout(props: WidgetProps) {
       </VStack>
     </HStack>
   );
-}
+  }
 
-/**
- * ZAKLJUČANI ZASLON (`accessoryRectangular`) — JEDNOBOJAN.
- *
- * iOS ovdje crta u `vibrant` načinu: sve se svede na jedan ton, pa
- * gradijent i boje NEMAJU efekta. Zato ovaj raspored ne dobiva podlogu
- * niti `foregroundStyle` — boja bi bila ignorirana, a eksplicitna siva
- * bi se borila sa sustavskim tonom.
- */
-function AccessoryLayout(props: WidgetProps) {
+  /**
+   * ZAKLJUČANI ZASLON (`accessoryRectangular`) — JEDNOBOJAN.
+   *
+   * iOS ovdje crta u `vibrant` načinu: sve se svede na jedan ton, pa
+   * gradijent i boje NEMAJU efekta. Zato ovaj raspored ne dobiva podlogu
+   * niti `foregroundStyle` — boja bi bila ignorirana, a eksplicitna siva
+   * bi se borila sa sustavskim tonom.
+   */
+  function AccessoryLayout(props: WidgetProps) {
   return (
     <VStack alignment="leading" spacing={1}>
       {/*
@@ -524,7 +537,7 @@ function AccessoryLayout(props: WidgetProps) {
         zašto Apple ondje koristi `*.fill` simbole.
       */}
       <HStack spacing={4}>
-        <Icon path={props.iconFill} size={14} tint="#FFFFFF" />
+        {Icon({ path: props.iconFill, size: 14, tint: "#FFFFFF" })}
         <Text modifiers={[font({ size: 15, weight: "semibold" })]}>
           {`${props.temp}${props.unit}`}
         </Text>
@@ -539,19 +552,19 @@ function AccessoryLayout(props: WidgetProps) {
       </Text>
     </VStack>
   );
-}
+  }
 
-/**
- * KRUŽNI ZASLON (`accessoryCircular`) — LUK s trenutnom temperaturom na
- * dnevnom rasponu (Markov odabir 7.8.2026., po Appleovom widgetu).
- *
- * `Gauge` u stilu `circular` daje točno taj oblik: vrijednost kao položaj
- * na luku, minimum i maksimum na krajevima. Time jedan mali krug nosi TRI
- * broja — trenutno, min i max — i odmah se vidi gdje je dan.
- *
- * Ovdje također NEMA boje: `vibrant` način svede sve na jedan ton.
- */
-function CircularLayout(props: WidgetProps) {
+  /**
+   * KRUŽNI ZASLON (`accessoryCircular`) — LUK s trenutnom temperaturom na
+   * dnevnom rasponu (Markov odabir 7.8.2026., po Appleovom widgetu).
+   *
+   * `Gauge` u stilu `circular` daje točno taj oblik: vrijednost kao položaj
+   * na luku, minimum i maksimum na krajevima. Time jedan mali krug nosi TRI
+   * broja — trenutno, min i max — i odmah se vidi gdje je dan.
+   *
+   * Ovdje također NEMA boje: `vibrant` način svede sve na jedan ton.
+   */
+  function CircularLayout(props: WidgetProps) {
   return (
     <Gauge
       value={props.temp}
@@ -569,15 +582,10 @@ function CircularLayout(props: WidgetProps) {
       modifiers={[gaugeStyle("circular")]}
     />
   );
-}
+  }
 
-/**
- * Widget se crta prema `widgetFamily` — iOS istu komponentu zove za
- * svaku veličinu, pa raspored MORA granati sam.
- */
-function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
-  "widget";
-
+  // Widget se crta prema `widgetFamily` — iOS istu komponentu zove za
+  // svaku veličinu, pa raspored MORA granati sam.
   const family = environment.widgetFamily;
 
   /*
@@ -605,10 +613,10 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
    * ikad doda — bolje jednobojan tekst nego prazna pločica.
    */
   if (family === "accessoryCircular") {
-    return <CircularLayout {...props} />;
+    return CircularLayout(props);
   }
   if (family.startsWith("accessory")) {
-    return <AccessoryLayout {...props} />;
+    return AccessoryLayout(props);
   }
 
   /*
@@ -618,7 +626,7 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
    */
   return (
     <ZStack>
-      {!flat && <Backdrop stops={props.stops} />}
+      {!flat && Backdrop({ stops: props.stops })}
       {/*
         Ambijent stoji IZMEĐU gradijenta i sadržaja: iznad boje da se vidi,
         ispod teksta da mu ne smeta. U tintanom načinu izostaje zajedno s
@@ -628,16 +636,16 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
         ispravak 7.8.2026.): na suncu je tekst taman, pa su i trake
         ispadale sive i izgledale kao prljavština umjesto kao svjetlo.
       */}
-      {!flat && <Ambient kind={props.ambient as AmbientKind} tint="#FFFFFF" />}
+      {!flat && Ambient({ kind: props.ambient as AmbientKind, tint: "#FFFFFF" })}
       <VStack modifiers={[padding({ all: 14 })]}>
-        {family === "systemSmall" ? <SmallLayout {...props} /> : <MediumLayout {...props} />}
+        {family === "systemSmall" ? SmallLayout(props) : MediumLayout(props)}
       </VStack>
     </ZStack>
   );
-}
+  }
 
-/**
- * Ime "BurinWeather" MORA biti identično `name` u `app.config.ts` —
- * po njemu iOS spaja nativni target s ovim rasporedom.
+  /**
+   * Ime "BurinWeather" MORA biti identično `name` u `app.config.ts` —
+   * po njemu iOS spaja nativni target s ovim rasporedom.
  */
 export const BurinWidget = createWidget<WidgetProps>("BurinWeather", BurinWidgetLayout);
