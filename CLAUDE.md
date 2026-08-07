@@ -30,7 +30,7 @@ više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
 | Web kamere | Odgođeno | V&R koristi whatsupcams (komercijalni, bez API-ja); scraping ne dolazi u obzir. Čeka čist izvor (HAK/TZ popis?) |
 | **iOS widget** | Kod gotov 7.8.2026., **traži rebuild pa provjeru** | `expo-widgets` 57.0.8; layout u TypeScriptu (`src/widgets/`), bez Swifta. Četiri veličine: `systemSmall`, `systemMedium`, `accessoryRectangular` (tekst + H/L), `accessoryCircular` (luk s temperaturom na dnevnom rasponu). JEDNA verzija bez obzira na temu, bijeli tekst svugdje. 20 vlastitih PNG ikona (obrisne + pune) i suptilni ambijentalni slojevi. **Rebuild je obavezan** — nativni target |
 | **SDK upgrade 54 → 57** | **Izveden 7.8.2026., čeka provjeru na uređaju** | RN 0.81.5 → **0.86.2**, React 19.1 → **19.2.3**, TS 5.9 → **6.0.3**. Sve tri provjere + `expo-doctor` 20/20 čisti. Predviđanje se potvrdilo: MapLibre 11.3.6 **nije trebao dizanje** (već nosi Fabric codegen), Reanimated je otišao na 4.5.1, NativeWind ostao. Četiri zapreke, sve male — vidi Recent Decisions |
-| Android widget | Open, nakon iOS-a | v1.1; `burin:last-weather` (zustand persist) je pripremljen kao pohrana. `react-native-android-widget` radi na SDK 54 već sad. **Vjetrulja se ne može nacrtati u RemoteViews** (nema SVG-a) — trebat će PNG po tonu ili pojednostavljen glif |
+| **Android widget** | Kod gotov 7.8.2026., **traži rebuild pa provjeru** | `react-native-android-widget` 0.21.0; `src/widgets/android/`. Dvije veličine (2×2, 4×2), isti izgled i isti podaci kao iOS. **Ispalo lakše nego iOS**: `SvgWidget` prima SVG string, pa gradijent i ambijent idu kao prava grafika, a handler se vrti u JS-u pa čita AsyncStorage izravno — bez App Groupa. Ranija bilješka o RemoteViews je bila kriva |
 
 ## Next Step
 
@@ -90,6 +90,12 @@ provjeriti, tim redom:
 7. **Tintani način** — dugi pritisak na pozadinu → tema → tintano. Gradijent
    i ambijent moraju NESTATI, tekst i ikone ostati
 
+**Android** (`npx expo run:android`) traži isto, uz dvije razlike:
+widget se **osvježava sam svakih 30 min** (manjeg razmaka Android ne
+dopušta iz manifesta), a prvi crtež traži da je aplikacija barem jednom
+dohvatila podatke — headless zadatak čita `burin:last-weather`, pa je
+prije toga pločica prazna.
+
 Podaci idu `updateTimeline()` iz `useWeatherBundle` nakon uspješnog
 dohvata — sve potrebno je već u `burin:last-weather`. Widget **ne može**
 čitati AsyncStorage (drugi proces, drugi kontejner), pa ide preko App
@@ -116,6 +122,9 @@ bude sustavno preblaga, uzrok je tu, ne u pragovima.
 | `expo-font` i `expo-status-bar` moraju biti u `plugins` | SDK 57 ih više ne autolinka. `expo install --fix` ih traži, ali ih **ne može sam upisati** jer je config dinamičan (`app.config.ts`) — zato naredba završi izlaznim kodom 1 iako je instalacija uspjela. Lako se pročita kao neuspjeh upgradea, a nije |
 | `tsconfig` mora imati `"types": ["jest", "node"]` | `types` je IZRIČIT popis — što nije navedeno, ne učitava se. Baza Expa je do SDK 54 nosila node tipove, od 57 ne, pa su testovi ostali bez `global` i `require.resolve` (4 greške). `@types/node` je bio instaliran cijelo vrijeme, samo neuključen |
 | `expo-modules-core` treba `moduleNameMapper` u jestu | Na SDK 57 taj paket živi **ugniježđen** (`node_modules/expo/node_modules/`), a `jest-expo@57` ga ne deklarira kao ovisnost i traži ga u korijenu → **sva 23 suitea** padnu na "Cannot find module". Mapiranje na pravu putanju rješava; ne dirati strukturu `node_modules` |
+| `expo-widgets` na Androidu je KOSTUR — ne koristi se | Provjereno u izvoru 7.8.2026.: `ExpoWidgetsGlanceWidget.kt` ima 17 redaka i crta doslovno `Text(widgetName)`, a `WidgetsModule.kt` registrira samo ime. Config prima `android` blok, pa izgleda kao da radi — ali iza njega nema izvedbe. Android zato ide kroz `react-native-android-widget` |
+| Android widget je ispao LAKŠI od iOS-a | Suprotno od prve procjene (koja je govorila o RemoteViews i PNG-ovima): `SvgWidget` prima **SVG kao string**, pa gradijent s tri stopa i cijeli ambijent idu kao prava grafika umjesto slaganja od pravokutnika. `backgroundGradient` u knjižnici prima samo dvije boje, pa se SVG koristi i zbog toga. Handler se izvršava u JS-u, pa čita AsyncStorage IZRAVNO — nema App Groupa, nema kopiranja ikona, podaci su svježi u trenutku crtanja |
+| `index.js` postoji samo zbog Android widgeta | Headless zadatak mora biti registriran PRIJE nego RN pokrene aplikaciju, jer ga Android zove i kad aplikacija ne radi. Sve ide kroz `require`, ne `import`: ES uvozi se **hoistaju**, pa bi se `expo-router/entry` izvršio prvi bez obzira na redoslijed u datoteci, i zadatak bi ostao neregistriran |
 | Widget ima JEDNU verziju, uvijek tamnu | Tema telefona se ne prati (Markov odabir 7.8.2026.): pločica izgleda isto ujutro i navečer, jer korisnik ne mijenja temu zbog widgeta. Sve palete su potamnjene inačice onih iz aplikacije — isti ton, spuštena svjetlina dok bijeli tekst ne prijeđe **4.5:1**. Izmjereno svaku; najniže je djelomično oblačno sa 4.78:1. `dark` je time ispao iz cijelog lanca |
 | Vedar dan u widgetu je PLAVO NEBO, ne žuto sunce | Žuta iz aplikacije (`#F4C542`) daje bijelom tekstu **1.63:1**, a potamnjena postaje pečena narančasta u kojoj sunčan dan izgleda kao prašina (provjereno renderom). Plava (`#3E76AA`) prolazi sa **4.80:1** i čita se kao vedro NEBO — što je i točnije. Sunce ostaje u ikoni i u sjaju, ne u podlozi. Djelomično oblačno je isto plavo, samo tamnije: naoblaka nebo prigušuje, ne pretvara ga u narančasto |
 | Ambijent widgeta se slaže od `Rectangle` i `Circle` | Nema `Path` ni `Canvas`, pa se prave krivulje ne mogu crtati. Kose crte su zarotirani pravokutnici pod **29°** — izračunato iz `SLOPE = 0.55` u aplikaciji, da se poklapaju s kišom i zrakama na ekranu. Duljina 226 px je isto izračunata: 158 / cos(29°) = 181 px za visinu pločice, plus rezerva da se rez ne vidi. Oblaci i sjaj su zamućeni krugovi (`blur`) |
@@ -315,10 +324,15 @@ src/hooks/            useWeatherBundle, useWarnings, useNow, useRadarFrames,
 src/utils/            weatherCodes, weatherLook, emmaRegions, format, geo, dayParts
 src/theme/colors.ts   paper/ink/night/mint + mist (podloga) i coal (tamna kartica)
 src/i18n/hr.ts        SVI UI stringovi (kanonski rječnik = izvor tipa)
+index.js              ulazna točka; registrira Android widget zadatak pa
+                      tek onda diže expo-router (require, ne import)
 src/widgets/          iOS widget: BurinWidget (raspored + ambijent),
-                      widgetData (most iz WeatherBundle u propove),
-                      props/iconNames (čisti tipovi bez nativnog),
-                      widgetIcons (kopiranje PNG-ova u App Group)
+                      widgetData (most iz WeatherBundle u propove,
+                      DIJELI ga i Android), props/iconNames (čisti
+                      tipovi), widgetIcons (PNG-ovi u App Group)
+src/widgets/android/  Android widget: BurinAndroidWidget (raspored,
+                      ambijent kao SVG), widgetTaskHandler (headless —
+                      čita AsyncStorage, bez hookova)
 assets/widget/        20 PNG ikona widgeta (obrisne + `-fill`)
 scripts/generate-icons.mjs  ikone iz glifa "Zapuh" (traži sharp)
 scripts/generate-widget-icons.mjs  ikone widgeta (traži sharp)

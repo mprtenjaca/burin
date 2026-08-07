@@ -79,6 +79,47 @@ const config: ExpoConfig = {
     "expo-font",
     "expo-status-bar",
     /*
+     * ANDROID widget (7.8.2026.) — zaseban paket od iOS-a.
+     *
+     * `expo-widgets` na Androidu ima samo KOSTUR (njegov Glance widget
+     * crta doslovno `Text(widgetName)`), pa Android ide kroz
+     * `react-native-android-widget`. Isti podaci i isti izgled, druga
+     * knjižnica — vidi `src/widgets/android/`.
+     *
+     * `updatePeriodMillis` ima MINIMUM od 30 minuta (Android ga niže ne
+     * dopušta iz manifesta); kraće bi tražilo WorkManager i trošilo
+     * bateriju. Widget se i inače osvježi kad aplikacija dohvati podatke.
+     */
+    [
+      "react-native-android-widget",
+      {
+        widgets: [
+          {
+            name: "BurinSmall",
+            label: "Burin",
+            description: "Trenutna temperatura i opis vremena.",
+            minWidth: "140dp",
+            minHeight: "140dp",
+            targetCellWidth: 2,
+            targetCellHeight: 2,
+            resizeMode: "none",
+            updatePeriodMillis: 1800000,
+          },
+          {
+            name: "BurinMedium",
+            label: "Burin (široki)",
+            description: "Temperatura, opis, dnevni raspon i udari vjetra.",
+            minWidth: "300dp",
+            minHeight: "140dp",
+            targetCellWidth: 4,
+            targetCellHeight: 2,
+            resizeMode: "horizontal",
+            updatePeriodMillis: 1800000,
+          },
+        ],
+      },
+    ],
+    /*
      * iOS widget (7.8.2026.). `groupIdentifier` je App Group — widget je
      * ZASEBAN PROCES u drugom kontejneru i bez njega ne može primiti ni
      * jedan podatak od aplikacije (AsyncStorage mu je nedostupan).
