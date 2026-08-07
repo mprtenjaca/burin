@@ -261,36 +261,49 @@ export async function pushWidget(
   tempUnit: TempUnit,
   windUnit: WindUnit,
 ): Promise<void> {
+  /*
+   * IKONE SU ODVOJENA BRIGA od upisa crte (popravak 7.8.2026.).
+   *
+   * Prije je sve stajalo u JEDNOM `try`, pa je pad `syncWidgetIcons`
+   * (koji dira `expo-file-system`, `expo-asset` i App Group) preskakao i
+   * `updateTimeline` ispod sebe. Widget je time ostajao BEZ IJEDNOG
+   * PROPA i crtao se kao bijela pločica s "undefined" — greške nije
+   * bilo jer ju je `catch` progutao.
+   *
+   * Sada: ikone smiju pasti, crta se svejedno upisuje (bez ikona).
+   */
+  let iconPath: IconResolver = NO_ICONS;
   try {
-    /*
-     * Uvozi su LIJENI i unutar `try` (7.8.2026.), jer `BurinWidget` vuče
-     * `expo-widgets` i `@expo/ui/swift-ui` — oboje NATIVNO. Uvoz na vrhu
-     * datoteke bi:
-     *  - srušio testove ovog modula ("Cannot find native module"), i
-     *  - pao na Androidu, gdje widgeta nema.
-     *
-     * Ovako je nativni dio ograničen na ovu jednu funkciju, a
-     * `widgetEntries` ostaje čista logika koja se testira.
-     */
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { syncWidgetIcons, widgetIconPath } = require("./widgetIcons") as {
+    const icons = require("./widgetIcons") as {
       syncWidgetIcons: () => Promise<void>;
       widgetIconPath: IconResolver;
     };
-    /*
-     * Ikone se prepišu u dijeljeni folder PRIJE upisa crte — inače prvi
-     * unos dobije prazne putanje i widget se prvi put nacrta bez ikone.
-     */
-    await syncWidgetIcons();
+    await icons.syncWidgetIcons();
+    iconPath = icons.widgetIconPath;
+  } catch (e) {
+    // Ikone nisu stigle u App Group — widget radi, samo bez njih.
+    console.warn("[burin] widget ikone nisu spremne:", e);
+  }
 
+  try {
+    /*
+     * Uvoz je LIJEN (7.8.2026.), jer `BurinWidget` vuče `expo-widgets` i
+     * `@expo/ui/swift-ui` — oboje NATIVNO. Uvoz na vrhu datoteke bi
+     * srušio testove ovog modula i pao na Androidu, gdje ovog widgeta
+     * nema.
+     */
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { BurinWidget } = require("./BurinWidget") as {
       BurinWidget: { updateTimeline: (e: { date: Date; props: WidgetProps }[]) => void };
     };
-    BurinWidget.updateTimeline(
-      widgetEntries(bundle, tempUnit, windUnit, Date.now(), widgetIconPath),
-    );
-  } catch {
-    // Widget nije dostupan — aplikacija radi normalno i bez njega.
+    BurinWidget.updateTimeline(widgetEntries(bundle, tempUnit, windUnit, Date.now(), iconPath));
+  } catch (e) {
+    /*
+     * Greška se VIŠE NE GUTA TIHO: widget je ukras i ne smije srušiti
+     * aplikaciju, ali kad ne radi mora se vidjeti ZAŠTO. Tiho gutanje je
+     * upravo ono zbog čega se "undefined" na pločici tražilo naslijepo.
+     */
+    console.warn("[burin] widget nije osvježen:", e);
   }
 }

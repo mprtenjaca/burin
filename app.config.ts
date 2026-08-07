@@ -78,6 +78,9 @@ const config: ExpoConfig = {
      */
     "expo-font",
     "expo-status-bar",
+    // Widget ikone se učitavaju kroz `Asset.loadAsync` prije kopiranja u
+    // App Group (7.8.2026.) — plugin je uvjet da assets budu dostupni.
+    "expo-asset",
     /*
      * ANDROID widget (7.8.2026.) — zaseban paket od iOS-a.
      *
