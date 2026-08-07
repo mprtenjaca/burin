@@ -95,7 +95,16 @@ function parseTime(iso: string | undefined): number | undefined {
  * neispravan oblik daje prazan niz (react-query brani `undefined`,
  * a bez feeda aplikacija mora normalno raditi — samo bez trake).
  */
-export function parseMeteoalarm(raw: unknown, now: number = Date.now()): MeteoWarning[] {
+export function parseMeteoalarm(
+  raw: unknown,
+  now: number = Date.now(),
+  /**
+   * Jezik teksta upozorenja — prefiks koda iz feeda (`hr` → hr-HR,
+   * `en` → en-GB). Zadano hrvatski, da postojeći pozivi i testovi ostanu
+   * nepromijenjeni; pravu vrijednost prosljeđuje `fetchWarnings`.
+   */
+  lang: string = "hr",
+): MeteoWarning[] {
   const feed = raw as RawFeed;
   if (!Array.isArray(feed?.warnings)) return [];
 
@@ -105,12 +114,17 @@ export function parseMeteoalarm(raw: unknown, now: number = Date.now()): MeteoWa
     if (!alert || alert.status !== "Actual") continue;
     const sent = parseTime(alert.sent);
     /*
-     * Jezik: hrvatski kad postoji (DHMZ), inače ENGLESKI, pa tek onda
-     * prvi ponuđeni — izvan Hrvatske hr-HR bloka nema, a engleski je
-     * čitljiviji od npr. njemačkog ili talijanskog (dorada 6.8.2026.).
+     * Jezik prati SUČELJE (dorada 6.8.2026.): DHMZ objavljuje i hr-HR i
+     * en-GB blok za svako upozorenje (provjereno na živom feedu — sva
+     * 198 upozorenja imaju oba), pa engleski korisnik dobiva engleski
+     * tekst izravno od izvora, bez strojnog prijevoda.
+     *
+     * Redoslijed rezervi: traženi jezik → engleski → prvi ponuđeni.
+     * Engleski je međurezerva jer izvan Hrvatske hr-HR bloka nema, a
+     * engleski je čitljiviji od npr. njemačkog ili talijanskog.
      */
     const info =
-      alert.info?.find((i) => i.language?.startsWith("hr")) ??
+      alert.info?.find((i) => i.language?.startsWith(lang)) ??
       alert.info?.find((i) => i.language?.startsWith("en")) ??
       alert.info?.[0];
     if (!info?.event || sent === undefined) continue;
@@ -160,9 +174,15 @@ export function parseMeteoalarm(raw: unknown, now: number = Date.now()): MeteoWa
  */
 export async function fetchMeteoalarmWarnings(
   feed = "croatia",
+  /** Jezik teksta upozorenja — vidi `parseMeteoalarm`. */
+  lang = "hr",
 ): Promise<MeteoWarning[]> {
   try {
-    return parseMeteoalarm(await fetchJson<unknown>(`${FEED_BASE}${feed}`));
+    return parseMeteoalarm(
+      await fetchJson<unknown>(`${FEED_BASE}${feed}`),
+      Date.now(),
+      lang,
+    );
   } catch {
     return [];
   }

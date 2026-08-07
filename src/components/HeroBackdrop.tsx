@@ -8,6 +8,8 @@ import { LightningLayer } from "@/components/backdrop/LightningLayer";
 import { RainLayer } from "@/components/backdrop/RainLayer";
 import { RaysLayer } from "@/components/backdrop/RaysLayer";
 import { SnowLayer } from "@/components/backdrop/SnowLayer";
+import { StarsLayer } from "@/components/backdrop/StarsLayer";
+import type { LayerProps } from "@/components/backdrop/shared";
 import type { BackdropEffect, GradientStops } from "@/utils/weatherLook";
 
 /**
@@ -25,14 +27,25 @@ import type { BackdropEffect, GradientStops } from "@/utils/weatherLook";
  *      karticama ostane ravan), koji ambijent i boju izblijedi prema dolje
  */
 
-const LAYERS = {
+/**
+ * Efekt → komponenta sloja. IZVEZENO (6.8.2026.) jer ga koristi i
+ * zaglavlje ladice: dok je `DrawerContent` imao vlastitu kopiju popisa,
+ * dodavanje sloja je tražilo izmjenu na dva mjesta — pri dodavanju
+ * zvijezda je ta druga kopija ostala bez njih i typecheck je pao.
+ * Tip `Record<BackdropEffect, …>` sada jamči da su svi efekti pokriveni.
+ */
+export const BACKDROP_LAYERS: Record<
+  BackdropEffect,
+  React.ComponentType<LayerProps>
+> = {
   rays: RaysLayer,
   rain: RainLayer,
   snow: SnowLayer,
   clouds: CloudsLayer,
   fog: FogLayer,
   lightning: LightningLayer,
-} as const;
+  stars: StarsLayer,
+};
 
 export const HeroBackdrop = memo(function HeroBackdrop({
   stops,
@@ -63,23 +76,28 @@ export const HeroBackdrop = memo(function HeroBackdrop({
   scrollY?: Animated.Value;
 }) {
   /*
-   * Oblačno i magla nose boju DUBLJE niz ekran (Markov odabir 6.8.2026.):
-   * njihove su palete sive i plave, pa im rani prijelaz u podlogu izgleda
-   * kao da boje gotovo i nema. Topla vremena ostaju kraća — ondje
-   * gradijent mora prepustiti mjesto karticama.
+   * SVA vremena nose boju jednako duboko niz ekran (Markov odabir
+   * 6.8.2026., drugi krug). Prije su samo oblačno i magla imali "duboku"
+   * varijantu, a topla vremena su gasila boju već na 0.74 — pokraj
+   * oblačnog je sunce izgledalo kao da mu gradijent nedostaje pola
+   * ekrana. Sada je dubina jedinstvena i grana `deep` više ne postoji.
    */
   /*
-   * DJELOMIČNO OBLAČNO NE RAČUNA SE KAO "duboko" (6.8.2026.): ono od
-   * 6.8.2026. nosi i `clouds` uz `rays`, ali paleta mu je topla i kratka
-   * kao suncu. Bez ove iznimke bi mu se gradijent produbio i promijenio
-   * izgled ekrana koji je već odobren. Duboko je samo PRAVO oblačno —
-   * dakle oblaci BEZ sunčanih zraka.
+   * Produbljeno drugi put (Markov ispravak 6.8.2026.): 0.34/0.62/0.9 je
+   * i dalje ostavljalo vidljiv pojas podloge iznad kartica. Sada boja
+   * seže gotovo do dna prvog ekrana.
+   */
+  const MID = "0.4";
+  const LOW = "0.7";
+  const END = "0.97";
+
+  /*
+   * Djelomično oblačno (`rays` + `clouds`) i dalje dobiva RIJEĐE oblake —
+   * to je gustoća sloja, ne dubina gradijenta. Ta dva su prije bila
+   * spojena u jedan `deep`, pa je gustoća oblaka odlučivala i o duljini
+   * boje; sad su razdvojeni.
    */
   const sparseClouds = effects.includes("clouds") && effects.includes("rays");
-  const deep = (effects.includes("clouds") && !sparseClouds) || effects.includes("fog");
-  const mid = deep ? "0.34" : "0.24";
-  const low = deep ? "0.62" : "0.46";
-  const end = deep ? "0.9" : "0.74";
 
   return (
     <View style={[StyleSheet.absoluteFill, { overflow: "hidden" }]} pointerEvents="none">
@@ -92,17 +110,24 @@ export const HeroBackdrop = memo(function HeroBackdrop({
             ostaje ravan.
           */}
           <LinearGradient id="hero-bg" x1="0" y1="0" x2="0.6" y2="1">
+            {/*
+              Boja se drži do KRAJA i ne prelazi sama u `pageBg`
+              (dorada 6.8.2026.): dok je i ovdje stajao prijelaz u
+              podlogu, zbrajao se s fade slojem na istoj visini i davao
+              tvrdu liniju. Gašenje u podlogu radi ISKLJUČIVO fade —
+              jedan prijelaz, ne dva.
+            */}
             <Stop offset="0" stopColor={stops[0]} />
-            <Stop offset={mid} stopColor={stops[1]} />
-            <Stop offset={low} stopColor={stops[2]} />
-            <Stop offset={end} stopColor={pageBg} />
+            <Stop offset={MID} stopColor={stops[1]} />
+            <Stop offset={LOW} stopColor={stops[2]} />
+            <Stop offset="1" stopColor={stops[2]} />
           </LinearGradient>
         </Defs>
         <Rect x="0" y="0" width={width} height={height} fill="url(#hero-bg)" />
       </Svg>
 
       {effects.map((name) => {
-        const Layer = LAYERS[name];
+        const Layer = BACKDROP_LAYERS[name];
         return (
           <Layer
             key={name}
@@ -118,12 +143,29 @@ export const HeroBackdrop = memo(function HeroBackdrop({
 
       <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
         <Defs>
-          {/* Fade prati dubinu gradijenta — inače bi gasio boju prerano. */}
+          {/*
+            Fade prati dubinu gradijenta — inače bi gasio boju prerano.
+
+            VIŠE MEĐUSTOPOVA (Markov ispravak 6.8.2026.): prije su bila
+            samo dva (0 → 0.9 alfe kroz 27 % visine), pa se prijelaz
+            vidio kao TVRDA LINIJA na pola ekrana. Dva su razloga bila:
+            skok od 0.9 alfe u jednom potezu, i to što je u istoj zoni i
+            sam gradijent boje išao prema `pageBg` — dva prijelaza su se
+            zbrajala na istoj visini.
+
+            Krivulja je sada nalik ease-in: kreće vrlo sporo (0.08 na
+            60 %), pa ubrzava. Oko primjećuje POČETAK promjene, ne njen
+            kraj, pa blag početak skriva cijeli prijelaz.
+          */}
           <LinearGradient id="hero-fade" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={pageBg} stopOpacity="0" />
-            <Stop offset={deep ? "0.5" : "0.35"} stopColor={pageBg} stopOpacity="0" />
-            <Stop offset={deep ? "0.78" : "0.62"} stopColor={pageBg} stopOpacity="0.9" />
-            <Stop offset={end} stopColor={pageBg} stopOpacity="1" />
+            <Stop offset="0.5" stopColor={pageBg} stopOpacity="0" />
+            <Stop offset="0.6" stopColor={pageBg} stopOpacity="0.08" />
+            <Stop offset="0.7" stopColor={pageBg} stopOpacity="0.24" />
+            <Stop offset="0.79" stopColor={pageBg} stopOpacity="0.48" />
+            <Stop offset="0.87" stopColor={pageBg} stopOpacity="0.74" />
+            <Stop offset="0.93" stopColor={pageBg} stopOpacity="0.92" />
+            <Stop offset={END} stopColor={pageBg} stopOpacity="1" />
           </LinearGradient>
         </Defs>
         <Rect x="0" y="0" width={width} height={height} fill="url(#hero-fade)" />

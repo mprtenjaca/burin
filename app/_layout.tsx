@@ -14,6 +14,7 @@ import { useEffect } from "react";
 
 import { DrawerContent } from "@/components/DrawerContent";
 import { t } from "@/i18n";
+import { useLanguage } from "@/i18n/useLanguage";
 import { useSettings } from "@/store/settings";
 import { colors } from "@/theme/colors";
 
@@ -25,6 +26,14 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const theme = useSettings((s) => s.theme);
+  /*
+   * Jezik se razrješava OVDJE, u korijenu (6.8.2026.): hook postavi
+   * modul-razinski `t` prije nego se ijedan ekran nacrta. Vraćena
+   * vrijednost ide u `key` na Draweru — bez toga React Navigation
+   * zadrži stare naslove ekrana, jer ih kešira po ekranu i ne prati
+   * promjene izvan svog stabla.
+   */
+  const lang = useLanguage();
   const { colorScheme, setColorScheme } = useColorScheme();
 
   /*
@@ -50,6 +59,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <StatusBar style={dark ? "light" : "dark"} />
       <Drawer
+        key={lang}
         drawerContent={(props) => <DrawerContent navigation={props.navigation} />}
         screenOptions={{
           /*

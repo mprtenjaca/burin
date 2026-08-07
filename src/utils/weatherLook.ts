@@ -14,6 +14,14 @@ type Palette = { light: GradientStops; dark: GradientStops };
  * Palete po "obitelji" vremena (dizajn v7, 6.8.2026.). Svijetla tema se
  * stapa u podlogu stranice, tamna u #0E0E0E — završni stop dodaje
  * HeroBackdrop, ovdje su samo obojeni dijelovi.
+ *
+ * SVIJETLA TEMA JE PRODUBLJENA (Markov ispravak 6.8.2026., drugi krug):
+ * treći stopovi su bili gotovo na podlozi (#F1F1EE), pa je donja trećina
+ * heroja izgledala "previše bijelo" — boja je nestajala prije nego je
+ * gradijent uopće stigao do fade sloja. Sada svaki treći stop drži još
+ * vidljiv ton svoje obitelji, a u podlogu ga gasi tek fade.
+ *
+ * Tamna tema je namjerno NEDIRANA — Marko ju je potvrdio kao dobru.
  */
 const PALETTES = {
   sunDay: {
@@ -23,35 +31,59 @@ const PALETTES = {
      * prijelaz u pageBg dodaje HeroBackdrop). Smjer gradijenta je
      * DIJAGONALAN — vidi HeroBackdrop.
      */
-    light: ["#F4C542", "#ED7F2B", "#F6CE93"],
-    dark: ["#B4671E", "#8A5220", "#4F3418"],
+    light: ["#F4C542", "#ED7F2B", "#EBA765"],
+    /*
+     * Tamna tema dijeli PRVA DVA stopa sa svijetlom (Markov odabir
+     * 6.8.2026.): prigušena inačica (#B4671E → #8A5220 → #4F3418) je
+     * izgledala blatnjavo-smeđe i "pretmurno" — sunce mora biti sunce i
+     * po noćnoj temi aplikacije.
+     *
+     * Samo TREĆI stop odstupa: svijetla tema tu ide u gotovo bijelo
+     * (#F6CE93) jer se stapa u papirnatu podlogu, a tamna mora stići do
+     * #0E0E0E. Bez toga bi na dnu heroja bio oštar rez blijedog u crno.
+     */
+    dark: ["#F4C542", "#ED7F2B", "#8A4A1E"],
   },
   partlyDay: {
-    light: ["#ECA45B", "#EFC08C", "#F3DCC2"],
+    light: ["#ECA45B", "#E8B074", "#DDB894"],
     dark: ["#9A6530", "#74522C", "#443320"],
   },
   cloud: {
-    light: ["#97A0A8", "#B2BAC1", "#CFD5DA"],
+    light: ["#97A0A8", "#A9B2B9", "#BCC4CA"],
     dark: ["#4A5158", "#383E44", "#24282C"],
   },
   rain: {
-    light: ["#7E97AC", "#9FB3C4", "#C4D1DC"],
+    light: ["#7E97AC", "#95ABBE", "#AEC0CE"],
     dark: ["#43596C", "#35485A", "#22303D"],
   },
   snow: {
-    light: ["#A9C3D4", "#C3D6E2", "#DEE9F0"],
+    light: ["#A9C3D4", "#BAD0DE", "#CCDEE9"],
     dark: ["#3E5468", "#32455A", "#223040"],
   },
   thunder: {
-    light: ["#6B7287", "#8A90A3", "#B2B7C6"],
+    light: ["#6B7287", "#7E8497", "#979CAD"],
     dark: ["#3F4459", "#333748", "#20222E"],
   },
   nightClear: {
-    light: ["#46557A", "#67779B", "#99A7C2"],
+    /*
+     * NOĆ JE TAMNA I U SVIJETLOJ TEMI (Markov ispravak 6.8.2026.).
+     *
+     * Tema opisuje sučelje, ne doba dana — noćni heroj ne smije biti
+     * svijetloplav samo zato što je aplikacija u svijetloj temi. Izmjereno
+     * je i da je stari kraj (#7887A8) davao bijelom tekstu 3.6:1, ispod
+     * praga čitljivosti; sada drži iznad 7:1 cijelom visinom.
+     *
+     * Zvijezde su drugi razlog: na svijetloplavoj podlozi se ne vide.
+     *
+     * Potamnjeno dvaput (drugi krug: 2E3A57 → 232C44), jer je i prva
+     * inačica na uređaju još izgledala presvijetlo plavo.
+     */
+    light: ["#232C44", "#2E3A57", "#3C4A6B"],
     dark: ["#2A3550", "#222B42", "#161D2E"],
   },
   nightCloudy: {
-    light: ["#4E5666", "#6E7686", "#9AA1AF"],
+    // Oblačna noć prati vedru (vidi gore) — noć je tamna u obje teme.
+    light: ["#282D38", "#343A47", "#434A5A"],
     dark: ["#333844", "#282C36", "#191C23"],
   },
 } satisfies Record<string, Palette>;
@@ -91,7 +123,14 @@ export function weatherGradient(
  * Vezano uz ISTU paletu kao gradijent, pa se dodavanje vremena rješava
  * na jednom mjestu. Čista funkcija — testira se.
  */
-export type BackdropEffect = "rays" | "rain" | "snow" | "clouds" | "fog" | "lightning";
+export type BackdropEffect =
+  | "rays"
+  | "rain"
+  | "snow"
+  | "clouds"
+  | "fog"
+  | "lightning"
+  | "stars";
 
 /**
  * Jačina oborine — kiša ne pada svugdje jednako brzo (dorada 6.8.2026.):
@@ -148,6 +187,20 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
      */
     case "partlyDay":
       return ["rays", "clouds"];
+    /*
+     * VEDRA NOĆ = zvijezde + mjesec (popravak 6.8.2026.).
+     *
+     * Prije je padala u `default` i dobivala OBLAKE — vedro nebo se
+     * crtalo kao naoblaka, iako je paleta (`nightClear`) cijelo vrijeme
+     * bila ispravna. Isti propust kao kod djelomično oblačnog, samo
+     * obrnut: ondje je nedostajao oblak, ovdje je bio višak.
+     *
+     * Mjesec je dio `StarsLayer`, ne zaseban efekt: nikad ne stoji bez
+     * zvijezda, a zaseban sloj bi značio drugi SVG i drugu petlju za
+     * jedan krug.
+     */
+    case "nightClear":
+      return ["stars"];
     case "thunder":
       return ["rain", "lightning"];
     case "rain":
@@ -158,6 +211,57 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
     default:
       return ["clouds"];
   }
+}
+
+// ---- mjesečeva mijena ----
+
+/**
+ * Sinodički mjesec (mjena do mjene) u danima — 29.530588853, standardna
+ * astronomska vrijednost.
+ */
+const SYNODIC_MONTH = 29.530588853;
+
+/**
+ * Referentni MLAĐAK: 6.1.2000. 18:14 UTC. Klasična epoha za ovaj račun
+ * (Meeusov "Astronomical Algorithms"), dovoljno točna za crtež — greška
+ * je reda nekoliko sati na desetljeće, a srp se po satu ne mijenja.
+ */
+const KNOWN_NEW_MOON = Date.UTC(2000, 0, 6, 18, 14) / 86_400_000;
+
+/**
+ * Mjesečeva mijena kao udio ciklusa 0–1 (6.8.2026.).
+ *
+ *   0.00  mlađak (nevidljiv)
+ *   0.25  prva četvrt (osvijetljena DESNA polovica)
+ *   0.50  uštap (pun)
+ *   0.75  zadnja četvrt (osvijetljena LIJEVA polovica)
+ *
+ * Namjerno se računa, a ne crta fiksni srp: mjesec na ekranu bi inače
+ * proturječio onome što se vidi kroz prozor. Čista funkcija — testira se.
+ */
+export function moonPhase(at: number = Date.now()): number {
+  const days = at / 86_400_000 - KNOWN_NEW_MOON;
+  const phase = (days / SYNODIC_MONTH) % 1;
+  // JS `%` čuva predznak, a za datume prije epohe treba pozitivan udio.
+  return phase < 0 ? phase + 1 : phase;
+}
+
+/**
+ * Geometrija srpa za crtež (6.8.2026.).
+ *
+ * Mjesec se crta kao PUNI krug preko kojeg ide krug SJENE u boji neba.
+ * `shadowOffset` je pomak sjene u polumjerima: 0 ju stavlja točno preko
+ * mjeseca (mlađak, ništa se ne vidi), 2 ju odmiče posve (uštap).
+ *
+ * Predznak nosi stranu: pri rastućem mjesecu sjena je LIJEVO (svijetli
+ * desni rub), pri opadajućem DESNO — kako se stvarno vidi na nebu.
+ */
+export function moonShadowOffset(phase: number): number {
+  // Udaljenost od uštapa: 0 = pun, 1 = mlađak.
+  const fromFull = Math.abs(phase - 0.5) * 2;
+  const magnitude = 2 * (1 - fromFull);
+  // Prva polovica ciklusa raste (sjena lijevo), druga opada (desno).
+  return phase < 0.5 ? -magnitude : magnitude;
 }
 
 /** Koraljno narančasti akcent — instrumenti u karticama, hladne pozadine. */

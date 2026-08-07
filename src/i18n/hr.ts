@@ -200,6 +200,16 @@ export const hr = {
     windUnit: "Vjetar",
     sources: "Izvori podataka",
     weatherPreview: "Pregled pozadina po vremenu",
+    language: "Jezik",
+    languageSystem: "Sustav",
+    /*
+     * Imena jezika stoje U TOM JEZIKU (endonimi), ne prevedena: tako
+     * "English" ostaje "English" i na hrvatskom sučelju. Korisnik koji je
+     * greškom prebacio na jezik koji ne čita mora prepoznati svoj red u
+     * popisu da se vrati.
+     */
+    languageHr: "Hrvatski",
+    languageEn: "English",
   },
 
   sources: {

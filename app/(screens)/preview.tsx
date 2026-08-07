@@ -20,26 +20,39 @@ import { codeToCondition } from "@/utils/weatherCodes";
  * kad ih razvijamo (snijeg u kolovozu, magla po suncu). Bez ovog ekrana
  * se izgled snijega i grmljavine ne bi vidio do zime.
  */
-type Sample = { code: number; label: string; isDay: boolean };
+type Sample = { code: number; isDay: boolean };
 
-/** Po jedan predstavnik svakog efekta i svake kombinacije. */
+/**
+ * Po jedan predstavnik svakog efekta i svake kombinacije.
+ *
+ * Oznake se IZVODE iz `codeToCondition` (dorada 6.8.2026.), ne pišu se
+ * ovdje: bile su tvrdo upisane na hrvatskom, pa bi na engleskom sučelju
+ * ostale jedini neprevedeni ekran. Noćni uzorci dobivaju sufiks
+ * razdoblja, jer im je WMO kod isti kao dnevnima.
+ */
 const SAMPLES: Sample[] = [
-  { code: 0, label: "Vedro", isDay: true },
-  { code: 2, label: "Sunce i oblaci", isDay: true },
-  { code: 3, label: "Oblačno", isDay: true },
-  { code: 45, label: "Magla", isDay: true },
-  { code: 51, label: "Rosulja", isDay: true },
-  { code: 63, label: "Kiša", isDay: true },
-  { code: 65, label: "Jaka kiša", isDay: true },
-  { code: 82, label: "Pljuskovi", isDay: true },
-  { code: 95, label: "Grmljavina", isDay: true },
-  { code: 66, label: "Susnježica", isDay: true },
-  { code: 71, label: "Slab snijeg", isDay: true },
-  { code: 75, label: "Jak snijeg", isDay: true },
-  { code: 0, label: "Vedra noć", isDay: false },
-  { code: 61, label: "Noćna kiša", isDay: false },
-  { code: 75, label: "Noćni snijeg", isDay: false },
+  { code: 0, isDay: true },
+  { code: 2, isDay: true },
+  { code: 3, isDay: true },
+  { code: 45, isDay: true },
+  { code: 51, isDay: true },
+  { code: 63, isDay: true },
+  { code: 65, isDay: true },
+  { code: 82, isDay: true },
+  { code: 95, isDay: true },
+  { code: 66, isDay: true },
+  { code: 71, isDay: true },
+  { code: 75, isDay: true },
+  { code: 0, isDay: false },
+  { code: 61, isDay: false },
+  { code: 75, isDay: false },
 ];
+
+/** "Kiša" danju, "Kiša · noć" noću — kod je isti, pozadina nije. */
+function sampleLabel(s: Sample): string {
+  const label = codeToCondition(s.code, s.isDay).label;
+  return s.isDay ? label : `${label} · ${t.home.nightShort.toLowerCase()}`;
+}
 
 export default function PreviewScreen() {
   const window = useWindowDimensions();
@@ -138,7 +151,7 @@ export default function PreviewScreen() {
                     active ? "text-white" : "text-ink/70 dark:text-paper/70"
                   }`}
                 >
-                  {s.label}
+                  {sampleLabel(s)}
                 </Text>
               </Pressable>
             );

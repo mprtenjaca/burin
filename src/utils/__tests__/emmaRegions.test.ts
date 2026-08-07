@@ -1,3 +1,5 @@
+import { setActiveLanguage } from "@/i18n";
+
 import { EMMA_REGIONS, emmaRegionName, regionsForPlace } from "../emmaRegions";
 
 describe("regionsForPlace", () => {
@@ -86,9 +88,30 @@ describe("regionsForPlace", () => {
 });
 
 describe("emmaRegionName", () => {
+  afterEach(() => setActiveLanguage("hr"));
+
   it("vraća hrvatska imena, a za nepoznato undefined", () => {
+    setActiveLanguage("hr");
     expect(emmaRegionName("HR001")).toBe("kninska regija");
     expect(emmaRegionName("HR803")).toBe("Velebitski kanal");
     expect(emmaRegionName("XX999")).toBeUndefined();
+  });
+
+  it("na engleskom sučelju daje engleska imena", () => {
+    // Ovo se vidjelo na ekranu: "kninska regija" usred engleskog teksta.
+    setActiveLanguage("en");
+    expect(emmaRegionName("HR001")).toBe("Knin region");
+    expect(emmaRegionName("HR002")).toBe("Zagreb region");
+    expect(emmaRegionName("HR803")).toBe("Velebit channel");
+    expect(emmaRegionName("XX999")).toBeUndefined();
+  });
+
+  it("svaka regija ima oba jezika i nijedno ime nije prazno", () => {
+    for (const r of EMMA_REGIONS) {
+      expect(r.name.hr.length).toBeGreaterThan(0);
+      expect(r.name.en.length).toBeGreaterThan(0);
+      // Engleska imena dolaze iz feeda — bez naših dijakritika.
+      expect(r.name.en).not.toMatch(/[čćžšđ]/i);
+    }
   });
 });

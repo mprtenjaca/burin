@@ -8,6 +8,7 @@ import {
   geocodeRegion,
 } from "@/api/meteoalarmEurope";
 import type { Place } from "@/api/types";
+import { useLanguage } from "@/i18n/useLanguage";
 import { regionsForPlace } from "@/utils/emmaRegions";
 import { haversineKm } from "@/utils/geo";
 
@@ -51,9 +52,17 @@ export function useWarnings(place: Place | null): MeteoWarning[] {
   const isCroatia = country ? country.toUpperCase() === "HR" : inCroatiaTable;
   const feed = isCroatia ? "croatia" : feedNameForCountry(country);
 
+  /*
+   * Jezik je DIO KLJUČA (6.8.2026.): tekst upozorenja dolazi iz feeda na
+   * odabranom jeziku, pa keširani hrvatski odgovor ne vrijedi za
+   * engleski. Bez jezika u ključu bi prebacivanje jezika ostavilo staro
+   * upozorenje na starom jeziku dok keš ne istekne.
+   */
+  const lang = useLanguage();
+
   const query = useQuery({
-    queryKey: ["meteoalarm", feed ?? "none"],
-    queryFn: () => fetchMeteoalarmWarnings(feed),
+    queryKey: ["meteoalarm", feed ?? "none", lang],
+    queryFn: () => fetchMeteoalarmWarnings(feed, lang),
     enabled: !!feed,
     staleTime: 15 * MIN,
     retry: 1,

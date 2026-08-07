@@ -5,6 +5,8 @@ import {
   backdropEffects,
   dewPoint,
   heroAccent,
+  moonPhase,
+  moonShadowOffset,
   pollenInfo,
   precipIntensity,
   readableOn,
@@ -48,12 +50,30 @@ describe("weatherGradient", () => {
     expect(weatherGradient(0, false, false)).not.toEqual(weatherGradient(0, true, false));
   });
 
+  const lum = (h: string) =>
+    parseInt(h.slice(1, 3), 16) + parseInt(h.slice(3, 5), 16) + parseInt(h.slice(5, 7), 16);
+
   it("tamna tema daje tamnije stopove od svijetle", () => {
-    const light = weatherGradient(0, true, false)[0]!;
-    const dark = weatherGradient(0, true, true)[0]!;
-    const lum = (h: string) =>
-      parseInt(h.slice(1, 3), 16) + parseInt(h.slice(3, 5), 16) + parseInt(h.slice(5, 7), 16);
-    expect(lum(dark)).toBeLessThan(lum(light));
+    // Sunčan dan je IZUZET — vidi test ispod.
+    for (const code of [3, 45, 61, 71, 95]) {
+      const light = weatherGradient(code, true, false)[0]!;
+      const dark = weatherGradient(code, true, true)[0]!;
+      expect(lum(dark)).toBeLessThan(lum(light));
+    }
+  });
+
+  /*
+   * Sunce je jedina iznimka od "tamna tema = tamniji stopovi" (Markov
+   * odabir 6.8.2026.): prigušena smeđa paleta je izgledala "pretmurno",
+   * pa tamna tema dijeli prva dva stopa sa svijetlom. Samo se DNO spušta,
+   * jer se ondje gradijent stapa u #0E0E0E umjesto u papirnatu podlogu.
+   */
+  it("sunčan dan drži istu živost u tamnoj temi, samo mu dno potamni", () => {
+    const light = weatherGradient(0, true, false);
+    const dark = weatherGradient(0, true, true);
+    expect(dark[0]).toBe(light[0]);
+    expect(dark[1]).toBe(light[1]);
+    expect(lum(dark[2])).toBeLessThan(lum(light[2]));
   });
 
   it("nepoznat WMO kod pada na oblačno, ne ruši se", () => {
@@ -105,12 +125,26 @@ describe("backdropEffects", () => {
     expect(backdropEffects(80, true)).toEqual(["rain"]);
   });
 
+  /*
+   * Popravak 6.8.2026.: vedra noć je padala u `default` i dobivala
+   * OBLAKE — vedro nebo se crtalo kao naoblaka. Ovaj je test to prije
+   * zapisivao kao ispravno (`backdropEffects(0, false) === ["clouds"]`),
+   * pa bug nije mogao pasti ni na jednoj provjeri.
+   */
+  it("VEDRA noć dobiva zvijezde, ne oblake", () => {
+    expect(backdropEffects(0, false)).toEqual(["stars"]);
+    expect(backdropEffects(1, false)).toEqual(["stars"]);
+  });
+
+  it("oblačna noć i dalje dobiva oblake — po tome se razlikuje", () => {
+    expect(backdropEffects(2, false)).toEqual(["clouds"]);
+    expect(backdropEffects(3, false)).toEqual(["clouds"]);
+  });
+
   it("magla ima vlastiti sloj, oblačno svoj", () => {
     expect(backdropEffects(45, true)).toEqual(["fog"]);
     expect(backdropEffects(48, true)).toEqual(["fog"]);
     expect(backdropEffects(3, true)).toEqual(["clouds"]);
-    expect(backdropEffects(0, false)).toEqual(["clouds"]);
-    expect(backdropEffects(2, false)).toEqual(["clouds"]);
   });
 
   it("KOMBINACIJA: susnježica pada i kao kiša i kao snijeg", () => {
@@ -137,7 +171,7 @@ describe("backdropEffects", () => {
   });
 
   it("svaki kod daje bar jedan poznat sloj", () => {
-    const known = ["rays", "rain", "snow", "clouds", "fog", "lightning"];
+    const known = ["rays", "rain", "snow", "clouds", "fog", "lightning", "stars"];
     for (let code = 0; code <= 99; code++) {
       for (const isDay of [true, false]) {
         const fx = backdropEffects(code, isDay);
@@ -362,5 +396,55 @@ describe("pollenInfo", () => {
     expect(pollenInfo({ grass: 3 }).grade).toBe(1);
     expect(pollenInfo({ grass: 15 }).grade).toBe(2);
     expect(pollenInfo({ grass: 50 }).grade).toBe(3);
+  });
+});
+
+describe("mjesečeva mijena", () => {
+  /*
+   * Referentni datumi su STVARNE mijene (NASA/Meeus, 2026.). Račun je
+   * približan (srednji sinodički mjesec), pa se provjerava da padne u
+   * pravu ČETVRTINU ciklusa, ne na decimalu.
+   */
+  const at = (y: number, m: number, d: number, h = 12) => Date.UTC(y, m - 1, d, h);
+
+  it("mlađak je blizu 0 (ili 1), uštap blizu 0.5", () => {
+    // 13.8.2026. mlađak; 28.8.2026. uštap.
+    const newMoon = moonPhase(at(2026, 8, 13));
+    expect(Math.min(newMoon, 1 - newMoon)).toBeLessThan(0.05);
+    expect(moonPhase(at(2026, 8, 28))).toBeGreaterThan(0.45);
+    expect(moonPhase(at(2026, 8, 28))).toBeLessThan(0.58);
+  });
+
+  it("6.8.2026. je STARI SRP koji opada (kao na V&R screenshotu)", () => {
+    const phase = moonPhase(at(2026, 8, 6, 21));
+    // Druga polovica ciklusa = opada; blizu zadnje četvrti.
+    expect(phase).toBeGreaterThan(0.5);
+    expect(phase).toBeLessThan(0.9);
+    // Opadajući mjesec ima sjenu DESNO -> pozitivan pomak.
+    expect(moonShadowOffset(phase)).toBeGreaterThan(0);
+  });
+
+  it("uvijek vraća udio 0–1, i za datume prije epohe", () => {
+    for (const t of [at(1990, 3, 1), at(2000, 1, 6), at(2026, 8, 6), at(2040, 12, 31)]) {
+      const p = moonPhase(t);
+      expect(p).toBeGreaterThanOrEqual(0);
+      expect(p).toBeLessThan(1);
+    }
+  });
+
+  it("sjena: mlađak prekriva disk, uštap ga otkriva", () => {
+    // Mlađak: sjena točno preko mjeseca (pomak ~0) -> ništa se ne vidi.
+    expect(Math.abs(moonShadowOffset(0))).toBeLessThan(0.01);
+    // Uštap: sjena posve odmaknuta (|pomak| = 2 = dva polumjera).
+    expect(Math.abs(moonShadowOffset(0.5))).toBeCloseTo(2, 5);
+    // Četvrti: pola diska -> pomak 1, suprotnih predznaka.
+    expect(moonShadowOffset(0.25)).toBeCloseTo(-1, 5);
+    expect(moonShadowOffset(0.75)).toBeCloseTo(1, 5);
+  });
+
+  it("rastući mjesec svijetli DESNO, opadajući LIJEVO", () => {
+    // Predznak nosi stranu; zamjena bi dala zrcalno pogrešan srp.
+    expect(moonShadowOffset(0.15)).toBeLessThan(0);
+    expect(moonShadowOffset(0.85)).toBeGreaterThan(0);
   });
 });

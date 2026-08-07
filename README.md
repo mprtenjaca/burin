@@ -69,7 +69,7 @@ npx expo start --dev-client            # kasnije, samo JS izmjene
 
 ```bash
 npm run typecheck                    # tsc --noEmit
-npm test                             # jest — 213 testova u 20 skupina
+npm test                             # jest — 243 testa u 23 skupine
 npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 node scripts/generate-icons.mjs      # ikone iz SVG glifa "Zapuh" (traži sharp)
 ```

@@ -13,7 +13,7 @@ import { t } from "@/i18n";
 import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit, WindUnit } from "@/utils/format";
 import { clockTime, convertTemp, convertWind, windUnitLabel } from "@/utils/format";
-import { backdropEffects, heroAccent, precipIntensity, windStrength, type GradientStops } from "@/utils/weatherLook";
+import { backdropEffects, heroAccent, precipIntensity, readableOn, windStrength, type GradientStops } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
 /** "čet 6.8." — red datuma gore lijevo. */
@@ -86,7 +86,28 @@ export function Hero({
   scrollY?: Animated.Value;
 }) {
   const insets = useSafeAreaInsets();
-  const { fg, dark } = useThemeColors();
+  const { dark } = useThemeColors();
+
+  /*
+   * BOJA TEKSTA PRATI PODLOGU, NE TEMU (Markov ispravak 6.8.2026.).
+   *
+   * Dosad je svugdje stajalo `text-ink dark:text-paper`, dakle tekst je
+   * ovisio o TEMI aplikacije. To je vrijedilo dok su svijetli gradijenti
+   * bili svijetli — ali otkad je noć tamna i u svijetloj temi, crni je
+   * tekst pao na tamnoplavu podlogu i gotovo se izgubio (nađeno na
+   * uređaju).
+   *
+   * `readableOn` odlučuje po stvarnoj luminanciji SREDNJEG stopa
+   * gradijenta: taj pokriva pojas u kojem stoji sav tekst heroja (datum,
+   * grad, velika brojka, opis, minimum). Ista funkcija koju već koristi
+   * značka na karti, iz istog razloga.
+   */
+  const heroFg = readableOn(stops[1]);
+  /** Prigušene varijante — nekad `text-ink/75`, sada po istoj podlozi. */
+  const heroFg75 = { color: heroFg, opacity: 0.75 };
+  const heroFg70 = { color: heroFg, opacity: 0.7 };
+  /** Strelice i ikone dijele boju s tekstom. */
+  const fg = heroFg;
   // Živ sat: bez ovoga je datum/vrijeme stajao na trenutku renderiranja.
   const now = useNow();
 
@@ -124,7 +145,7 @@ export function Hero({
 
         {tMax !== undefined && (
           <>
-            <Text className="mt-3 font-grotesk-bold text-[16px] text-ink dark:text-paper">{deg(tMax)}°</Text>
+            <Text className="mt-3 font-grotesk-bold text-[16px]" style={{ color: heroFg }}>{deg(tMax)}°</Text>
             <LongArrow up color={fg} />
           </>
         )}
@@ -140,7 +161,7 @@ export function Hero({
           Stezanje `lineHeight`-a bi bilo čišće, ali odsiječe donju
           polovicu znamenki (provjereno).
         */}
-        <Text className="font-grotesk-bold text-[17px] text-ink dark:text-paper" style={{ marginBottom: 25 }}>
+        <Text className="font-grotesk-bold text-[17px]" style={[{ color: heroFg }, { marginBottom: 25 }]}>
           {placeName}
         </Text>
 
@@ -156,8 +177,9 @@ export function Hero({
         */}
         <View className="flex-row items-start">
           <Text
-            className="font-grotesk-bold text-ink dark:text-paper"
+            className="font-grotesk-bold"
             style={{
+              color: heroFg,
               fontSize: 128,
               /*
                * `lineHeight` MORA biti veći od fontSize — stezanje na
@@ -184,8 +206,9 @@ export function Hero({
           {/* Prazan stupac širine 0 — nosač za ° koji ne zauzima prostor. */}
           <View style={{ width: 0 }}>
             <Text
-              className="font-grotesk-medium text-ink dark:text-paper"
+              className="font-grotesk-medium"
               style={{
+                color: heroFg,
                 position: "absolute",
                 left: 7,
                 top: 4,
@@ -226,12 +249,12 @@ export function Hero({
         </View>
 
         {/* Malo primaknuto brojci u odnosu na prijašnjih −10. */}
-        <Text className="font-grotesk-bold text-[17px] text-ink dark:text-paper" style={{ marginTop: -10 }}>
+        <Text className="font-grotesk-bold text-[17px]" style={[{ color: heroFg }, { marginTop: -10 }]}>
           {condition.label}
         </Text>
 
         {/* Stvarni osjet odmah uz opis vremena. */}
-        <Text className="mt-0.5 font-grotesk-medium text-[15px] text-ink/75 dark:text-paper/75">
+        <Text className="mt-0.5 font-grotesk-medium text-[15px]" style={heroFg75}>
           {t.home.feelsLike} {deg(current.feelsLike)}°
         </Text>
 
@@ -240,7 +263,7 @@ export function Hero({
             <View style={{ marginTop: 4 }}>
               <LongArrow up={false} color={fg} />
             </View>
-            <Text className="font-grotesk-bold text-[16px] text-ink dark:text-paper">{deg(nightMin)}°</Text>
+            <Text className="font-grotesk-bold text-[16px]" style={{ color: heroFg }}>{deg(nightMin)}°</Text>
           </>
         )}
       </View>
@@ -251,8 +274,8 @@ export function Hero({
         se datum spustio ispod njih i dobio sredinu.
       */}
       <View className="items-center" style={{ position: "absolute", top: insets.top + 58, left: 0, right: 0 }}>
-        <Text className="font-grotesk-bold text-[16px] text-ink dark:text-paper">{dateLabel(now)}</Text>
-        <Text className="font-grotesk-medium text-[14px] text-ink/75 dark:text-paper/75">
+        <Text className="font-grotesk-bold text-[16px]" style={{ color: heroFg }}>{dateLabel(now)}</Text>
+        <Text className="font-grotesk-medium text-[14px]" style={heroFg75}>
           {isStale ? `${t.common.dataFrom} ` : ""}
           {clockTime(fetchedAt)}
         </Text>
@@ -275,8 +298,8 @@ export function Hero({
               pretežak (Markov ispravak 6.8.2026.).
             */}
             <WindFlag speedKmh={current.windGusts} size={20} tone={dark ? "dark" : "hero"} />
-            <Text className="font-grotesk-bold text-[15px] text-ink dark:text-paper">{Math.round(convertWind(current.windGusts, windUnit))}</Text>
-            <Text className="font-grotesk-medium text-[13px] text-ink/70 dark:text-paper/70">
+            <Text className="font-grotesk-bold text-[15px]" style={{ color: heroFg }}>{Math.round(convertWind(current.windGusts, windUnit))}</Text>
+            <Text className="font-grotesk-medium text-[13px]" style={heroFg70}>
               {windUnitLabel(windUnit)} · {t.home.gusts.toLowerCase()}
             </Text>
           </View>

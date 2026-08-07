@@ -21,12 +21,7 @@ import type { TempUnit } from "@/utils/format";
 import { convertTemp } from "@/utils/format";
 import { WindFlag } from "@/components/WindFlag";
 import { Wordmark } from "@/components/Wordmark";
-import { CloudsLayer } from "@/components/backdrop/CloudsLayer";
-import { FogLayer } from "@/components/backdrop/FogLayer";
-import { LightningLayer } from "@/components/backdrop/LightningLayer";
-import { RainLayer } from "@/components/backdrop/RainLayer";
-import { RaysLayer } from "@/components/backdrop/RaysLayer";
-import { SnowLayer } from "@/components/backdrop/SnowLayer";
+import { BACKDROP_LAYERS } from "@/components/HeroBackdrop";
 import { ACCENT_CORAL, backdropEffects, heroAccent, precipIntensity, weatherGradient } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
@@ -40,15 +35,13 @@ type DrawerNav = { closeDrawer: () => void };
  */
 const FADE_H = 130;
 
-/** Isti ambijentalni slojevi kao na heroju — jedan izvor izgleda. */
-const DRAWER_LAYERS = {
-  rays: RaysLayer,
-  rain: RainLayer,
-  snow: SnowLayer,
-  clouds: CloudsLayer,
-  fog: FogLayer,
-  lightning: LightningLayer,
-} as const;
+/*
+ * Ambijentalni slojevi dolaze IZ `HeroBackdrop` (`BACKDROP_LAYERS`), ne
+ * iz vlastite kopije popisa (dorada 6.8.2026.). Kopija je govorila da je
+ * "jedan izvor izgleda", ali je zapravo tražila ručno održavanje na dva
+ * mjesta — pri dodavanju zvijezda je ostala bez njih i ladica bi na
+ * vedroj noći pala.
+ */
 
 /**
  * Ikone slojeva karte za grupu KARTE (redoslijed = MAP_LAYERS), svaka sa
@@ -209,7 +202,7 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
           </Svg>
 
           {backdropEffects(bundle.current.code, bundle.current.isDay).map((name) => {
-            const Layer = DRAWER_LAYERS[name];
+            const Layer = BACKDROP_LAYERS[name];
             return <Layer key={name} width={size.w} height={size.h + FADE_H} intensity={precipIntensity(bundle.current.code)} />;
           })}
 

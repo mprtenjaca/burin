@@ -213,8 +213,24 @@ export default function HomeScreen() {
             onRefresh={refetch}
             tintColor={dark ? colors.paper : colors.ink}
             colors={[colors.ink]}
-            // Bez pomaka se spinner sakrije pod Dynamic Island / notch.
-            progressViewOffset={insets.top + 8}
+            /*
+             * Spinner mora pasti ISPOD Dynamic Islanda (dorada 6.8.2026.).
+             *
+             * `insets.top` je gornji rub sigurnog područja, ali izrez VISI
+             * niže od njega. Mjereno na iPhoneu 13 (Marko, 6.8.2026.): na
+             * +8 se spinner nije vidio, na +28 se vidjela POLOVICA — notch
+             * je ondje dublji nego Dynamic Island na Pro modelima, jer
+             * seže do samog dna statusne trake.
+             *
+             * 48 px = 28 (dosad vidljiva polovica je bila na pola puta)
+             * + 20 (promjer spinnera), pa krug izlazi CIJEL ispod izreza.
+             *
+             * NAPOMENA (7.8.2026.): Marko javio da povećavanje broja iznad
+             * +28 više ne mijenja ništa — offset dakle nije (jedini) uzrok.
+             * Ostaje otvoreno; vidjeti crta li iOS spinner IZA `style`
+             * podloge na ScrollViewu.
+             */
+            progressViewOffset={insets.top + 48}
           />
         }
       >
@@ -256,46 +272,46 @@ export default function HomeScreen() {
         <View className="gap-6 px-4 pb-12 pt-1">
           {belowFold && (
             <>
-          <BentoGrid
-            current={bundle.current}
-            gusts={gusts}
-            uv={uvNow}
-            uvMax={today?.uvMax}
-            visibilityKm={visibilityKm}
-            precip24={precipNext24}
-            aqi={bundle.aqi}
-            pollen={bundle.pollen}
-            seaTemp={bundle.seaTemp}
-            sunrise={today?.sunrise}
-            sunset={today?.sunset}
-            tempUnit={tempUnit}
-            windUnit={windUnit}
-          />
+              <BentoGrid
+                current={bundle.current}
+                gusts={gusts}
+                uv={uvNow}
+                uvMax={today?.uvMax}
+                visibilityKm={visibilityKm}
+                precip24={precipNext24}
+                aqi={bundle.aqi}
+                pollen={bundle.pollen}
+                seaTemp={bundle.seaTemp}
+                sunrise={today?.sunrise}
+                sunset={today?.sunset}
+                tempUnit={tempUnit}
+                windUnit={windUnit}
+              />
 
-          <Section title={t.home.daily}>
-            <DailyList
-              days={bundle.daily.slice(0, 14)}
-              hourly={bundle.hourlyAll}
-              tempUnit={tempUnit}
-              windUnit={windUnit}
-            />
-          </Section>
+              <Section title={t.home.daily}>
+                <DailyList
+                  days={bundle.daily.slice(0, 14)}
+                  hourly={bundle.hourlyAll}
+                  tempUnit={tempUnit}
+                  windUnit={windUnit}
+                />
+              </Section>
 
-          <Section title={t.home.mapSection}>
-            <RadarPreviewCard
-              lat={bundle.place.lat}
-              lon={bundle.place.lon}
-              temp={bundle.current.temp}
-              code={bundle.current.code}
-              isDay={bundle.current.isDay}
-            />
-          </Section>
+              <Section title={t.home.mapSection}>
+                <RadarPreviewCard
+                  lat={bundle.place.lat}
+                  lon={bundle.place.lon}
+                  temp={bundle.current.temp}
+                  code={bundle.current.code}
+                  isDay={bundle.current.isDay}
+                />
+              </Section>
 
-          {bundle.dhmz && (
-            <Section title={t.home.nearbyMeasurements}>
-              <DhmzCard obs={bundle.dhmz} tempUnit={tempUnit} windUnit={windUnit} />
-            </Section>
-          )}
+              {bundle.dhmz && (
+                <Section title={t.home.nearbyMeasurements}>
+                  <DhmzCard obs={bundle.dhmz} tempUnit={tempUnit} windUnit={windUnit} />
+                </Section>
+              )}
             </>
           )}
         </View>

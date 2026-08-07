@@ -4,7 +4,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { Hairline, Section } from "@/components/Section";
 import { t } from "@/i18n";
-import type { ThemeSetting } from "@/store/settings";
+import type { LanguageSetting, ThemeSetting } from "@/store/settings";
 import { useSettings } from "@/store/settings";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { ACCENT_CORAL } from "@/utils/weatherLook";
@@ -76,9 +76,11 @@ function UnitChips<T extends string>({
 export default function SettingsScreen() {
   const { fg } = useThemeColors();
   const theme = useSettings((s) => s.theme);
+  const language = useSettings((s) => s.language);
   const tempUnit = useSettings((s) => s.tempUnit);
   const windUnit = useSettings((s) => s.windUnit);
   const setTheme = useSettings((s) => s.setTheme);
+  const setLanguage = useSettings((s) => s.setLanguage);
   const setTempUnit = useSettings((s) => s.setTempUnit);
   const setWindUnit = useSettings((s) => s.setWindUnit);
 
@@ -86,6 +88,17 @@ export default function SettingsScreen() {
     { value: "light", label: t.settings.themeLight },
     { value: "dark", label: t.settings.themeDark },
     { value: "system", label: t.settings.themeSystem },
+  ];
+
+  /*
+   * "Sustav" je PRVI i zadani — on je stanje pri instalaciji, pa stoji na
+   * vrhu kao i kod teme. Imena jezika su endonimi ("English", ne
+   * "Engleski"): tko je greškom prebacio jezik mora prepoznati svoj red.
+   */
+  const languages: { value: LanguageSetting; label: string }[] = [
+    { value: "system", label: t.settings.languageSystem },
+    { value: "hr", label: t.settings.languageHr },
+    { value: "en", label: t.settings.languageEn },
   ];
 
   return (
@@ -102,6 +115,21 @@ export default function SettingsScreen() {
                 label={option.label}
                 active={theme === option.value}
                 onPress={() => setTheme(option.value)}
+              />
+            </View>
+          ))}
+        </View>
+      </Section>
+
+      <Section title={t.settings.language}>
+        <View className="rounded-2xl bg-white py-0.5 dark:bg-coal">
+          {languages.map((option, i) => (
+            <View key={option.value}>
+              {i > 0 && <Hairline />}
+              <OptionRow
+                label={option.label}
+                active={language === option.value}
+                onPress={() => setLanguage(option.value)}
               />
             </View>
           ))}

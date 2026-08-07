@@ -13,12 +13,12 @@ više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
 
 | Što | Status | Bilješka |
 |---|---|---|
-| **Vjetrulja (značka bure)** | Kod gotov, **čeka provjeru na uređaju** | 6.8.2026. Po UDARIMA (10 m/s siva/bijela → 17 m/s crvena), na 4 mjesta: ladica, tražilica, bento (uz udare), heroj (ispod datuma). Tri tona po podlozi (`card` / `hero` / `dark`). [Pregled na svim podlogama](https://claude.ai/code/artifact/ee7a45e4-ec7c-4ed3-ab1e-29ebc8999eb9) |
-| **Wordmark "Podcrt"** | Kod gotov, **čeka provjeru na uređaju** | Marko odabrao 6.8.2026. u [3. krugu](https://claude.ai/code/artifact/d9c60bc2-7f8b-4ff4-91c7-ae320371ade8): `burin` + zapuh koji se uvija DESNO od riječi, u visini slova. Ugrađen na sva 4 mjesta; u ladici dobiva `heroAccent` |
-| **Jedinice (m/s, °F)** | Kod gotov, **čeka provjeru na uređaju** | m/s je zadano; F stoji ISPOD kružića na velikoj brojci. Popravljene 3 stvarne greške na karti gdje se postavka uopće nije čitala |
-| Tražilica: lokacija + tipkovnica | Kod gotov, **čeka provjeru na uređaju** | Sekcija "Moja lokacija" na vrhu (GPS tek na dodir), bez auto-tipkovnice, tipkovnica po temi, ikona vremena + vjetrulja na povijesti i spremljenima |
-| Djelomično oblačno | Kod gotov, **čeka provjeru na uređaju** | Prije je crtalo samo sunčane zrake (isto kao vedro); sada zrake + rijetki oblaci (`density="sparse"`) |
+| **Engleski jezik** | Kod gotov, **čeka rebuild pa provjeru** | 7.8.2026. Puni prijevod + postavka Sustav/Hrvatski/English. `expo-localization` je NATIVAN → **traži rebuild**; do tada pada na hrvatski i ručni odabir radi. Provjeriti: dani u 14-dnevnoj (Thu, ne čet), smjer vjetra (N/NE/E, ne S/SI/I), tekst upozorenja (en-GB iz feeda), imena regija ("Knin region") |
+| **Ikone (svijetla glavna)** | Kod gotov, **traži EAS rebuild** | 7.8.2026. Papirnata podloga, potezi u tinti + koraljni srednji. iOS 18 set `light`/`dark`/`tinted`, Android tri sloja + `backgroundColor: #FAFAF8`. Provjereno renderom i mjerenjem (1024², alfa samo gdje Android traži) |
+| **Vedra noć: zvijezde + mjesec** | Kod gotov, **čeka provjeru na uređaju** | 7.8.2026. `StarsLayer`: 54 sitne koje dišu + 11 krupnih koje SIJEVAJU (bljesak 260 ms, pa mirovanje) uz sjaj oko njih. Mjesec ima pravu mijenu (`moonPhase`), rezan maskom. Prva izvedba je imala prevelik pomak sjene pa je izgledala kao pomrčina |
+| Heroj: tekst prati podlogu | Kod gotov, **čeka provjeru na uređaju** | 7.8.2026. `readableOn(stops[1])` umjesto `text-ink dark:text-paper` na 11 mjesta. Bilo je nužno jer je noć sada tamna i u SVIJETLOJ temi, pa je crni tekst padao na tamnoplavo |
 | Razmaci u heroju | Dorada u tijeku | Marko fino štima `marginBottom` na imenu mjesta (~143) i `marginTop` na opisu (~230) u `Hero.tsx`. Izmjereno: okvir brojke nosi 38.8 px praznine gore, 36.3 dolje |
+| Spinner pull-to-refresh na iPhoneu 13 | Open, ne pomiče se | `progressViewOffset={insets.top + 48}` u `app/(screens)/index.tsx`. Marko javio da povećavanje broja **više ne mijenja ništa** — na +28 se vidjela polovica, na +48 isto. Znači offset nije (jedini) uzrok; vidjeti crta li iOS spinner iza `style={{ backgroundColor: stops[0] }}` na ScrollViewu |
 | Domet regije: kod kaže 90 km, zapis je govorio 130 | Open, nije greška u radu | `REGION_RANGE_KM = 90` u `useWarnings.ts`; stariji zapis navodi 130 km (dodano zbog grada u Čileu s hrvatskim alarmom). Zaštita radi u oba slučaja — Čile nema feed, a filtar države blokira prelazak granice. Treba samo odlučiti koji je broj točan |
 | Polača tip (zaleđe uz morsku postaju) | Open | Postaje su Šibenik/Veli Rat/Knin — sve pretople, pa korekcija **grije** mjesto na 122 m. Zemunika (21 °C, 12 km) nema u feedu; gušćeg DHMZ feeda nema |
 | 14-dnevni min/max korekcija | Open | `debiasDaily` radi, ali korekcija mjerenjem se ne primjenjuje na dnevne vrijednosti — mogući blagi nesklad s razdobljima dana |
@@ -28,26 +28,35 @@ više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
 
 ## Next Step
 
-**Provjeriti sve od 6.8.2026. na uređaju.** Ništa od ovoga nije viđeno na
-telefonu — sve je JS, dakle sam reload, bez rebuilda:
+**Pokrenuti EAS rebuild, pa provjeriti engleski i ikone.** Rebuild je sada
+OBAVEZAN — `expo-localization` je nativni modul, a ikone su nativni asseti:
 
-1. **Vjetrulja** na 4 mjesta (ladica, tražilica, bento uz udare, heroj ispod
-   datuma). **Nema je kad su udari < 10 m/s — to nije greška.** Tri prethodne
-   izvedbe su pale (krug = "točka", siva vjetrulja, bijela na bijelom), pa
-   ovu treba pogledati na svijetloj I tamnoj temi
-2. **Wordmark "Podcrt"** — kovrča mora stajati DESNO od riječi u visini
-   slova. Dvije izvedbe su bile promašene (rastegnuta pod cijelom riječi, pa
-   preko slova); mjere su izvedene iz širine riječi (`wordW / 0.66`)
-3. **F na velikoj brojci** — ISPOD kružića, na dnu znamenki
-   (`left: 7, top: 84` u `Hero.tsx`)
-4. **Djelomično oblačno** — mora imati oblake, ne samo zrake
-5. **Razmaci u heroju** — Marko fino štima margine oko velike brojke
-6. **Nova ikona traži EAS rebuild** — `assets/icon.png` je nativni asset,
-   reload ga ne mijenja (jedino što na ovoj listi traži build)
+```bash
+npx eas-cli build --profile development --platform ios
+```
 
-Radni tijek: Marko gleda na iPhoneu (JS-only, reload preko
-`npx expo start --dev-client` — **rebuild treba samo za ikone/nativno**),
-javi što bode, popravlja se odmah.
+Dok build ne stigne, aplikacija radi normalno (jezik pada na hrvatski,
+ručni odabir u Postavkama radi) — uvoz je namjerno lijen i u `try`.
+
+Nakon builda provjeriti:
+
+1. **Engleski** — Postavke → Jezik. Dani u 14-dnevnoj ("Thu", ne "čet"),
+   smjer vjetra (**N/NE/E**, ne S/SI/I — hrvatski "S" je sjever, engleski
+   je JUG), tekst upozorenja (en-GB blok iz feeda), imena regija
+   ("Knin region"). Zadano prati sustav: hrvatski telefon → hrvatski
+2. **Ikone** — svijetla pločica na početnom zaslonu; na tamnoj temi
+   sustava iOS mora uzeti tamnu varijantu
+3. **Vedra noć** — zvijezde moraju SIJEVATI (prva izvedba je bila
+   ispod praga zamjećivanja), mjesec gore desno u pravoj mijeni, bez
+   tamnog kruga oko sebe
+4. **Prijelaz heroja u kartice** — mora biti bez ijednog ruba; prije se
+   vidjela dijagonalna svijetla mrlja jer su se dva prijelaza zbrajala
+5. **Bijeli tekst na noćnom heroju u SVIJETLOJ temi** — datum, grad,
+   velika brojka, opis i minimum
+6. **Razmaci u heroju** — Marko fino štima margine oko velike brojke
+
+Radni tijek: Marko gleda na iPhoneu, javi što bode, popravlja se odmah.
+Nakon builda su sve daljnje izmjene ovog kruga opet JS-only (reload).
 
 Ako se temperatura još dira: jedino što ostaje je **gušći izvor mjerenja**.
 Izmjereno je da se štimanjem težina više ne dobiva (visina i manji domet su
@@ -125,7 +134,7 @@ bude sustavno preblaga, uzrok je tu, ne u pragovima.
 ```bash
 npx expo start --dev-client   # dev server; JS izmjene idu reloadom, BEZ rebuilda
 npm run typecheck             # tsc --noEmit
-npm test                      # jest, 224 testa u 21 skupini
+npm test                      # jest, 243 testa u 23 skupine
 npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 npx expo run:android          # nativni dev build
 node scripts/generate-icons.mjs      # ikone iz SVG glifa (traži sharp)

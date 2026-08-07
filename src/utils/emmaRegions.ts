@@ -1,3 +1,4 @@
+import { currentLanguage } from "@/i18n";
 import { haversineKm } from "@/utils/geo";
 
 /**
@@ -22,8 +23,15 @@ type Box = { latMin: number; latMax: number; lonMin: number; lonMax: number };
 
 type EmmaRegion = {
   id: EmmaId;
-  /** Hrvatsko ime za prikaz (feed nosi engleska imena). */
-  name: string;
+  /**
+   * Ime za prikaz, po jeziku sučelja (6.8.2026.).
+   *
+   * Feed nosi ENGLESKA imena u OBA jezična bloka — izmjereno na živom
+   * feedu: i `hr-HR` i `en-GB` daju "Knin region". Zato hrvatska imena
+   * postoje samo ovdje, a engleska su preuzeta doslovno iz feeda, da se
+   * ime regije na ekranu poklapa s tekstom upozorenja iznad njega.
+   */
+  name: Record<"hr" | "en", string>;
   kind: "land" | "marine";
   box: Box;
   /**
@@ -38,7 +46,7 @@ export const EMMA_REGIONS: EmmaRegion[] = [
   // ---- kopno (DHMZ prognostičke regije) ----
   {
     id: "HR001",
-    name: "kninska regija",
+    name: { hr: "kninska regija", en: "Knin region" },
     kind: "land",
     // Sjeverna Dalmacija s zaleđem: Zadar, Ravni kotari, Šibenik, Knin.
     box: { latMin: 43.5, latMax: 44.6, lonMin: 15.0, lonMax: 17.0 },
@@ -46,35 +54,35 @@ export const EMMA_REGIONS: EmmaRegion[] = [
   },
   {
     id: "HR002",
-    name: "zagrebačka regija",
+    name: { hr: "zagrebačka regija", en: "Zagreb region" },
     kind: "land",
     box: { latMin: 45.2, latMax: 46.7, lonMin: 15.7, lonMax: 17.6 },
     anchor: { lat: 45.81, lon: 15.98 },
   },
   {
     id: "HR003",
-    name: "karlovačka regija",
+    name: { hr: "karlovačka regija", en: "Karlovac region" },
     kind: "land",
     box: { latMin: 44.9, latMax: 45.75, lonMin: 14.7, lonMax: 16.1 },
     anchor: { lat: 45.49, lon: 15.55 },
   },
   {
     id: "HR004",
-    name: "gospićka regija",
+    name: { hr: "gospićka regija", en: "Gospic region" },
     kind: "land",
     box: { latMin: 44.15, latMax: 45.05, lonMin: 14.9, lonMax: 16.35 },
     anchor: { lat: 44.55, lon: 15.37 },
   },
   {
     id: "HR005",
-    name: "osječka regija",
+    name: { hr: "osječka regija", en: "Osijek region" },
     kind: "land",
     box: { latMin: 44.7, latMax: 46.0, lonMin: 16.9, lonMax: 19.5 },
     anchor: { lat: 45.55, lon: 18.69 },
   },
   {
     id: "HR006",
-    name: "riječka regija",
+    name: { hr: "riječka regija", en: "Rijeka region" },
     kind: "land",
     // Istra + Primorje + kvarnerski otoci.
     box: { latMin: 44.35, latMax: 45.65, lonMin: 13.4, lonMax: 15.1 },
@@ -82,14 +90,14 @@ export const EMMA_REGIONS: EmmaRegion[] = [
   },
   {
     id: "HR007",
-    name: "dubrovačka regija",
+    name: { hr: "dubrovačka regija", en: "Dubrovnik region" },
     kind: "land",
     box: { latMin: 42.35, latMax: 43.15, lonMin: 16.8, lonMax: 18.6 },
     anchor: { lat: 42.65, lon: 18.09 },
   },
   {
     id: "HR008",
-    name: "splitska regija",
+    name: { hr: "splitska regija", en: "Split region" },
     kind: "land",
     box: { latMin: 42.85, latMax: 44.05, lonMin: 15.85, lonMax: 17.55 },
     anchor: { lat: 43.51, lon: 16.44 },
@@ -98,21 +106,21 @@ export const EMMA_REGIONS: EmmaRegion[] = [
   // ---- more (obalni pojas s otocima; vrijedi UZ kopnenu regiju) ----
   {
     id: "HR801",
-    name: "zapadna obala Istre",
+    name: { hr: "zapadna obala Istre", en: "West Istrian coast" },
     kind: "marine",
     box: { latMin: 44.75, latMax: 45.6, lonMin: 13.2, lonMax: 13.95 },
     anchor: { lat: 45.1, lon: 13.6 },
   },
   {
     id: "HR802",
-    name: "Kvarner i Kvarnerić",
+    name: { hr: "Kvarner i Kvarnerić", en: "Kvarner and Kvarneric" },
     kind: "marine",
     box: { latMin: 44.45, latMax: 45.45, lonMin: 13.95, lonMax: 15.0 },
     anchor: { lat: 44.9, lon: 14.5 },
   },
   {
     id: "HR803",
-    name: "Velebitski kanal",
+    name: { hr: "Velebitski kanal", en: "Velebit channel" },
     kind: "marine",
     // Od Senja do Maslenice, uski pojas pod Velebitom.
     box: { latMin: 44.15, latMax: 45.05, lonMin: 14.8, lonMax: 15.6 },
@@ -120,14 +128,14 @@ export const EMMA_REGIONS: EmmaRegion[] = [
   },
   {
     id: "HR804",
-    name: "sjeverna Dalmacija",
+    name: { hr: "sjeverna Dalmacija", en: "North Dalmatia" },
     kind: "marine",
     box: { latMin: 43.55, latMax: 44.45, lonMin: 14.75, lonMax: 16.1 },
     anchor: { lat: 44.0, lon: 15.3 },
   },
   {
     id: "HR805",
-    name: "srednja Dalmacija",
+    name: { hr: "srednja Dalmacija", en: "Middle Dalmatia" },
     kind: "marine",
     // lat gornja granica ispod Sinja (43.70) — zagora nije more.
     box: { latMin: 42.9, latMax: 43.6, lonMin: 15.85, lonMax: 17.3 },
@@ -135,7 +143,7 @@ export const EMMA_REGIONS: EmmaRegion[] = [
   },
   {
     id: "HR806",
-    name: "južna Dalmacija",
+    name: { hr: "južna Dalmacija", en: "South Dalmatia" },
     kind: "marine",
     box: { latMin: 42.3, latMax: 43.05, lonMin: 16.7, lonMax: 18.6 },
     anchor: { lat: 42.7, lon: 17.8 },
@@ -184,7 +192,13 @@ export function regionsForPlace(lat: number, lon: number): EmmaId[] {
   return [nearest.id, ...marine.map((r) => r.id)];
 }
 
-/** Hrvatsko ime regije za prikaz na ekranu upozorenja. */
+/**
+ * Ime regije za prikaz na ekranu upozorenja, na jeziku sučelja.
+ *
+ * Jezik se čita iz `currentLanguage()`, a ne prima propom: pozivatelj je
+ * jedan redak u JSX-u usred liste, a modul je i inače čista tablica —
+ * hook bi ga vezao uz React stablo bez potrebe.
+ */
 export function emmaRegionName(id: string): string | undefined {
-  return EMMA_REGIONS.find((r) => r.id === id)?.name;
+  return EMMA_REGIONS.find((r) => r.id === id)?.name[currentLanguage()];
 }
