@@ -24,7 +24,9 @@ više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
 | 14-dnevni min/max korekcija | Open | `debiasDaily` radi, ali korekcija mjerenjem se ne primjenjuje na dnevne vrijednosti — mogući blagi nesklad s razdobljima dana |
 | Vremenske vijesti / blog | Open, neistraženo | Marko pitao ima li izvora za HR i svijet. Nije istraženo — DHMZ ima vijesti, za svijet treba provjeriti |
 | Web kamere | Odgođeno | V&R koristi whatsupcams (komercijalni, bez API-ja); scraping ne dolazi u obzir. Čeka čist izvor (HAK/TZ popis?) |
-| Android widget | Open | v1.1; `burin:last-weather` (zustand persist) je pripremljen kao pohrana |
+| **iOS widget** | Istraženo 7.8.2026., **čeka odluku o SDK upgradeu** | `expo-widgets` (Expo, prvoklasni) piše widget u TypeScriptu preko `@expo/ui/swift-ui` — **bez Swifta**. Ali najstarije izdanje je `sdk-55`, a ovisi o `@expo/ui` koji ide u paru sa SDK-om → **traži upgrade 54 → 57**. Dizajn: SAMO gradijent (vidi Recent Decisions), veličine `systemSmall` + `systemMedium` + `accessoryRectangular` |
+| SDK upgrade 54 → 57 | Predložen, **provjereno da je nizak rizik** | Izmjereno 7.8.2026., ne procijenjeno: MapLibre 11.3.6 **već ima Fabric codegen** (`componentProvider` za MLRNMapView/RasterSource/Layer/Camera), Reanimated 4.5.3 traži RN 0.83–0.86 a SDK 57 nosi **0.86**, NativeWind 4.2.6 je već najnoviji, Node 22.13.1 zadovoljava. Uklanjanja iz SDK 55 ne diraju projekt (nema `newArchEnabled`, `expo-av`, `notification`, `edgeToEdgeEnabled`) |
+| Android widget | Open, nakon iOS-a | v1.1; `burin:last-weather` (zustand persist) je pripremljen kao pohrana. `react-native-android-widget` radi na SDK 54 već sad. **Vjetrulja se ne može nacrtati u RemoteViews** (nema SVG-a) — trebat će PNG po tonu ili pojednostavljen glif |
 
 ## Next Step
 
@@ -58,6 +60,26 @@ Nakon builda provjeriti:
 Radni tijek: Marko gleda na iPhoneu, javi što bode, popravlja se odmah.
 Nakon builda su sve daljnje izmjene ovog kruga opet JS-only (reload).
 
+### Zatim: odluka o SDK upgradeu 54 → 57 (zbog widgeta)
+
+iOS widget traži `expo-widgets`, koji **nema izdanje za SDK 54**. Upgrade je
+7.8.2026. provjeren kao nizak rizik (brojke u tablici gore) — ono što je
+prije držalo projekt na 54 (Expo Go) otpalo je 5.8. s MapLibreom, jer
+aplikacija u Expo Gou ionako više ne radi. Testiranje se upgradeom **ne
+mijenja**: i dalje EAS dev build, isti `--profile development`.
+
+Redoslijed kad se odluči:
+
+```bash
+npx expo install expo@^57.0.0 --fix     # SDK + uparivanje ovisnosti
+npm run typecheck && npm test           # prije ijednog builda
+npx expo export --platform android      # puni Metro/Babel/NativeWind pipeline
+npx eas-cli build --profile development --platform ios
+```
+
+Widget se radi **tek nakon** što upgrade prođe provjeru na uređaju — inače
+se dvije nepoznanice (novi SDK i novi nativni target) traže u istom buildu.
+
 Ako se temperatura još dira: jedino što ostaje je **gušći izvor mjerenja**.
 Izmjereno je da se štimanjem težina više ne dobiva (visina i manji domet su
 *gori*), a Polača se bez podatka iz Ravnih kotara ne može riješiti.
@@ -71,6 +93,10 @@ bude sustavno preblaga, uzrok je tu, ne u pragovima.
 
 | Odluka | Zašto |
 |---|---|
+| Widget nosi SAMO gradijent, bez ambijentalnih slojeva | Izmjereno u dokumentaciji 7.8.2026.: `@expo/ui/swift-ui` **nema ni jedan crtaći primitiv** — nema `Path`, `Circle`, `Rectangle`, `Canvas`. Zvijezde, oblaci, kiša, mjesečev srp i vjetrulja se dakle ne mogu nacrtati ni kao mirna slika. Ali `foregroundStyle({type:"linearGradient", colors, startPoint, endPoint})` prima **točno onaj oblik koji `weatherGradient()` već vraća**, pa cijeli sustav paleta prelazi bez ijedne nove linije logike. Identitet ionako NOSI paleta — narančasto sunce, tamnoplava noć, siva naoblaka — pa widget izgleda kao heroj s ugašenim ambijentom |
+| Widget podatke dobiva `updateSnapshot`, ne čitanjem AsyncStoragea | Widget je zaseban proces u drugom kontejneru i **fizički ne vidi** AsyncStorage aplikacije (na iOS-u je to datoteka u sandboxu). Dijeljenje ide preko App Groupa, a `expo-widgets` to pakira u `updateSnapshot()` / `updateTimeline()`. Svi potrebni podaci su ionako već u `burin:last-weather` — nema novog dohvaćanja |
+| `updateTimeline` za buduće sate, ne samo `updateSnapshot` | iOS **budžetira** osvježavanje widgeta (~40–70 buđenja dnevno) i sam odlučuje kad. `updateTimeline` unaprijed upiše niz unosa iz `hourly[]`, pa widget ostaje točan i kad ga sustav ne probudi — bez toga bi pokazivao zastarjelu temperaturu |
+| Lock screen widget je JEDNOBOJAN, i to je u redu | iOS `accessoryRectangular` renderira u jednom tonu — gradijenta tu nema i ne može biti. Dijeli podatke s velikim widgetom, ali ne izgled; ide unutra jer je gotovo besplatan, ne zato što će izgledati kao aplikacija |
 | Značka bure ide po UDARIMA, ne po stalnom vjetru | Izmjereno 6.8.2026. za Polaču: ECMWF daje 4.2 m/s stalnog uz **9.1 m/s u udarima**. Bura se osjeti i pamti po udarima; po stalnom vjetru se značka u zaleđu ne bi upalila gotovo nikad. V&R prikazuje isto (njihovih 11 m/s nisu ni model ni DHMZ postaja — Zadar je tada mjerio 3.1 m/s) |
 | Prag značke 10 m/s (bijela) / 17 m/s (crvena) | Markov odabir po V&R-u. 17.2 m/s je i granica 8 Beauforta (olujno), pa se skala poklapa s pomorskom prognozom. Ispod praga NEMA značke — inače stoji uvijek i prestane nositi informaciju |
 | Značka vjetra je VJETRULJA, ne zastava | Vjetrulja je instrument za vjetar pa se sama čita kao "vjetar"; zastava je signal i značenje nosi samo bojom. Marko dao izvorni SVG. Izvedba: stup + TRI pune pruge s **PROZIRNIM rasjecima** (naizmjenične pruge SU oblik — bez rasjeka je znak puni blok). Crvena za olujno je ista na svim podlogama, jer crveno znači opasnost; jarbol nikad nije crven |
