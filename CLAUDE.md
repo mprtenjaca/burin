@@ -59,6 +59,13 @@ Po buildu — dva u jedan:
 npx eas-cli build --profile production --platform ios --auto-submit
 ```
 
+`--auto-submit` traži `submit.production` u `eas.json` (dodano 8.8.2026.
+nakon greške „Missing submit profile in eas.json: production" — build je
+bio gotov, pao je tek upload). Prazan `{}` je dovoljan: EAS pita za Apple
+ID i aplikaciju nađe po `bundleIdentifier`. Build koji je već gotov ne
+treba ponavljati — pošalje se s
+`npx eas-cli submit --platform ios --latest`.
+
 Obrada ~10–30 min, pa se build pojavi u kartici TestFlight. Prvi put pita
 za enkripciju: aplikacija koristi samo HTTPS → „standard/exempt". Da nikad
 više ne pita, dodati u `app.config.ts`:
