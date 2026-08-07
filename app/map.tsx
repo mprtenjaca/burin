@@ -43,7 +43,7 @@ import { useSettings } from "@/store/settings";
 import { Wordmark } from "@/components/Wordmark";
 import { colors } from "@/theme/colors";
 import { convertTemp } from "@/utils/format";
-import { ACCENT_CORAL, weatherGradient } from "@/utils/weatherLook";
+import { ACCENT_CORAL, ACCENT_STEEL, weatherGradient } from "@/utils/weatherLook";
 
 const FRAME_INTERVAL_MS = 600;
 /** Sati se listaju sporije od radarskih okvira — inače je nečitljivo. */
@@ -424,7 +424,18 @@ export default function MapScreen() {
         pointerEvents="none"
       >
         <View className="flex-row items-center rounded-full bg-ink/85 px-4 py-2.5">
-          <Wordmark color={colors.paper} textSize={15} />
+          {/*
+            Zapuh je PLAV na karti (Markov odabir 8.8.2026.) — karta je
+            jedini ekran gdje wordmark stoji nad tuđom grafikom, pa se
+            koraljna ondje čitala kao još jedna oznaka na karti.
+
+            Nijansa je SVJETLIJA plava (`ACCENT_STEEL`), ne `ACCENT_UI`:
+            traka je tamna (#171717–#323231 nakon 85 % ink-a), a ondje
+            `ACCENT_UI` pada na **2.55:1** — lošije nego koraljna koju
+            mijenja. `ACCENT_STEEL` drži **3.85–5.38:1** i jednako je
+            jasno plav.
+          */}
+          <Wordmark color={colors.paper} accent={ACCENT_STEEL} textSize={15} />
         </View>
       </View>
 
@@ -467,13 +478,20 @@ export default function MapScreen() {
           uklanja. Svedena je na jedan tanak red bez pozadinskih "pillova"
           da ne odvlači pogled s karte; dodir i dalje otvara izvor.
         */}
-        <View className="flex-row items-center gap-1.5 self-start rounded-full bg-ink/70 px-2.5 py-1">
+        {/*
+          Prigušeno na najmanju mjeru koja je još čitljiva (Markov odabir
+          8.8.2026.): podloga s 70 % na 40 %, tekst sa 60 % na 42 %.
+          Obveza ostaje ispunjena — natpis se vidi i dodir i dalje otvara
+          izvor — ali više ne otima pogled karti. Dodirna meta se NE
+          smanjuje (`hitSlop` ostaje 10), pa je i dalje lako pogoditi.
+        */}
+        <View className="flex-row items-center gap-1.5 self-start rounded-full bg-ink/40 px-2.5 py-1">
           <Pressable hitSlop={10} onPress={() => Linking.openURL(layer.attribution.url)}>
-            <Text className="text-[9px] text-paper/60">{layer.attribution.label}</Text>
+            <Text className="text-[9px] text-paper/[0.42]">{layer.attribution.label}</Text>
           </Pressable>
-          <Text className="text-[9px] text-paper/40">·</Text>
+          <Text className="text-[9px] text-paper/25">·</Text>
           <Pressable hitSlop={10} onPress={() => Linking.openURL(MAP_BASE_ATTRIBUTION.url)}>
-            <Text className="text-[9px] text-paper/60">
+            <Text className="text-[9px] text-paper/[0.42]">
               {MAP_BASE_ATTRIBUTION.label}
             </Text>
           </Pressable>

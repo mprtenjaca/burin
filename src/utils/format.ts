@@ -41,6 +41,32 @@ export function formatHour(iso: string): string {
   return pad2(parseLocal(iso).getHours());
 }
 
+/**
+ * Sati koji SU JOŠ PRED NAMA, iz niza koji počinje tekućim satom.
+ *
+ * Postoji jer se `hourly` gradi PRI DOHVATU (`mapHourly` reže od punog
+ * sata), a upit stoji 30 minuta. U 15:40 niz je i dalje počinjao u
+ * 15:00, pa je prva kolona trake bila sat koji TRAJE — i nosila je
+ * prognozu od 15:00, koja se do 15:40 već mogla razići sa stvarnim
+ * vremenom (nađeno na uređaju 8.8.2026.: pisalo je „kiša" dok je vani
+ * bilo pretežno vedro).
+ *
+ * Rez se zato radi PRI CRTANJU, prema živom satu (`useNow`), pa traka
+ * prelazi na sljedeći sat čim otkuca puni sat — bez novog dohvata.
+ *
+ * Uspoređuje se po punom satu, ne po točnom trenutku: unos za 16:00
+ * mora ostati vidljiv cijeli taj sat, a nestati tek u 17:00.
+ */
+export function futureHours<T extends { time: string }>(hours: T[], now: Date): T[] {
+  const startOfHour = new Date(now).setMinutes(0, 0, 0);
+  const upcoming = hours.filter((h) => parseLocal(h.time).getTime() > startOfHour);
+  /*
+   * Kad prognoza zaostane (svi unosi su prošli), bolje je pokazati
+   * zadnje poznato nego praznu traku.
+   */
+  return upcoming.length > 0 ? upcoming : hours;
+}
+
 /** epoch ms -> "HH:mm" lokalno — za "Podaci od HH:mm" */
 export function clockTime(epochMs: number): string {
   const dt = new Date(epochMs);

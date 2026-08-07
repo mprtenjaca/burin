@@ -15,7 +15,7 @@ import {
   tempUnitSuffix,
   windUnitLabel,
 } from "@/utils/format";
-import { ACCENT_CORAL } from "@/utils/weatherLook";
+import { ACCENT_STEEL } from "@/utils/weatherLook";
 
 /** Jedan korak crte, sveden na ono što se prikazuje. */
 type Step = {
@@ -165,7 +165,7 @@ export function MapTimeline({
           accessibilityRole="button"
           accessibilityLabel={playing ? t.map.pause : t.map.play}
           className="h-9 w-9 items-center justify-center rounded-full"
-          style={{ backgroundColor: disabled ? "#FAFAF81F" : ACCENT_CORAL }}
+          style={{ backgroundColor: disabled ? "#FAFAF81F" : ACCENT_STEEL }}
         >
           {playing ? (
             <Pause size={17} strokeWidth={2.5} color="#FFFFFF" fill="#FFFFFF" />
@@ -190,7 +190,7 @@ export function MapTimeline({
             {step?.note && (
               <Text
                 className="font-grotesk-bold text-[13px]"
-                style={{ color: isFuture ? ACCENT_CORAL : "#FAFAF8B3" }}
+                style={{ color: isFuture ? ACCENT_STEEL : "#FAFAF8B3" }}
               >
                 {step.note}
               </Text>
@@ -219,7 +219,7 @@ export function MapTimeline({
               onValueChange={(v) => onScrub(Math.round(v))}
               minimumTrackTintColor="transparent"
               maximumTrackTintColor="transparent"
-              thumbTintColor={ACCENT_CORAL}
+              thumbTintColor={ACCENT_STEEL}
             />
           </View>
         </View>

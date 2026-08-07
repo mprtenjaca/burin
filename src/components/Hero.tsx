@@ -12,7 +12,7 @@ import { useNow } from "@/hooks/useNow";
 import { t } from "@/i18n";
 import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit, WindUnit } from "@/utils/format";
-import { clockTime, convertTemp, convertWind, windUnitLabel } from "@/utils/format";
+import { clockTime, convertTemp, convertWind, futureHours, windUnitLabel } from "@/utils/format";
 import { backdropEffects, heroAccent, precipIntensity, readableOn, stripAccent, windStrength, type GradientStops } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
@@ -333,7 +333,15 @@ export function Hero({
           na svijetlom dnu gradijenta, gdje zlatna s vedrog neba pada na
           1.56:1 i nestane.
         */}
-        <HourlyStrip hours={hours} tempUnit={tempUnit} accent={stripAccent()} />
+        {/*
+          Sati se režu PREMA ŽIVOM SATU, ne prema trenutku dohvata
+          (8.8.2026.): `hourly` počinje tekućim satom i stoji do 30
+          minuta, pa je u 15:40 prva kolona bila „15" — sat koji već
+          traje, s prognozom koja se dotad mogla razići sa stvarnim
+          vremenom. `useNow` otkucava svaku minutu, pa traka prelazi na
+          sljedeći sat čim otkuca puni sat.
+        */}
+        <HourlyStrip hours={futureHours(hours, now)} tempUnit={tempUnit} accent={stripAccent()} />
       </View>
     </View>
   );
