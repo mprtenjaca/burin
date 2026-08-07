@@ -83,6 +83,18 @@ export type MapLayer = {
    * nestaje i nikad se ne traži nepostojeća pločica.
    */
   maxNativeZ: number;
+  /**
+   * Veličina pločice u pikselima — MORA odgovarati onome što URL traži
+   * (8.8.2026.).
+   *
+   * Radar ide na 512 (RainViewer nudi obje veličine, a veća nosi 3.5×
+   * više detalja pri istom zoomu — vidi `mapLayerTileUrl`). OWM slojevi
+   * su 256 i druge veličine nemaju.
+   *
+   * Ako se ova brojka raziđe s URL-om, MapLibre pločicu skalira u krivi
+   * okvir: 512 stisnut u 256 izgleda gore nego izvorni 256.
+   */
+  tileSize: 256 | 512;
   attribution: { label: string; url: string };
   timeline: TimelineKind;
 };
@@ -112,6 +124,8 @@ export const MAP_LAYERS: MapLayer[] = [
      * Iznad 7 MapLibre rasteže pločicu sa z=7 — radar ostaje na ekranu.
      */
     maxNativeZ: 7,
+    // Jedini sloj na 512 — RainViewer ih nudi, i nose 3.5× više detalja.
+    tileSize: 512,
     attribution: { label: t.map.radarAttribution, url: "https://www.rainviewer.com" },
     timeline: "frames",
   },
@@ -138,6 +152,7 @@ export const MAP_LAYERS: MapLayer[] = [
     saturation: 0.55,
     contrast: 0.25,
     maxNativeZ: 12,
+    tileSize: 256,
     attribution: { label: t.map.owmAttribution, url: "https://openweathermap.org" },
     timeline: "hours",
   },
@@ -152,6 +167,7 @@ export const MAP_LAYERS: MapLayer[] = [
     contrast: 0.4,
     // Iznad 6 se gubi (z=10 je prazan), pa se rasteže s niže razine.
     maxNativeZ: 6,
+    tileSize: 256,
     attribution: { label: t.map.owmAttribution, url: "https://openweathermap.org" },
     timeline: "hours",
   },
@@ -174,6 +190,8 @@ export const MAP_LAYERS: MapLayer[] = [
     opacity: 1,
     // Crtice su vektorske — nema pločice pa ni granice rastezanja.
     maxNativeZ: MAP_MAX_ZOOM,
+    // Nema pločice; vrijednost je ovdje samo da tip ostane potpun.
+    tileSize: 256,
     attribution: { label: t.map.omAttribution, url: "https://open-meteo.com" },
     timeline: "hours",
   },
@@ -215,8 +233,30 @@ export function mapLayerTileUrl(
 
   if (layer.id === "radar") {
     if (!radar) return null;
-    // Shema boja 4 + gladak prijelaz (1_1) — gradijent, ne pikseli.
-    return `${radar.host}${radar.frame.path}/256/{z}/{x}/{y}/4/1_1.png`;
+    /*
+     * PLOČICA OD 512 px, NE 256 (Markov ispravak 8.8.2026.).
+     *
+     * Na uređaju je oluja pri približavanju bila razmrljana u kvadrate,
+     * dok je ista na RainViewerovoj karti ostajala oštra. Uzrok nije
+     * `maxNativeZ` (RainViewer stvarno nema podatke iznad z=7 — vidi
+     * ispod) nego VELIČINA pločice: tražili smo najmanju.
+     *
+     * Izmjereno dohvaćanjem iste pločice u obje veličine (z=7, Zadar):
+     *   256 px →  6073 B, 3869 neprozirnih piksela
+     *   512 px → 17030 B, 13687 neprozirnih piksela
+     * Ista paleta (65 boja), 3.5× više pokrivenih piksela — dakle PRAVI
+     * detalj, ne naduvana slika. MapLibre time rasteže mnogo bolji
+     * izvornik i mrlje ostaju glatke.
+     *
+     * Zid na z=8 vrijedi i dalje, i na obje veličine: pločice na z=8 i
+     * z=9 su BAJT-IDENTIČNE (isti md5), što je onaj natpis „Zoom Level
+     * Not Supported". Zato `maxNativeZ` ostaje 7.
+     *
+     * Uz ovo `tileSize` na `RasterSource` mora biti 512 — inače bi
+     * MapLibre pločicu od 512 px stisnuo u okvir od 256 i pogoršao
+     * stvar umjesto da je popravi.
+     */
+    return `${radar.host}${radar.frame.path}/512/{z}/{x}/{y}/4/1_1.png`;
   }
   return owmTileUrl(layer.id, atUnix);
 }

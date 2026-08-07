@@ -112,7 +112,20 @@ describe("mapLayerTileUrl", () => {
     const radar = mapLayerById("radar");
     expect(mapLayerTileUrl(radar)).toBeNull();
     const url = mapLayerTileUrl(radar, { host: "https://tc.rainviewer.com", frame });
-    expect(url).toBe("https://tc.rainviewer.com/v2/radar/1785885600/256/{z}/{x}/{y}/4/1_1.png");
+    expect(url).toBe("https://tc.rainviewer.com/v2/radar/1785885600/512/{z}/{x}/{y}/4/1_1.png");
+  });
+
+  /*
+   * Veličina u URL-u i `tileSize` na sloju moraju se POKLAPATI
+   * (8.8.2026.): ako se raziđu, MapLibre skalira pločicu u krivi okvir i
+   * radar izgleda gore nego prije. Test ih drži zajedno jer su na dva
+   * mjesta u kodu.
+   */
+  it("veličina pločice u URL-u odgovara tileSize sloja", () => {
+    const radar = mapLayerById("radar");
+    const url = mapLayerTileUrl(radar, { host: "https://tc.rainviewer.com", frame })!;
+    expect(url).toContain(`/${radar.tileSize}/{z}/{x}/{y}/`);
+    expect(radar.tileSize).toBe(512);
   });
 
   it("radar koristi glatku shemu boja (gradijent, ne pikseli)", () => {

@@ -83,8 +83,67 @@ const DASH_FRAMES: number[][] = Array.from({ length: DASH_KADROVA }, (_, i) =>
   dashFrame(i),
 );
 
+/**
+ * Kadrovi REPA: isti ciklus i isti pomak kao glava, ali kraća crtica koja
+ * zaostaje za njom.
+ *
+ * `TAIL_LAG` je koliko rep kasni; time se rep nalazi IZA glave i zajedno
+ * čine jedan potez koji se prema naprijed puni. Zbroj svakog kadra mora
+ * ostati `DASH_CIKLUS` — inače rep i glava putuju različitim brzinama i
+ * razilaze se.
+ */
+const TAIL_LAG = 0.55;
+
+function tailFrame(index: number): number[] {
+  const pomak = ((index / DASH_KADROVA) * DASH_CIKLUS + TAIL_LAG) % DASH_CIKLUS;
+  const vidljivo = Math.min(TAIL_CRTICA, Math.max(0, DASH_CIKLUS - pomak));
+  const rep = TAIL_CRTICA - vidljivo;
+  const razmak = DASH_CIKLUS - pomak - vidljivo;
+  return razmak >= 0
+    ? [0, pomak, vidljivo, razmak]
+    : [rep, DASH_CIKLUS - rep];
+}
+
+const TAIL_FRAMES: number[][] = Array.from({ length: DASH_KADROVA }, (_, i) =>
+  tailFrame(i),
+);
+
+/** Rep je upola tanji od glave — potez se time sužava prema natrag. */
+const TAIL_WIDTH: DataDrivenPropertyValueSpecification<number> = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  5,
+  ["interpolate", ["linear"], ["get", "speed"], 0, 0.4, 70, 0.9],
+  10,
+  ["interpolate", ["linear"], ["get", "speed"], 0, 0.8, 70, 1.8],
+];
+
 /** Brzina animacije. 130 ms je izmjereno kao "teče", a ne "trza". */
 const FRAME_MS = 130;
+
+/**
+ * REP CRTICE — odatle se čita SMJER (Markov zahtjev 8.8.2026.).
+ *
+ * Crtica jednake debljine se čita u oba smjera: vidi se KUDA teče zrak,
+ * ali ne i NA KOJU STRANU. Referenca to rješava potezom koji je straga
+ * tanak, a prema naprijed pun.
+ *
+ * Dva pokušaja koja su ODBAČENA jer bi se tiho ne nacrtala:
+ *
+ *  1. `symbol` sloj s vrškom „▶" duž crte. CARTO poslužuje glifove samo
+ *     za osnovni ASCII — raspon 9472–9727 se preuzme, ali je PRAZAN (u
+ *     fontu nema ni U+25B6 ni „→"). Provjereno dekodiranjem `.pbf`-a.
+ *  2. `line-gradient` (prozirno straga → puno sprijeda). Specifikacija
+ *     ga IZRIČITO zabranjuje uz crtice: `"requires": [{"!":
+ *     "line-dasharray"}]`. Zajedno bi gradijent jednostavno otpao.
+ *
+ * Radi zato DRUGI SLOJ crtica ispod glavnog: isti ciklus i isti pomak,
+ * ali kraća crtica koja stoji IZA glave i tanja je. Oko time vidi potez
+ * koji se prema naprijed puni — bez ijednog dodatnog znaka i bez sukoba
+ * sa specifikacijom.
+ */
+const TAIL_CRTICA = 0.55;
 
 export function WindBarbs({
   grid,
@@ -120,6 +179,25 @@ export function WindBarbs({
 
   return (
     <GeoJSONSource id="wind-grid" data={features}>
+      {/*
+        REP ide PRVI, dakle ispod glave: tanji je i blijedi, pa se čita
+        kao mjesto s kojeg je potez došao. Zajedno s glavom daje crticu
+        koja se prema naprijed puni — odatle se vidi SMJER (vidi
+        `TAIL_CRTICA`).
+      */}
+      <Layer
+        type="line"
+        id="wind-grid-tails"
+        beforeId={MAP_LABELS_LAYER_ID}
+        layout={{ "line-cap": "round" }}
+        paint={{
+          "line-color": SPEED_COLOR,
+          // Upola tanji od glave — potez se time sužava prema natrag.
+          "line-width": TAIL_WIDTH,
+          "line-opacity": 0.5,
+          "line-dasharray": TAIL_FRAMES[frame]!,
+        }}
+      />
       <Layer
         type="line"
         id="wind-grid-lines"

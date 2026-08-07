@@ -353,7 +353,8 @@ export default function MapScreen() {
             key={tile.key}
             id={tile.key}
             tiles={[tile.url]}
-            tileSize={256}
+            // Iz sloja, ne fiksno (8.8.2026.): radar je 512, OWM 256.
+            tileSize={layer.tileSize}
             maxzoom={layer.maxNativeZ}
           >
             <Layer
