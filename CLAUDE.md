@@ -10,96 +10,80 @@ ide na EAS dev build (osobna Apple licenca, internal distribution), pa Expo Go
 više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
 
 **Podignuto na SDK 57 dana 7.8.2026.** (RN 0.86.2, React 19.2.3, TypeScript
-6.0.3) da se otvori `expo-widgets` za iOS widget. Prošlo čisto: typecheck,
-243 testa, `expo export`, `expo-doctor` 20/20. **Čeka provjeru na uređaju.**
+6.0.3) da se otvori `expo-widgets` za iOS widget. **Potvrđeno na uređaju**
+— aplikacija, karta i ladica rade. Widgeti postoje za obje platforme
+(`src/widgets/`, `src/widgets/android/`) i čekaju provjeru.
 
 ## Current Status
 
 | Što | Status | Bilješka |
 |---|---|---|
-| **Engleski jezik** | Kod gotov, **čeka rebuild pa provjeru** | 7.8.2026. Puni prijevod + postavka Sustav/Hrvatski/English. `expo-localization` je NATIVAN → **traži rebuild**; do tada pada na hrvatski i ručni odabir radi. Provjeriti: dani u 14-dnevnoj (Thu, ne čet), smjer vjetra (N/NE/E, ne S/SI/I), tekst upozorenja (en-GB iz feeda), imena regija ("Knin region") |
-| **Ikone (svijetla glavna)** | Kod gotov, **traži EAS rebuild** | 7.8.2026. Papirnata podloga, potezi u tinti + koraljni srednji. iOS 18 set `light`/`dark`/`tinted`, Android tri sloja + `backgroundColor: #FAFAF8`. Provjereno renderom i mjerenjem (1024², alfa samo gdje Android traži) |
+| **iOS widget** | **Bio prazan na uređaju; popravak čeka provjeru** | Build 7.8.2026. je dao BIJELU pločicu s "undefined" posvuda, bez ijedne greške. Uzrok nađen i popravljen (vidi Recent Decisions): ikone i upis crte su bili u istom `try`, pa je pad ikona preskočio propove. Sada su odvojeni i **greške se logiraju** — ako se ponovi, u konzoli piše `[burin] widget nije osvježen:` ili `[burin] widget ikone nisu spremne:`. Build `fe2f09e5` je gotov i čeka instalaciju |
+| **Android widget** | Kod gotov, build prošao, **čeka provjeru na uređaju** | `react-native-android-widget` 0.21.0; `src/widgets/android/`. Dvije veličine (2×2, 4×2), isti izgled i podaci kao iOS. Prvi EAS build je pao na `checkDuplicateClasses` (sukob `androidx.work`) — popravljeno isključivanjem `expo-widgets` iz Android autolinkinga. Build `50b2679b` je gotov |
+| **Engleski jezik** | Kod gotov, **čeka provjeru na uređaju** | 7.8.2026. Puni prijevod + postavka Sustav/Hrvatski/English. Provjeriti: dani u 14-dnevnoj (Thu, ne čet), smjer vjetra (N/NE/E, ne S/SI/I — hrvatski "S" je sjever, engleski JUG), tekst upozorenja (en-GB iz feeda), imena regija ("Knin region") |
+| **Ikone (svijetla glavna)** | Kod gotov, **čeka provjeru na uređaju** | 7.8.2026. Papirnata podloga, potezi u tinti + koraljni srednji. iOS 18 set `light`/`dark`/`tinted`, Android tri sloja + `backgroundColor: #FAFAF8`. Provjereno renderom i mjerenjem (1024², alfa samo gdje Android traži) |
 | **Vedra noć: zvijezde + mjesec** | Kod gotov, **čeka provjeru na uređaju** | 7.8.2026. `StarsLayer`: 54 sitne koje dišu + 11 krupnih koje SIJEVAJU (bljesak 260 ms, pa mirovanje) uz sjaj oko njih. Mjesec ima pravu mijenu (`moonPhase`), rezan maskom. Prva izvedba je imala prevelik pomak sjene pa je izgledala kao pomrčina |
 | Heroj: tekst prati podlogu | Kod gotov, **čeka provjeru na uređaju** | 7.8.2026. `readableOn(stops[1])` umjesto `text-ink dark:text-paper` na 11 mjesta. Bilo je nužno jer je noć sada tamna i u SVIJETLOJ temi, pa je crni tekst padao na tamnoplavo |
 | Razmaci u heroju | Dorada u tijeku | Marko fino štima `marginBottom` na imenu mjesta (~143) i `marginTop` na opisu (~230) u `Hero.tsx`. Izmjereno: okvir brojke nosi 38.8 px praznine gore, 36.3 dolje |
 | Spinner pull-to-refresh na iPhoneu 13 | Open, ne pomiče se | `progressViewOffset={insets.top + 48}` u `app/(screens)/index.tsx`. Marko javio da povećavanje broja **više ne mijenja ništa** — na +28 se vidjela polovica, na +48 isto. Znači offset nije (jedini) uzrok; vidjeti crta li iOS spinner iza `style={{ backgroundColor: stops[0] }}` na ScrollViewu |
+| Font u widgetu je sustavski | Open, svjesno | Widget je zaseban proces i nema Space Grotesk koji `expo-font` učita u aplikaciji. Ubacivanje fonta u widget target je izvedivo, ali zaseban zahvat |
+| Traka sati u srednjem widgetu | Open, neodlučeno | Apple i V&R širinu 4×2 plaćaju trakom (6 sati / 3 dana); naš drži min/max i udare. Podaci su već tu (`hourly` ide u `updateTimeline`), pa traka ne bi tražila novo dohvaćanje. Otvoreno je pitanje ikona — SF Symbols rade odmah, ali su Appleov jezik |
 | Domet regije: kod kaže 90 km, zapis je govorio 130 | Open, nije greška u radu | `REGION_RANGE_KM = 90` u `useWarnings.ts`; stariji zapis navodi 130 km (dodano zbog grada u Čileu s hrvatskim alarmom). Zaštita radi u oba slučaja — Čile nema feed, a filtar države blokira prelazak granice. Treba samo odlučiti koji je broj točan |
 | Polača tip (zaleđe uz morsku postaju) | Open | Postaje su Šibenik/Veli Rat/Knin — sve pretople, pa korekcija **grije** mjesto na 122 m. Zemunika (21 °C, 12 km) nema u feedu; gušćeg DHMZ feeda nema |
 | 14-dnevni min/max korekcija | Open | `debiasDaily` radi, ali korekcija mjerenjem se ne primjenjuje na dnevne vrijednosti — mogući blagi nesklad s razdobljima dana |
 | Vremenske vijesti / blog | Open, neistraženo | Marko pitao ima li izvora za HR i svijet. Nije istraženo — DHMZ ima vijesti, za svijet treba provjeriti |
 | Web kamere | Odgođeno | V&R koristi whatsupcams (komercijalni, bez API-ja); scraping ne dolazi u obzir. Čeka čist izvor (HAK/TZ popis?) |
-| **iOS widget** | Kod gotov 7.8.2026., **traži rebuild pa provjeru** | `expo-widgets` 57.0.8; layout u TypeScriptu (`src/widgets/`), bez Swifta. Četiri veličine: `systemSmall`, `systemMedium`, `accessoryRectangular` (tekst + H/L), `accessoryCircular` (luk s temperaturom na dnevnom rasponu). JEDNA verzija bez obzira na temu, bijeli tekst svugdje. 20 vlastitih PNG ikona (obrisne + pune) i suptilni ambijentalni slojevi. **Rebuild je obavezan** — nativni target |
-| **SDK upgrade 54 → 57** | **Izveden 7.8.2026., čeka provjeru na uređaju** | RN 0.81.5 → **0.86.2**, React 19.1 → **19.2.3**, TS 5.9 → **6.0.3**. Sve tri provjere + `expo-doctor` 20/20 čisti. Predviđanje se potvrdilo: MapLibre 11.3.6 **nije trebao dizanje** (već nosi Fabric codegen), Reanimated je otišao na 4.5.1, NativeWind ostao. Četiri zapreke, sve male — vidi Recent Decisions |
-| **Android widget** | Kod gotov 7.8.2026., **traži rebuild pa provjeru** | `react-native-android-widget` 0.21.0; `src/widgets/android/`. Dvije veličine (2×2, 4×2), isti izgled i isti podaci kao iOS. **Ispalo lakše nego iOS**: `SvgWidget` prima SVG string, pa gradijent i ambijent idu kao prava grafika, a handler se vrti u JS-u pa čita AsyncStorage izravno — bez App Groupa. Ranija bilješka o RemoteViews je bila kriva |
 
 ## Next Step
 
-**Pokrenuti EAS rebuild, pa provjeriti SDK 57 + engleski + ikone.** Rebuild
-je sada OBAVEZAN iz tri razloga: novi SDK (RN 0.86.2), `expo-localization`
-je nativni modul, a ikone su nativni asseti:
+**Instalirati oba gotova builda i provjeriti widgete.** SDK 57 je već
+POTVRĐEN na uređaju (aplikacija i karta rade), pa je ostalo samo ono što
+nije viđeno.
+
+Buildovi od 7.8.2026., oba **gotova**:
+
+- iOS `fe2f09e5` — nosi popravak praznog widgeta
+- Android `50b2679b` — prvi widget build za Android
 
 ```bash
-npx eas-cli build --profile development --platform ios
+npx eas-cli build:list --limit 2   # linkovi za instalaciju
 ```
 
-Dok build ne stigne, aplikacija radi normalno (jezik pada na hrvatski,
-ručni odabir u Postavkama radi) — uvoz je namjerno lijen i u `try`.
+### 1. iOS widget — je li i dalje prazan?
 
-Nakon builda provjeriti:
+Prethodni build je dao **bijelu pločicu s "undefined"**. Uzrok je nađen
+i popravljen, ali NIJE potvrđen na uređaju.
 
-0. **SDK 57 — da se uopće diže i da karta radi.** Ovo je najveći rizik
-   ovog builda: `expo export` provjerava JS, ali **ne** nativni sloj.
-   MapLibre je najosjetljiviji (nova arhitektura je od SDK 55 obavezna,
-   a on nosi vlastiti Fabric codegen) → otvoriti kartu, prebaciti
-   slojeve, pustiti animaciju radara. Pa ladica: hamburger mora otvoriti
-   ladicu (`openDrawer()` je prepisan), swipe-back mora raditi
+Ako se ponovi, **greška je sada vidljiva** u konzoli (`npx expo start
+--dev-client`, pa Metro log):
 
-1. **Engleski** — Postavke → Jezik. Dani u 14-dnevnoj ("Thu", ne "čet"),
-   smjer vjetra (**N/NE/E**, ne S/SI/I — hrvatski "S" je sjever, engleski
-   je JUG), tekst upozorenja (en-GB blok iz feeda), imena regija
-   ("Knin region"). Zadano prati sustav: hrvatski telefon → hrvatski
-2. **Ikone** — svijetla pločica na početnom zaslonu; na tamnoj temi
-   sustava iOS mora uzeti tamnu varijantu
-3. **Vedra noć** — zvijezde moraju SIJEVATI (prva izvedba je bila
-   ispod praga zamjećivanja), mjesec gore desno u pravoj mijeni, bez
-   tamnog kruga oko sebe
-4. **Prijelaz heroja u kartice** — mora biti bez ijednog ruba; prije se
-   vidjela dijagonalna svijetla mrlja jer su se dva prijelaza zbrajala
-5. **Bijeli tekst na noćnom heroju u SVIJETLOJ temi** — datum, grad,
-   velika brojka, opis i minimum
-6. **Razmaci u heroju** — Marko fino štima margine oko velike brojke
+- `[burin] widget nije osvježen:` → pao je `updateTimeline`
+- `[burin] widget ikone nisu spremne:` → pao je `syncWidgetIcons`, ali
+  crta se svejedno upisala (widget radi, samo bez ikona)
 
-Radni tijek: Marko gleda na iPhoneu, javi što bode, popravlja se odmah.
-Nakon builda su sve daljnje izmjene ovog kruga opet JS-only (reload).
+Tiho gutanje grešaka je maknuto baš zato što se prvi put tražilo
+naslijepo.
 
-### Zatim: iOS widget (`expo-widgets`)
+### 2. Widgeti — redoslijed provjere
 
-Widget je **napisan** (`src/widgets/`) i čeka isti rebuild. Nakon builda
-provjeriti, tim redom:
+1. **Dodavanje na zaslon** — iOS: dugi pritisak → „+“ → Burin (četiri
+   veličine). Android: dugi pritisak → Widgeti → Burin (dvije)
+2. **Podaci** — Android traži da je aplikacija BAREM JEDNOM dohvatila
+   vrijeme prije dodavanja (handler čita `burin:last-weather`)
+3. **Gradijent do ruba** — bez bijelog/crnog okvira
+4. **Ikone** — moraju se pojaviti
+5. **Mala pločica** — najveći vizualni rizik: zvijezde, pahulje i kiša
+   moraju se vidjeti i na njoj, ne samo na srednjoj
+6. **Zaključani zaslon (iOS)** — pravokutni (pune ikone, H/L) i kružni (luk)
+7. **Tintani način (iOS)** — gradijent i ambijent moraju NESTATI
 
-1. **Dodavanje na zaslon** — dugi pritisak → „+“ → Burin. Moraju se
-   ponuditi četiri veličine
-2. **Gradijent do ruba** — bez bijelog/crnog okvira (`contentMarginsDisabled`)
-3. **Ikone** — moraju se pojaviti. Ako ih nema, PNG-ovi nisu stigli u App
-   Group; provjeriti `syncWidgetIcons` i `widgetsDirectory`
-4. **Ambijent** — trake od vrha do dna, kiša i sjaj desno, oblak na
-   djelomično oblačnom. Sve suptilno, brojka mora ostati glavna
-5. **Mala pločica** — najveći rizik: zvijezde, pahulje i kiša moraju se
-   vidjeti i na njoj, ne samo na srednjoj
-6. **Zaključani zaslon** — pravokutni (pune ikone, H/L) i kružni (luk)
-7. **Tintani način** — dugi pritisak na pozadinu → tema → tintano. Gradijent
-   i ambijent moraju NESTATI, tekst i ikone ostati
+### 3. Ostalo iz ovog kruga, još neviđeno
 
-**Android** (`npx expo run:android`) traži isto, uz dvije razlike:
-widget se **osvježava sam svakih 30 min** (manjeg razmaka Android ne
-dopušta iz manifesta), a prvi crtež traži da je aplikacija barem jednom
-dohvatila podatke — headless zadatak čita `burin:last-weather`, pa je
-prije toga pločica prazna.
+Engleski (Postavke → Jezik; **N/NE/E** za smjer vjetra), svijetla ikona
+na zaslonu, zvijezde koje SIJEVAJU na vedroj noći, prijelaz heroja u
+kartice bez ruba, bijeli tekst na noćnom heroju u SVIJETLOJ temi.
 
-Podaci idu `updateTimeline()` iz `useWeatherBundle` nakon uspješnog
-dohvata — sve potrebno je već u `burin:last-weather`. Widget **ne može**
-čitati AsyncStorage (drugi proces, drugi kontejner), pa ide preko App
-Groupa `group.com.markop.burin`.
+Radni tijek: Marko gleda na uređaju, javi što bode, popravlja se odmah.
 
 **SVAKA izmjena widgeta traži REBUILD** — i konfiguracije i samog
 rasporeda (provjereno u izvoru 7.8.2026.). Widget bundle se ne poslužuje
@@ -125,9 +109,7 @@ bude sustavno preblaga, uzrok je tu, ne u pragovima.
 |---|---|
 | `autoIncrement` ide na SVE profile, ne samo `production` | Nađeno 7.8.2026.: svaki dev build je izlazio kao **1.0.0 (1)**. Uz `appVersionSource: "remote"` broj drži EAS, ali ga podiže **samo profil koji ima `autoIncrement`** — `development` ga nije imao, pa je stajao na 1 zauvijek. Nije kozmetika: **iOS odbija instalirati dvije gradnje s istim `version` + `buildNumber`**, pa se novi build ne pojavi ili ostane stari. `version` u `app.config.ts` ostaje ručan (1.0.0) — to je marketinška verzija i mijenja se namjerno, dok build number mora rasti sam |
 | Ladica se otvara `navigation.openDrawer()`, ne `DrawerActions` | Od **SDK 56** `expo-router` odbija uvoz iz `@react-navigation/*` u kodu aplikacije — `expo export` pukne s izričitom greškom. U cijelom projektu je to bila **jedna linija** (`DrawerActions` u `index.tsx`); `DrawerContent` je već zvao `closeDrawer()` kao metodu. `@react-navigation/drawer` je time postao mrtav teret i **izbačen** — expo-router nosi vlastitu kopiju (potvrđeno: hash bundlea je nakon izbacivanja **identičan**) |
-| `expo-font` i `expo-status-bar` moraju biti u `plugins` | SDK 57 ih više ne autolinka. `expo install --fix` ih traži, ali ih **ne može sam upisati** jer je config dinamičan (`app.config.ts`) — zato naredba završi izlaznim kodom 1 iako je instalacija uspjela. Lako se pročita kao neuspjeh upgradea, a nije |
-| `tsconfig` mora imati `"types": ["jest", "node"]` | `types` je IZRIČIT popis — što nije navedeno, ne učitava se. Baza Expa je do SDK 54 nosila node tipove, od 57 ne, pa su testovi ostali bez `global` i `require.resolve` (4 greške). `@types/node` je bio instaliran cijelo vrijeme, samo neuključen |
-| `expo-modules-core` treba `moduleNameMapper` u jestu | Na SDK 57 taj paket živi **ugniježđen** (`node_modules/expo/node_modules/`), a `jest-expo@57` ga ne deklarira kao ovisnost i traži ga u korijenu → **sva 23 suitea** padnu na "Cannot find module". Mapiranje na pravu putanju rješava; ne dirati strukturu `node_modules` |
+| Pri dizanju SDK-a očekivati ČETIRI vrste sitnih zapreka | Iz upgradea 54 → 57 (7.8.2026.), sve već primijenjene u configu ali korisne za sljedeći put: (1) paketi koji se prestanu autolinkati moraju u `plugins` — `expo install --fix` ih traži ali ih **ne može upisati** u dinamičan `app.config.ts`, pa naredba završi kodom 1 iako je uspjela; (2) `tsconfig` `types` je IZRIČIT popis, pa se izgubljeni tipovi (`node`) moraju dodati ručno; (3) paketi ugniježđeni pod `expo/node_modules` trebaju `moduleNameMapper` u jestu, inače svi suiteovi padnu; (4) uvoz koji je knjižnica zabranila (`@react-navigation/*`) puca tek na `expo export`, ne na typecheck |
 | `'widget'` direktiva izdvaja TIJELO funkcije u zaseban paket | Nađeno NA UREĐAJU 7.8.2026.: widget se nije prikazao uz `ReferenceError: Can't find variable: Backdrop`. Direktiva ne označava samo funkciju — njeno tijelo ide u **zaseban paket** koji se izvršava u WidgetKit procesu, uz vlastite stubove za react i react-native (`expo-widgets/bundle/`). Sve u dosegu MODULA ostaje u paketu aplikacije i widgetu je NEDOSTUPNO, pa su sve pomoćne komponente i konstante morale unutra. Iz istog razloga se zovu kao FUNKCIJE (`Backdrop({...})`), ne kao JSX (`<Backdrop />`): jsx stub zna složiti stablo od poznatih `@expo/ui` komponenti, ali ne montira našu vlastitu. **Typecheck, testovi i `expo export` su svi prošli** — greška je bila vidljiva tek na uređaju |
 | `expo-widgets` je ISKLJUČEN iz Android autolinkinga | Gradle je pao na `checkDuplicateClasses` (EAS build 7.8.2026., reproducirano lokalno): **oba widget paketa traže `androidx.work` u različitim verzijama** — `react-native-android-widget` traži `work-runtime:2.8.1`, a `expo-widgets` preko Glancea vuče `work-runtime-ktx:2.7.1`. Gradle podigne prvi na 2.8.1, `-ktx` ostane na 2.7.1, iste klase u dva paketa. Rješenje: `expo.autolinking.android.exclude` u `package.json` — ondje ionako radi ništa (vidi red ispod), a iOS ostaje netaknut |
 | Widget ikone su ODVOJENA briga od upisa crte | Nađeno NA UREĐAJU 7.8.2026.: widget se crtao kao bijela pločica s "undefined" posvuda, bez ijedne greške. Uzrok: `syncWidgetIcons` i `updateTimeline` su stajali u ISTOM `try`, pa je pad ikona preskakao upis crte — widget je ostajao bez ijednog propa. Uz to je `catch` bio prazan, pa se ništa nije vidjelo. Sada su dva odvojena `try` bloka i **greške se logiraju** (`console.warn`), a ne gutaju. `expo-file-system` i `expo-asset` su time postali IZRAVNE ovisnosti — bili su samo tranzitivni, pa `require` u nativnom buildu nije bio zajamčen |
@@ -219,19 +201,26 @@ npx expo run:android          # nativni dev build
 node scripts/generate-icons.mjs      # ikone iz SVG glifa (traži sharp)
 ```
 
-**Rebuild treba pri dodavanju nativnog modula I pri promjeni ikona** —
-`assets/*.png` se ugrađuju u build, reload ih ne mijenja (novi glif "Zapuh"
-čeka rebuild). Font, SVG gradijenti i ambijentalne animacije su JS —
-vidljive običnim reloadom.
+**Rebuild treba pri dodavanju nativnog modula, pri promjeni ikona I pri
+SVAKOJ izmjeni iOS widgeta** — `assets/*.png` se ugrađuju u build, a widget
+bundle se čita iz `Bundle.main` (vidi Recent Decisions). Font, SVG
+gradijenti i ambijentalne animacije su JS — vidljive običnim reloadom.
+**Android widget je iznimka**: njegov handler je običan JS, pa izmjene
+rasporeda idu reloadom.
 
-iOS dev build (bez Maca, bez TestFlighta — internal distribution; `eas.json`
+EAS dev build (bez Maca, bez TestFlighta — internal distribution; `eas.json`
 postoji, profil `development`):
 
 ```bash
-npx eas-cli login                                      # jednokratno (Expo račun)
-npx eas-cli device:create                              # jednokratno po uređaju (UDID)
-npx eas-cli build --profile development --platform ios # ~15 min u oblaku, pa link
+npx eas-cli login                                          # jednokratno
+npx eas-cli device:create                                  # jednokratno po iOS uređaju
+npx eas-cli build --profile development --platform ios     # ~8 min
+npx eas-cli build --profile development --platform android # ~25 min
+npx eas-cli build:list --limit 2                           # linkovi za instalaciju
 ```
+
+**EAS ne povlači s GitHuba** — pakira LOKALNO radno stablo, uključujući
+necommitane izmjene. Push i build su neovisni.
 
 Provjera prije commita: `typecheck` + `test` + `expo export` moraju biti čisti.
 **Za sve vizualno to nije dovoljno** — svaki kartografski bug i svaki bug
@@ -306,6 +295,22 @@ verzal s razmakom (maknuto 6.8.2026. kao generičko).
 EMMA regija (`emmaRegions.ts`), ostatak Europe (38 zemalja) preko
 geokodiranja imena regije uz **obavezan filtar države**. Bez feeda ili bez
 pogotka: prazan niz, traka se ne prikazuje.
+
+**Widgeti** (7.8.2026.) dijele JEDAN izvor istine — `widgetData.ts` pretvara
+`WeatherBundle` u plosnate propove (boje, jedinice, pragovi, prijevodi već
+izračunati). `useWeatherBundle` ga zove nakon svakog uspješnog dohvata.
+Odatle se dvije platforme razilaze:
+
+- **iOS** (`expo-widgets`): widget je zaseban proces koji NE izvršava naš
+  JS, pa mu se propovi guraju unaprijed (`updateTimeline`, 12 sati) preko
+  App Groupa. Raspored mora biti CIJEL unutar `'widget'` funkcije.
+- **Android** (`react-native-android-widget`): handler se vrti u JS-u i
+  čita AsyncStorage izravno, pa nema App Groupa ni guranja — podaci se
+  čitaju u trenutku crtanja.
+
+Sve nativno se dira samo kroz LIJENE `require` unutar `try`, pa
+`widgetData` ostaje čista logika koja se testira, a Android build ne vidi
+iOS pakete.
 
 ## Files
 

@@ -69,7 +69,7 @@ npx expo start --dev-client            # kasnije, samo JS izmjene
 
 ```bash
 npm run typecheck                    # tsc --noEmit
-npm test                             # jest — 243 testa u 23 skupine
+npm test                             # jest — 263 testa u 25 skupina
 npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 node scripts/generate-icons.mjs      # ikone iz SVG glifa "Zapuh" (traži sharp)
 ```
@@ -174,12 +174,10 @@ se ista greška ispravlja dvaput.
 
 ## Sljedeći koraci (v1.1)
 
-- **iOS widget** (`expo-widgets`) — layout u TypeScriptu preko
-  `@expo/ui/swift-ui`, bez Swifta. Samo gradijent po vremenu (ta knjižnica
-  nema crtaće primitive), veličine `systemSmall`/`systemMedium` + lock
-  screen. Podaci iz `burin:last-weather` preko `updateTimeline()`
-- Android widget (react-native-android-widget) — nakon iOS-a; čita istu
-  pohranu, ali RemoteViews ne može nacrtati vjetrulju (nema SVG-a)
+- **Widgeti su napisani** (7.8.2026.) i čekaju provjeru na uređaju — iOS
+  četiri veličine preko `expo-widgets`, Android dvije preko
+  `react-native-android-widget`. Layout je u TypeScriptu na obje
+  platforme; dijele `src/widgets/widgetData.ts` kao izvor istine
 - Preuređivanje spremljenih gradova povlačenjem
 - Dodatni jezici — engleski je gotov, `src/i18n` prima nove kao objekt
   tipa `Dict`
