@@ -22,7 +22,7 @@ import { convertTemp } from "@/utils/format";
 import { WindFlag } from "@/components/WindFlag";
 import { Wordmark } from "@/components/Wordmark";
 import { BACKDROP_LAYERS } from "@/components/HeroBackdrop";
-import { ACCENT_CORAL, backdropEffects, heroAccent, precipIntensity, weatherGradient } from "@/utils/weatherLook";
+import { ACCENT_CORAL, backdropEffects, heroAccent, precipIntensity, readableOn, weatherGradient } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
 type DrawerNav = { closeDrawer: () => void };
@@ -157,6 +157,14 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
   }
 
   const stops = weatherGradient(bundle.current.code, bundle.current.isDay, dark);
+  /*
+   * Boja teksta u ZAGLAVLJU prati gradijent, ne temu (8.8.2026.) — isto
+   * pravilo i ista funkcija kao u heroju (`readableOn(stops[1])`).
+   *
+   * Vrijedi SAMO za zaglavlje: stavke ladice ispod njega stoje na
+   * `mist`/`night` podlozi i drže `text-ink dark:text-paper`.
+   */
+  const headerFg = readableOn(stops[1]);
   const condition = codeToCondition(bundle.current.code, bundle.current.isDay);
   // Velikim slovom: `<condition.Icon>` bi React protumačio kao HTML tag.
   const ConditionIcon = condition.Icon;
@@ -227,7 +235,14 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
           narančastim podlogama se koraljna utapa. Kod wordmarka "Podcrt"
           akcent NOSI cijeli logo, pa bi se bez ovoga sveo na sam tekst.
         */}
-        <Wordmark color={dark ? colors.paper : colors.ink} accent={heroAccent(bundle.current.code, bundle.current.isDay)} textSize={16} />
+        {/*
+          Boja teksta PRATI GRADIJENT, ne temu (8.8.2026.).
+
+          Zaglavlje ladice stoji IZRAVNO na gradijentu vremena, pa vrijedi
+          isto pravilo kao u heroju. Otkad je vedar dan tamnoplav, `ink` je
+          ovdje u svijetloj temi bio taman na tamnom i wordmark se gubio.
+        */}
+        <Wordmark color={headerFg} accent={heroAccent(bundle.current.code, bundle.current.isDay)} textSize={16} />
 
         {/*
           Raspored "vrijeme lijevo, ime desno" (Markov odabir 6.8.2026.):
@@ -237,21 +252,26 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
         */}
         <View className="mt-4 flex-row items-center gap-3">
           <Text
-            className="font-grotesk-bold text-ink dark:text-paper"
+            className="font-grotesk-bold"
             // Bez negativnog razmaka: stezao je prvu znamenku uz rub
             // okvira i rezao je (isti bug kao na velikoj brojci heroja).
-            style={{ fontSize: 40, lineHeight: 46, paddingHorizontal: 2 }}
+            style={{ fontSize: 40, lineHeight: 46, paddingHorizontal: 2, color: headerFg }}
           >
             {Math.round(convertTemp(bundle.current.temp, tempUnit))}°
           </Text>
           <View className="flex-1">
-            <Text className="font-grotesk-bold text-[15px] text-ink dark:text-paper">{bundle.place.name}</Text>
-            <Text className="font-grotesk-medium text-[12.5px] text-ink/65 dark:text-paper/65">
+            <Text className="font-grotesk-bold text-[15px]" style={{ color: headerFg }}>
+              {bundle.place.name}
+            </Text>
+            <Text
+              className="font-grotesk-medium text-[12.5px]"
+              style={{ color: headerFg, opacity: 0.65 }}
+            >
               {condition.label} · {t.home.feelsLike.toLowerCase()} {Math.round(convertTemp(bundle.current.feelsLike, tempUnit))}°
             </Text>
           </View>
           {/* Ikona vremena zatvara par — isti glif kao u traci sati. */}
-          <ConditionIcon size={34} strokeWidth={1.9} color={dark ? colors.paper : colors.ink} />
+          <ConditionIcon size={34} strokeWidth={1.9} color={headerFg} />
         </View>
       </View>
     </View>

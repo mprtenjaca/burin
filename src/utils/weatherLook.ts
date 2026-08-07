@@ -24,29 +24,37 @@ type Palette = { light: GradientStops; dark: GradientStops };
  * Tamna tema je namjerno NEDIRANA — Marko ju je potvrdio kao dobru.
  */
 const PALETTES = {
+  /*
+   * VEDAR DAN JE PLAVO NEBO, NE NARANČASTO (Markov ispravak 8.8.2026.).
+   *
+   * Prije je ovdje bila topla zlatno-žuta → narančasta. Widget je istog
+   * dana dobio PLAVU, jer narančasta ondje nije trpjela bijeli tekst
+   * (1.63:1) a potamnjena je izgledala kao prašina. Time su aplikacija i
+   * pločica prikazivale isto vrijeme u dvije posve različite boje.
+   *
+   * Sada aplikacija preuzima ISTE vrijednosti kao widget, da se vedar
+   * dan čita jednako na oba mjesta. Plavo je uz to i točnije: sunce se
+   * čita iz zraka i ikone, a nebo je nebo.
+   *
+   * Posljedica koja je NAMJERNA: `readableOn` na ovim tonovima vraća
+   * BIJELI tekst (luminancija 0.107 < 0.19), dok je na narančastoj
+   * vraćao tamni. Heroj je time tamniji nego prije — to je cijena
+   * poklapanja s widgetom i Markov je odabir.
+   *
+   * Tamna tema dijeli iste boje: widget ima JEDNU verziju bez obzira na
+   * temu, pa je i ovdje razlika između tema samo smetnja.
+   */
   sunDay: {
-    /*
-     * Po Markovom promptu (6.8.2026.): topla zlatno-žuta na vrhu prelazi
-     * u bogatu narančastu, pa blijedi prema gotovo bijelom dnu (završni
-     * prijelaz u pageBg dodaje HeroBackdrop). Smjer gradijenta je
-     * DIJAGONALAN — vidi HeroBackdrop.
-     */
-    light: ["#F4C542", "#ED7F2B", "#EBA765"],
-    /*
-     * Tamna tema dijeli PRVA DVA stopa sa svijetlom (Markov odabir
-     * 6.8.2026.): prigušena inačica (#B4671E → #8A5220 → #4F3418) je
-     * izgledala blatnjavo-smeđe i "pretmurno" — sunce mora biti sunce i
-     * po noćnoj temi aplikacije.
-     *
-     * Samo TREĆI stop odstupa: svijetla tema tu ide u gotovo bijelo
-     * (#F6CE93) jer se stapa u papirnatu podlogu, a tamna mora stići do
-     * #0E0E0E. Bez toga bi na dnu heroja bio oštar rez blijedog u crno.
-     */
-    dark: ["#F4C542", "#ED7F2B", "#8A4A1E"],
+    light: ["#3E76AA", "#2F5F8E", "#234B72"],
+    dark: ["#3E76AA", "#2F5F8E", "#234B72"],
   },
+  /*
+   * DJELOMIČNO OBLAČNO prati vedro, samo malo tamnije — naoblaka nebo
+   * PRIGUŠUJE, ne pretvara ga u drugu boju. Iste vrijednosti kao widget.
+   */
   partlyDay: {
-    light: ["#ECA45B", "#E8B074", "#DDB894"],
-    dark: ["#9A6530", "#74522C", "#443320"],
+    light: ["#3A6B98", "#2C567E", "#204464"],
+    dark: ["#3A6B98", "#2C567E", "#204464"],
   },
   cloud: {
     light: ["#97A0A8", "#A9B2B9", "#BCC4CA"],
@@ -175,8 +183,29 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
 
   const key = paletteKey(code, isDay);
   switch (key) {
+    /*
+     * VEDRO (0) i PRETEŽNO VEDRO (1) dijele PALETU, ali ne i ambijent
+     * (Markov ispravak 8.8.2026.).
+     *
+     * Nađeno na uređaju: u Roču i Pazinu je feed javljao "pretežno
+     * vedro", a aplikacija je crtala isto čisto sunce kao za potpuno
+     * vedro nebo — bez ijednog oblaka. Isti propust koji je 6.8. već
+     * jednom nađen na djelomično oblačnom.
+     *
+     * Razlika je stupnjevana, pa i ambijent mora biti:
+     *   0 = vedro            → samo zrake
+     *   1 = pretežno vedro   → zrake + RIJETKI oblaci  (ovdje)
+     *   2 = djelomično obl.  → zrake + oblaci
+     *
+     * Grana ide po WMO KODU, a ne po novom ključu palete: boja je za 0 i
+     * 1 ista, pa bi zaseban ključ značio duplu paletu ovdje i u
+     * `paletteKeyFor` u widgetu, bez ijedne razlike u boji.
+     *
+     * Gustoća je ista `sparse` kao kod djelomično oblačnog — razlika je
+     * u BROJU slojeva, a rjeđe od `sparse` CloudsLayer ne poznaje.
+     */
     case "sunDay":
-      return ["rays"];
+      return code === 1 ? ["rays", "clouds"] : ["rays"];
     /*
      * DJELOMIČNO OBLAČNO = zrake + oblaci (popravak 6.8.2026.).
      *
@@ -281,13 +310,53 @@ export const ACCENT_STEEL = "#4C8FDF";
  * padnu na ~2:1 kontrasta — presvijetlo za postotke oborine.
  * Instrumenti u karticama ostaju čisto koraljni; kartice su neutralne.
  */
-const HERO_WARM = "#D4531F";
 const HERO_COOL = "#2C6FC4";
+
+/**
+ * ZLATNA ZA VEDRO NEBO (8.8.2026.).
+ *
+ * Otkad su `sunDay` i `partlyDay` PLAVI (vidi `PALETTES`), obje dosadašnje
+ * boje akcenta padaju na toj podlozi: izmjereno na dnu gradijenta
+ * (#234B72) `HERO_COOL` daje **1.80:1**, a dotadašnja topla #D4531F
+ * **2.18:1** — plavo na plavom se utopi, a tamna narančasta nema
+ * dovoljno svjetline.
+ *
+ * Zlatna prolazi sa **5.56:1** na vedrom i **6.23:1** na djelomično
+ * oblačnom. Uz to nosi toplinu koju je podloga izgubila: sunce je sada u
+ * akcentu i u zrakama, a ne u nebu.
+ */
+const HERO_GOLD = "#F4C542";
 
 export function heroAccent(code: number, isDay: boolean): string {
   const key = paletteKey(code, isDay);
-  // Sunčano i djelomično oblačan dan su jedine "tople" pozadine.
-  return key === "sunDay" || key === "partlyDay" ? HERO_WARM : HERO_COOL;
+  /*
+   * Vedar i djelomično oblačan DAN su sada plavi, pa dobivaju ZLATNU —
+   * jedinu boju koja se na tom nebu vidi (vidi `HERO_GOLD`). Ostala
+   * vremena su i dalje siva/plava i drže hladni akcent.
+   *
+   * Topla #D4531F je time ostala bez ijednog pozivatelja i obrisana je:
+   * nakon prelaska na plavo NEMA VIŠE tople pozadine u heroju.
+   */
+  return key === "sunDay" || key === "partlyDay" ? HERO_GOLD : HERO_COOL;
+}
+
+/**
+ * Akcent za traku sati — UVIJEK HLADNA PLAVA (8.8.2026.).
+ *
+ * Traka izgleda kao dio heroja, ali NE stoji na njegovom nebu: dno
+ * gradijenta se stapa u podlogu stranice, pa su postotci oborine na
+ * SVIJETLOM. Zato ne smije koristiti `heroAccent`.
+ *
+ * Izmjereno: zlatna (koja je ispravna na tamnoplavom nebu) na traci daje
+ * **1.56:1** i praktički nestane — točno ono što se vidjelo na uređaju.
+ * Hladna plava prolazi na obje teme: **4.81:1** na svijetloj podlozi i
+ * **3.46:1** na tamnoj.
+ *
+ * Boja je jedna za sva vremena jer je i podloga uvijek ista; vrijeme se
+ * u traci čita iz ikona i brojki, ne iz boje postotka.
+ */
+export function stripAccent(): string {
+  return HERO_COOL;
 }
 
 /**

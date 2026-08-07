@@ -25,6 +25,15 @@ export function HourlyStrip({
   /** Boja postotka oborina — na heroju ovisi o pozadini (heroAccent). */
   accent: string;
 }) {
+  /*
+   * Traka NAMJERNO prati TEMU, ne podlogu heroja (provjereno 8.8.2026.).
+   *
+   * Dno gradijenta se stapa u podlogu stranice, pa traka sati stoji na
+   * SVIJETLOM — iako je gore nebo tamnoplavo. Pokušaj da i ona preuzme
+   * `readableOn` je sve pobijelio i traka je nestala. Ostaje `text-ink
+   * dark:text-paper`; jedino postotak oborine nosi `accent`, koji se
+   * računa prema vremenu.
+   */
   const { fg } = useThemeColors();
 
   return (

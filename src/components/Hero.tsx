@@ -13,7 +13,7 @@ import { t } from "@/i18n";
 import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit, WindUnit } from "@/utils/format";
 import { clockTime, convertTemp, convertWind, windUnitLabel } from "@/utils/format";
-import { backdropEffects, heroAccent, precipIntensity, readableOn, windStrength, type GradientStops } from "@/utils/weatherLook";
+import { backdropEffects, heroAccent, precipIntensity, readableOn, stripAccent, windStrength, type GradientStops } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
 /** "čet 6.8." — red datuma gore lijevo. */
@@ -320,7 +320,12 @@ export function Hero({
           right: 0,
         }}
       >
-        <HourlyStrip hours={hours} tempUnit={tempUnit} accent={heroAccent(current.code, current.isDay)} />
+        {/*
+          Traka dobiva `stripAccent`, NE `heroAccent` (8.8.2026.): stoji
+          na svijetlom dnu gradijenta, gdje zlatna s vedrog neba pada na
+          1.56:1 i nestane.
+        */}
+        <HourlyStrip hours={hours} tempUnit={tempUnit} accent={stripAccent()} />
       </View>
     </View>
   );

@@ -10,6 +10,7 @@ import {
   pollenInfo,
   precipIntensity,
   readableOn,
+  stripAccent,
   uvLabel,
   visibilityLabel,
   warningColor,
@@ -36,14 +37,47 @@ describe("weatherGradient", () => {
     }
   });
 
-  it("sunčan dan je topao (narančast), kiša hladna (plavo-siva)", () => {
+  /*
+   * VEDAR DAN JE PLAV, NE NARANČAST (izmjena 8.8.2026.).
+   *
+   * Test je prije tvrdio suprotno — i bio je točan za dizajn od 6.8.
+   * Otkad aplikacija dijeli paletu s widgetom, sunce je PLAVO NEBO, pa
+   * se i provjera okrenula: u oba slučaja mora dominirati plavi kanal.
+   *
+   * Ostaje provjera da se sunce i kiša i dalje RAZLIKUJU — obje su
+   * plave, ali sunčano nebo je vedrije (svjetlije) od kišnog.
+   */
+  it("vedar dan je plav kao i kiša, ali svjetliji od nje", () => {
     const sun = weatherGradient(0, true, false)[0]!;
     const rain = weatherGradient(61, true, false)[0]!;
-    // Toplo = crveni kanal dominira; hladno = plavi.
     const r = (h: string) => parseInt(h.slice(1, 3), 16);
     const b = (h: string) => parseInt(h.slice(5, 7), 16);
-    expect(r(sun)).toBeGreaterThan(b(sun));
+    expect(b(sun)).toBeGreaterThan(r(sun));
     expect(b(rain)).toBeGreaterThan(r(rain));
+    /*
+     * Razlikuje ih ZASIĆENOST, ne svjetlina (izmjereno 8.8.2026.).
+     *
+     * Prvo je ovdje stajalo da je vedro SVJETLIJE od kišnog — netočno:
+     * vedro je 350, kišno 449, jer je vedro preuzelo widgetovu
+     * potamnjenu plavu, a kišna paleta nije mijenjana.
+     *
+     * Prava razlika je u čistoći boje: vedro nebo je duboko plavo
+     * (razmak crvenog i plavog kanala 108), kiša je isprano sivkasta
+     * (46). To je i fizikalno točno — naoblaka oduzima boju.
+     */
+    const sat = (h: string) => b(h) - r(h);
+    expect(sat(sun)).toBeGreaterThan(sat(rain));
+  });
+
+  /*
+   * Aplikacija i widget moraju pokazivati ISTU boju za isto vrijeme
+   * (Markov zahtjev 8.8.2026.) — vrijednosti su preuzete iz
+   * `WIDGET_DARK_PALETTES` u `widgetData.ts`. Ako se ondje promijene, a
+   * ovdje ne, ovaj test pada i time javlja da su se razišle.
+   */
+  it("vedro i djelomično oblačno dijele boje s widgetom", () => {
+    expect(weatherGradient(0, true, false)).toEqual(["#3E76AA", "#2F5F8E", "#234B72"]);
+    expect(weatherGradient(2, true, false)).toEqual(["#3A6B98", "#2C567E", "#204464"]);
   });
 
   it("vedra noć se razlikuje od vedrog dana", () => {
@@ -68,12 +102,15 @@ describe("weatherGradient", () => {
    * pa tamna tema dijeli prva dva stopa sa svijetlom. Samo se DNO spušta,
    * jer se ondje gradijent stapa u #0E0E0E umjesto u papirnatu podlogu.
    */
-  it("sunčan dan drži istu živost u tamnoj temi, samo mu dno potamni", () => {
-    const light = weatherGradient(0, true, false);
-    const dark = weatherGradient(0, true, true);
-    expect(dark[0]).toBe(light[0]);
-    expect(dark[1]).toBe(light[1]);
-    expect(lum(dark[2])).toBeLessThan(lum(light[2]));
+  /*
+   * Od 8.8.2026. vedar dan ima JEDNU verziju za obje teme — iste boje
+   * kao widget, koji temu telefona uopće ne prati. Prije je tamna tema
+   * spuštala samo dno; sada nema što spuštati jer je paleta ionako
+   * tamnoplava i bijeli tekst na njoj prolazi u oba slučaja.
+   */
+  it("vedar dan izgleda isto u obje teme (kao widget)", () => {
+    expect(weatherGradient(0, true, true)).toEqual(weatherGradient(0, true, false));
+    expect(weatherGradient(2, true, true)).toEqual(weatherGradient(2, true, false));
   });
 
   it("nepoznat WMO kod pada na oblačno, ne ruši se", () => {
@@ -87,9 +124,24 @@ describe("weatherGradient", () => {
 });
 
 describe("backdropEffects", () => {
-  it("vedro i pretežno vedro dobivaju SAMO zrake", () => {
+  /*
+   * Naoblaka je STUPNJEVANA (Markov ispravak 8.8.2026.): 0 je čisto
+   * sunce, 1 već ima pokoji oblak, 2 ih ima više. Prije su 0 i 1 dijelili
+   * isti ambijent, pa je "pretežno vedro" u Roču izgledalo kao potpuno
+   * vedro nebo — isti propust koji je 6.8. nađen na djelomično oblačnom.
+   */
+  it("vedro dobiva samo zrake, pretežno vedro i oblake", () => {
     expect(backdropEffects(0, true)).toEqual(["rays"]);
-    expect(backdropEffects(1, true)).toEqual(["rays"]);
+    expect(backdropEffects(1, true)).toEqual(["rays", "clouds"]);
+  });
+
+  /*
+   * Boja se pritom NE mijenja: 0 i 1 dijele paletu, razlikuje ih samo
+   * ambijent. Da se razišla i boja, "pretežno vedro" bi izgledalo kao
+   * posve drugo vrijeme umjesto kao isto nebo s pokojim oblakom.
+   */
+  it("pretežno vedro dijeli boju s vedrim, razlikuje se samo ambijentom", () => {
+    expect(weatherGradient(1, true, false)).toEqual(weatherGradient(0, true, false));
   });
 
   /*
@@ -237,11 +289,70 @@ describe("heroAccent", () => {
     }
   });
 
-  it("akcent na heroju je tamniji od čistih akcenata (čitljivost)", () => {
-    // Izmjereno: čiste boje na svijetlom dnu heroja padnu na ~2:1.
+  /*
+   * PRAVILO SE OKRENULO ZA VEDRO (8.8.2026.).
+   *
+   * Dok je sunčan heroj bio narančast, dno mu je bilo gotovo bijelo, pa
+   * je akcent morao biti TAMNIJI od čistog da se vidi. Sada je dno
+   * tamnoplavo (#234B72), pa vrijedi obrnuto — akcent mora biti
+   * SVJETLIJI. Zato zlatna, izmjereno 5.56:1 (koraljna bi dala 2.99:1).
+   *
+   * Kišni heroj nije mijenjan i drži staro pravilo.
+   */
+  it("akcent na heroju se vidi na svojoj podlozi", () => {
     const lum = (h: string) => chan(h, 0) + chan(h, 1) + chan(h, 2);
-    expect(lum(heroAccent(0, true))).toBeLessThan(lum(ACCENT_CORAL));
+    // Vedro: tamna podloga → akcent mora biti SVJETLIJI od koraljne.
+    expect(lum(heroAccent(0, true))).toBeGreaterThan(lum(ACCENT_CORAL));
+    // Kiša: svijetlo dno → akcent ostaje tamniji od čiste plave.
     expect(lum(heroAccent(61, true))).toBeLessThan(lum(ACCENT_STEEL));
+  });
+
+  /*
+   * Stvarni kontrast na DNU gradijenta, gdje stoji traka sati — to je
+   * mjesto na kojem su i koraljna i plava 6.8. pale na ~2:1.
+   */
+  /*
+   * Traka sati NIJE na nebu (8.8.2026.): dno gradijenta se stapa u
+   * podlogu stranice, pa postotci stoje na svijetlom. Zlatna koja je
+   * ispravna na tamnoplavom heroju ondje daje 1.56:1 i nestane — zato
+   * traka ima VLASTITI akcent, koji ne smije ovisiti o vremenu.
+   */
+  it("traka sati ima svoj akcent, neovisan o vremenu", () => {
+    expect(stripAccent()).toBe(stripAccent());
+    // Vedro nebo daje zlatnu u heroju, ali traka mora ostati na plavoj.
+    expect(stripAccent()).not.toBe(heroAccent(0, true));
+    // Na kišnom su isti — ondje heroj ionako nosi hladni akcent.
+    expect(stripAccent()).toBe(heroAccent(61, true));
+  });
+
+  it("akcent trake se vidi na svijetloj podlozi trake", () => {
+    const srgb = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    const rel = (h: string) =>
+      0.2126 * srgb(chan(h, 0) / 255) +
+      0.7152 * srgb(chan(h, 1) / 255) +
+      0.0722 * srgb(chan(h, 2) / 255);
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [rel(a), rel(b)].sort((x, y) => y - x) as [number, number];
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    // Papirnata podloga stranice, na koju se dno gradijenta stapa.
+    expect(ratio(stripAccent(), "#FAFAF8")).toBeGreaterThan(4.5);
+    // I na tamnoj temi mora ostati vidljiv.
+    expect(ratio(stripAccent(), "#1A1A1A")).toBeGreaterThan(3);
+  });
+
+  it("zlatni akcent prolazi prag na vedrom nebu", () => {
+    const srgb = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    const rel = (h: string) =>
+      0.2126 * srgb(chan(h, 0) / 255) +
+      0.7152 * srgb(chan(h, 1) / 255) +
+      0.0722 * srgb(chan(h, 2) / 255);
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [rel(a), rel(b)].sort((x, y) => y - x) as [number, number];
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const bottom = weatherGradient(0, true, false)[2]!;
+    expect(ratio(heroAccent(0, true), bottom)).toBeGreaterThan(4.5);
   });
 });
 
@@ -352,9 +463,22 @@ describe("readableOn", () => {
         expect(["#141414", "#FFFFFF"]).toContain(readableOn(mid));
       }
     }
-    // Sunčan dan je svijetao (tamni tekst), vedra noć tamna (bijeli).
-    expect(readableOn(weatherGradient(0, true, false)[1]!)).toBe("#141414");
+    /*
+     * OD 8.8.2026. I VEDAR DAN NOSI BIJELI TEKST.
+     *
+     * Prije je sunce bilo narančasto-zlatno (luminancija 0.334) pa je
+     * dobivalo tamni tekst. Sada je plavo nebo (0.107), dakle ispod
+     * praga 0.19 — bijeli tekst. To je namjerna posljedica poklapanja s
+     * widgetom, ne regresija.
+     *
+     * Provjera i dalje ima smisla: uspoređuje DAN i NOĆ, koji su sada
+     * oboje tamni, pa se traži da su oba čitljiva istim izborom.
+     */
+    expect(readableOn(weatherGradient(0, true, false)[1]!)).toBe("#FFFFFF");
     expect(readableOn(weatherGradient(0, false, false)[1]!)).toBe("#FFFFFF");
+    // Oblačno je i dalje svijetlo pa mora ostati na TAMNOM tekstu —
+    // inače bi promjena tiho pogurala sve palete u bijelo.
+    expect(readableOn(weatherGradient(3, true, false)[1]!)).toBe("#141414");
   });
 
   it("neispravan hex ne ruši ništa", () => {
