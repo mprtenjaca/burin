@@ -10,14 +10,17 @@
       "ios": {
         "simulator": false
       },
-      "autoIncrement": true
+      "autoIncrement": true,
+      "environment": "development"
     },
     "preview": {
       "distribution": "internal",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "environment": "preview"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "environment": "production"
     }
   },
   "submit": {
