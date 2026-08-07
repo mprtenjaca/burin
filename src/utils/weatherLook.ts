@@ -230,8 +230,18 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
      */
     case "nightClear":
       return ["stars"];
+    /*
+     * GRMLJAVINA DOBIVA I OBLAKE (Markov ispravak 8.8.2026.).
+     *
+     * Prije je bila samo kiša + bljeskovi, pa je nebo iza munje bilo
+     * prazno — a grmljavinsko nevrijeme je prije svega OBLAK. Oblaci su
+     * ovdje prvi u nizu da stoje IZA kiše i bljeska.
+     *
+     * Gustoća ostaje puna: `sparseClouds` u `HeroBackdrop` traži zrake,
+     * kojih ovdje nema, pa oblačna masa ostaje gusta — što je i točno.
+     */
     case "thunder":
-      return ["rain", "lightning"];
+      return ["clouds", "rain", "lightning"];
     case "rain":
       return ["rain"];
     case "snow":
@@ -293,8 +303,33 @@ export function moonShadowOffset(phase: number): number {
   return phase < 0.5 ? -magnitude : magnitude;
 }
 
-/** Koraljno narančasti akcent — instrumenti u karticama, hladne pozadine. */
+/**
+ * Koraljno narančasti akcent — instrumenti u karticama, hladne pozadine.
+ *
+ * OD 8.8.2026. VIŠE NIJE BOJA IZBORA U SUČELJU. Aplikacija je prešla na
+ * plavo nebo, pa je narančasta ostala jedina topla mrlja i djelovala kao
+ * ostatak starog dizajna. Za odabrano stanje (postavke, čipovi, ladica)
+ * koristi se `ACCENT_UI` — vidi niže.
+ *
+ * Ostaje za INSTRUMENTE koji nose vlastito značenje (skala UV-a, oborina
+ * u 14-dnevnoj listi): ondje boja govori "pozor", ne "odabrano".
+ */
 export const ACCENT_CORAL = "#EE6E3C";
+
+/**
+ * PLAVI AKCENT SUČELJA — odabrano stanje (Markov odabir 8.8.2026.).
+ *
+ * Ista boja kao `HERO_COOL` i `stripAccent`, namjerno: aplikacija time
+ * ima JEDNU plavu za "ovo je odabrano" umjesto tri slična tona.
+ *
+ * Izmjereno na obje teme, jer isti akcent stoji i kao tekst na bijeloj
+ * kartici i kao ISPUNA pilule s bijelim tekstom:
+ *   - na bijeloj (#FFFFFF): **5.03:1**  (koraljna je davala 3.03 — pala)
+ *   - na tamnoj  (#1A1A1A): **3.46:1**
+ * Svjetlije plave (#4C8FDF) su bolje na tamnoj ali padnu na 3.33 na
+ * svijetloj, pa je ovo jedini ton koji prolazi na obje.
+ */
+export const ACCENT_UI = "#2C6FC4";
 /** Čelično plavi akcent — na toplim (narančastim) pozadinama heroja. */
 export const ACCENT_STEEL = "#4C8FDF";
 

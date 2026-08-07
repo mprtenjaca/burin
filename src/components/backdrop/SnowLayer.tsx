@@ -41,14 +41,21 @@ const FlakeGroup = memo(function FlakeGroup({
   fallMs,
   swayMs,
   swayPx,
-  delayMs,
+  phase,
 }: {
   flakes: { x: number; y: number; r: number; opacity: number }[];
   height: number;
   fallMs: number;
   swayMs: number;
   swayPx: number;
-  delayMs: number;
+  /**
+   * Početna FAZA ciklusa (0–1), umjesto odgode pokretanja.
+   *
+   * Skupine se moraju razlikovati da pad ne izgleda kao jedan blok, ali
+   * se to NE smije postići čekanjem: skupina koja čeka stoji na mjestu i
+   * čita se kao greška (vidi popravak u tijelu komponente).
+   */
+  phase: number;
 }) {
   const fall = useRef(new Animated.Value(0)).current;
   const sway = useRef(new Animated.Value(0)).current;
@@ -78,17 +85,34 @@ const FlakeGroup = memo(function FlakeGroup({
         }),
       ]),
     );
-    // Odmak: bez njega sve pahulje krenu s vrha u istom trenutku.
-    const timer = setTimeout(() => {
-      fallLoop.start();
-      swayLoop.start();
-    }, delayMs);
+    /*
+     * ODMAK IDE U FAZU, NE U ODGODU POKRETANJA (popravak 8.8.2026.).
+     *
+     * Prije je ovdje stajao `setTimeout` do 4 s prije `start()`. Dva
+     * kvara koja su se na uređaju vidjela zajedno:
+     *
+     *  1. SNIJEG KREĆE OD POLA EKRANA — skupina je do 4 s stajala
+     *     ZAMRZNUTA dok su ostale padale. Kako su pahulje unaprijed
+     *     razbacane preko dvostruke visine, nepomična skupina se čita
+     *     kao "snijeg počinje na pola".
+     *  2. VODORAVNI TRAGOVI — čekao je i `swayLoop`, pa su pahulje sve
+     *     to vrijeme visjele na FIKSNOM bočnom pomaku. Statičan pomak uz
+     *     pad izgleda kao razvučena crta ulijevo ili udesno.
+     *
+     * Rješenje: petlje kreću ODMAH, a razlika među skupinama se dobiva
+     * POČETNOM VRIJEDNOŠĆU. `fall` starta na svom dijelu ciklusa (0–1),
+     * `sway` na svom (−1..1), pa je raspored i dalje nepravilan — ali
+     * ništa ne stoji.
+     */
+    fall.setValue(phase);
+    sway.setValue(Math.sin(phase * Math.PI * 2));
+    fallLoop.start();
+    swayLoop.start();
     return () => {
-      clearTimeout(timer);
       fallLoop.stop();
       swayLoop.stop();
     };
-  }, [fall, sway, fallMs, swayMs, delayMs]);
+  }, [fall, sway, fallMs, swayMs, phase]);
 
   return (
     <Animated.View
@@ -196,7 +220,9 @@ export const SnowLayer = memo(function SnowLayer({
           fallMs={Math.round(FALL_MS[i % FALL_MS.length]! * speed)}
           swayMs={SWAY_MS[i % SWAY_MS.length]!}
           swayPx={12 + rnd(i + 149) * 14}
-          delayMs={Math.round(rnd(i + 211) * 4000)}
+          // Faza umjesto odgode — vidi FlakeGroup: odgoda je skupinu
+          // ostavljala nepomičnu, pa je snijeg "kretao od pola ekrana".
+          phase={rnd(i + 211)}
         />
       ))}
     </Animated.View>

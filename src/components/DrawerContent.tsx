@@ -22,7 +22,7 @@ import { convertTemp } from "@/utils/format";
 import { WindFlag } from "@/components/WindFlag";
 import { Wordmark } from "@/components/Wordmark";
 import { BACKDROP_LAYERS } from "@/components/HeroBackdrop";
-import { ACCENT_CORAL, backdropEffects, heroAccent, precipIntensity, readableOn, weatherGradient } from "@/utils/weatherLook";
+import { ACCENT_CORAL, ACCENT_UI, backdropEffects, heroAccent, precipIntensity, readableOn, weatherGradient } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
 type DrawerNav = { closeDrawer: () => void };
@@ -68,7 +68,7 @@ function Item({
   Icon,
   iconColor,
   active,
-  accent = ACCENT_CORAL,
+  accent = ACCENT_UI,
   right,
   card = false,
   disabled = false,
@@ -368,7 +368,7 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
    */
   const cityAccent = headerBundle
     ? heroAccent(headerBundle.current.code, headerBundle.current.isDay)
-    : ACCENT_CORAL;
+    : ACCENT_UI;
 
   /**
    * Temperatura + ikona vremena za grad, ako je ikad dohvaćen.

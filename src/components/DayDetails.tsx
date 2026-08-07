@@ -17,7 +17,7 @@ import {
   windUnitLabel,
 } from "@/utils/format";
 import { codeToCondition } from "@/utils/weatherCodes";
-import { ACCENT_CORAL } from "@/utils/weatherLook";
+import { ACCENT_UI } from "@/utils/weatherLook";
 
 import { Hairline } from "./Section";
 
@@ -94,7 +94,7 @@ export function DayDetails({
               className={`flex-1 items-center gap-1.5 rounded-2xl px-1 py-3 ${
                 isActive ? "" : "bg-ink/[0.04] dark:bg-paper/[0.06]"
               }`}
-              style={isActive ? { backgroundColor: ACCENT_CORAL } : undefined}
+              style={isActive ? { backgroundColor: ACCENT_UI } : undefined}
             >
               {/* Kratica + raspon sati: puni naziv u uski stupac ne stane. */}
               <Text

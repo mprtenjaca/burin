@@ -7,7 +7,7 @@ import { t } from "@/i18n";
 import type { LanguageSetting, ThemeSetting } from "@/store/settings";
 import { useSettings } from "@/store/settings";
 import { useThemeColors } from "@/theme/useThemeColors";
-import { ACCENT_CORAL } from "@/utils/weatherLook";
+import { ACCENT_UI } from "@/utils/weatherLook";
 
 function OptionRow({
   label,
@@ -27,11 +27,11 @@ function OptionRow({
         className={`font-grotesk-medium text-[16px] ${
           active ? "" : "text-ink dark:text-paper"
         }`}
-        style={active ? { color: ACCENT_CORAL } : undefined}
+        style={active ? { color: ACCENT_UI } : undefined}
       >
         {label}
       </Text>
-      {active && <Check size={20} strokeWidth={2} color={ACCENT_CORAL} />}
+      {active && <Check size={20} strokeWidth={2} color={ACCENT_UI} />}
     </Pressable>
   );
 }
@@ -56,7 +56,7 @@ function UnitChips<T extends string>({
             className={`rounded-full px-5 py-2.5 ${
               active ? "" : "bg-white dark:bg-coal"
             }`}
-            style={active ? { backgroundColor: ACCENT_CORAL } : undefined}
+            style={active ? { backgroundColor: ACCENT_UI } : undefined}
           >
             <Text
               className={`font-grotesk-bold text-[15px] ${

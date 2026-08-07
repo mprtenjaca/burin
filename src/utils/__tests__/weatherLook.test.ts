@@ -208,11 +208,16 @@ describe("backdropEffects", () => {
     }
   });
 
-  it("KOMBINACIJA: grmljavina je kiša + bljeskovi", () => {
+  /*
+   * Od 8.8.2026. grmljavina ima i OBLAKE (Markov ispravak): prije je
+   * nebo iza munje bilo prazno, a nevrijeme je prije svega oblak.
+   * Oblaci su PRVI u nizu, dakle najdublji sloj — iza kiše i bljeska.
+   */
+  it("KOMBINACIJA: grmljavina je oblaci + kiša + bljeskovi", () => {
     for (const code of [95, 96, 99]) {
       expect({ code, fx: backdropEffects(code, true) }).toEqual({
         code,
-        fx: ["rain", "lightning"],
+        fx: ["clouds", "rain", "lightning"],
       });
     }
   });

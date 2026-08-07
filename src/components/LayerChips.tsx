@@ -5,7 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import type { MapLayerId } from "@/api/mapLayers";
 import { MAP_LAYERS, isLayerAvailable } from "@/api/mapLayers";
 import { t } from "@/i18n";
-import { ACCENT_CORAL } from "@/utils/weatherLook";
+import { ACCENT_UI } from "@/utils/weatherLook";
 
 /** Ikona po sloju — ista kao u ladici, da se izbornici poklapaju. */
 const LAYER_ICONS: Record<MapLayerId, LucideIcon> = {
@@ -51,7 +51,7 @@ export function LayerChips({
             className={`w-[54px] items-center gap-1 rounded-xl px-1 py-2 ${
               available ? "" : "opacity-40"
             }`}
-            style={isActive ? { backgroundColor: ACCENT_CORAL } : undefined}
+            style={isActive ? { backgroundColor: ACCENT_UI } : undefined}
           >
             <Icon
               size={20}

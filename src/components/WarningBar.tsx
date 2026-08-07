@@ -1,18 +1,5 @@
 import { router } from "expo-router";
-import {
-  CloudFog,
-  CloudRain,
-  Flame,
-  Mountain,
-  Snowflake,
-  Sun,
-  ThermometerSnowflake,
-  TriangleAlert,
-  Waves,
-  Wind,
-  Zap,
-  type LucideIcon,
-} from "lucide-react-native";
+import { CloudFog, CloudRain, Flame, Mountain, Snowflake, Sun, ThermometerSnowflake, TriangleAlert, Waves, Wind, Zap, type LucideIcon } from "lucide-react-native";
 import { Pressable, Text } from "react-native";
 
 import type { MeteoWarning } from "@/api/meteoalarm";
@@ -61,7 +48,7 @@ export function WarningBar({ warnings }: { warnings: MeteoWarning[] }) {
       accessibilityRole="button"
       accessibilityLabel={top.event}
       className="mt-2.5 flex-row items-center gap-2 rounded-full px-4 py-2"
-      style={{ backgroundColor: warningColor(top.level) }}
+      style={{ backgroundColor: warningColor(top.level), marginBottom: 10 }}
     >
       <Icon size={16} strokeWidth={2.5} color={fg} />
       <Text className="font-grotesk-bold text-[13.5px]" style={{ color: fg }}>

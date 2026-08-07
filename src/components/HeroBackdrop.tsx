@@ -135,8 +135,16 @@ export const HeroBackdrop = memo(function HeroBackdrop({
             height={height}
             scrollY={scrollY}
             intensity={intensity}
-            /* Oblaci uz zrake su rijetki i blijedi — vidi CloudsLayer. */
-            density={name === "clouds" && sparseClouds ? "sparse" : "full"}
+            /*
+             * Oblaci uz zrake su rijetki i blijedi — vidi CloudsLayer.
+             *
+             * Od 8.8.2026. isto vrijedi i za ZRAKE: kad stoje uz oblake
+             * (pretežno vedro), broj iskrica pada sa 16 na 7. S punim
+             * brojem je nebo bilo pretrpano i iskricama i oblacima.
+             */
+            density={
+              (name === "clouds" || name === "rays") && sparseClouds ? "sparse" : "full"
+            }
           />
         );
       })}

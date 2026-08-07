@@ -42,6 +42,17 @@ const BREATH_MS = [2100, 2900, 1700, 3300, 2400, 3700, 1900];
 /** Broj iskrica svjetlucanja. Malo — efekt je potpis, ne konfeti. */
 const SPARKLES = 16;
 /**
+ * PRETEŽNO VEDRO dobiva MANJE iskrica (Markov ispravak 8.8.2026.).
+ *
+ * Otkad kod 1 crta zrake UZ oblake, na nebu je bilo i punih 16 iskrica i
+ * oblaka — pretrpano za stanje koje je "vedro, ali ne posve". Isti
+ * `density="sparse"` koji već prorjeđuje oblake sada prorjeđuje i njih.
+ *
+ * Čisto vedro (kod 0) ostaje na punom broju: ondje su iskrice jedini
+ * ukras na nebu.
+ */
+const SPARKLES_SPARSE = 7;
+/**
  * BLJESAK, ne tinjanje (dorada 6.8.2026.): iskrica plane za ~180 ms,
  * ugasi se za ~420 ms i onda dugo MIRUJE. Prije je paljenje trajalo
  * 2.6–4.1 s pa su točke lebdjele preko ekrana kao snijeg.
@@ -252,6 +263,7 @@ export const RaysLayer = memo(function RaysLayer({
   width,
   height,
   scrollY,
+  density,
 }: LayerProps) {
   const H = height || 1;
 
@@ -296,7 +308,8 @@ export const RaysLayer = memo(function RaysLayer({
       { length: SPARKLE_GROUPS },
       () => [],
     );
-    for (let i = 0; i < SPARKLES; i++) {
+    const total = density === "sparse" ? SPARKLES_SPARSE : SPARKLES;
+    for (let i = 0; i < total; i++) {
       groups[i % SPARKLE_GROUPS]!.push({
         x: rnd(i + 1) * width,
         y: rnd(i + 41) * height * 0.62,
@@ -305,7 +318,7 @@ export const RaysLayer = memo(function RaysLayer({
       });
     }
     return groups;
-  }, [width, height]);
+  }, [width, height, density]);
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, shift]} pointerEvents="none">

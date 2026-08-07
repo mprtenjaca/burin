@@ -145,7 +145,9 @@ export function Hero({
 
         {tMax !== undefined && (
           <>
-            <Text className="mt-3 font-grotesk-bold text-[16px]" style={{ color: heroFg }}>{deg(tMax)}°</Text>
+            <Text className="mt-3 font-grotesk-bold text-[16px]" style={{ color: heroFg }}>
+              {deg(tMax)}°
+            </Text>
             <LongArrow up color={fg} />
           </>
         )}
@@ -263,7 +265,9 @@ export function Hero({
             <View style={{ marginTop: 4 }}>
               <LongArrow up={false} color={fg} />
             </View>
-            <Text className="font-grotesk-bold text-[16px]" style={{ color: heroFg }}>{deg(nightMin)}°</Text>
+            <Text className="font-grotesk-bold text-[16px]" style={{ color: heroFg }}>
+              {deg(nightMin)}°
+            </Text>
           </>
         )}
       </View>
@@ -274,7 +278,9 @@ export function Hero({
         se datum spustio ispod njih i dobio sredinu.
       */}
       <View className="items-center" style={{ position: "absolute", top: insets.top + 58, left: 0, right: 0 }}>
-        <Text className="font-grotesk-bold text-[16px]" style={{ color: heroFg }}>{dateLabel(now)}</Text>
+        <Text className="font-grotesk-bold text-[16px]" style={{ color: heroFg }}>
+          {dateLabel(now)}
+        </Text>
         <Text className="font-grotesk-medium text-[14px]" style={heroFg75}>
           {isStale ? `${t.common.dataFrom} ` : ""}
           {clockTime(fetchedAt)}
@@ -298,7 +304,9 @@ export function Hero({
               pretežak (Markov ispravak 6.8.2026.).
             */}
             <WindFlag speedKmh={current.windGusts} size={20} tone={dark ? "dark" : "hero"} />
-            <Text className="font-grotesk-bold text-[15px]" style={{ color: heroFg }}>{Math.round(convertWind(current.windGusts, windUnit))}</Text>
+            <Text className="font-grotesk-bold text-[15px]" style={{ color: heroFg }}>
+              {Math.round(convertWind(current.windGusts, windUnit))}
+            </Text>
             <Text className="font-grotesk-medium text-[13px]" style={heroFg70}>
               {windUnitLabel(windUnit)} · {t.home.gusts.toLowerCase()}
             </Text>
