@@ -13,7 +13,7 @@ import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit, WindUnit } from "@/utils/format";
 import { convertTemp, convertWind, tempUnitLabel, windDirLabel, windUnitLabel } from "@/utils/format";
 import type { PollenLevels, PollenSpecies } from "@/utils/weatherLook";
-import { ACCENT_CORAL, AQI_COLORS, POLLEN_COLORS, aqiInfo, dewPoint, pollenInfo, uvLabel, visibilityLabel } from "@/utils/weatherLook";
+import { ACCENT_CORAL, ACCENT_STEEL, AQI_COLORS, POLLEN_COLORS, aqiInfo, dewPoint, pollenInfo, uvLabel, visibilityLabel } from "@/utils/weatherLook";
 
 /** Visina polukartice — sve jednake (odluka s mockupa v4; dizano za čitljivost). */
 const CARD_H = 160;
@@ -80,15 +80,31 @@ function Card({
     <>
       {/* Veličine i kontrasti sitnih tekstova dignuti za starije korisnike. */}
       <View className="flex-row items-center justify-between">
-        <Text className={`font-grotesk-bold text-[13.5px] ${inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/60 dark:text-paper/60"}`}>{label}</Text>
+        <Text className={`font-grotesk-bold text-[13.5px] ${inverted ? "text-paper/70" : "text-ink/60 dark:text-paper/60"}`}>{label}</Text>
         {onPress && <ChevronRight size={18} strokeWidth={2.5} color={fg} opacity={0.45} />}
       </View>
       <View className="flex-1 justify-center">{children}</View>
-      {caption !== undefined && <Text className={`font-grotesk-medium text-[12.5px] ${inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/65 dark:text-paper/65"}`}>{caption}</Text>}
+      {caption !== undefined && <Text className={`font-grotesk-medium text-[12.5px] ${inverted ? "text-paper/70" : "text-ink/65 dark:text-paper/65"}`}>{caption}</Text>}
     </>
   );
 
-  const className = `rounded-2xl px-3.5 py-3 ${wide ? "basis-full" : "grow basis-[45%]"} ${inverted ? "bg-ink dark:bg-paper" : "bg-white dark:bg-coal"}`;
+  /*
+   * `inverted` SE NE OKREĆE U TAMNOJ TEMI (popravak 8.8.2026.).
+   *
+   * Bilo je `bg-ink dark:bg-paper`, dakle u tamnoj temi je kartica
+   * postajala BIJELA. Izmjereno prema podlozi stranice (#141414): obična
+   * kartica drži 1.06:1 (suptilno odvojena, kako i treba), a inverted
+   * skače na **17.63:1** — UV i tlak su izgledali kao dvije svjetleće
+   * mrlje među tamnim karticama.
+   *
+   * Sada je istaknutost izvedena kao STUPANJ, ne kao obrat: u svijetloj
+   * temi ostaje tamna kartica (ondje je to radilo i lijepo izgledalo), a
+   * u tamnoj kartica ostaje tamna, samo za nijansu svjetlija od ostalih
+   * (#22252B naspram coala) uz tanki obrub. Razliku dalje nosi akcent
+   * unutar kartice, ne sama ploha.
+   */
+  const invertedBg = inverted ? "bg-ink dark:bg-[#22252B] dark:border dark:border-paper/10" : "bg-white dark:bg-coal";
+  const className = `rounded-2xl px-3.5 py-3 ${wide ? "basis-full" : "grow basis-[45%]"} ${invertedBg}`;
   const style = fixedHeight ? { height: CARD_H } : undefined;
 
   return onPress ? (
@@ -104,13 +120,14 @@ function Card({
 
 /** Velika vrijednost u kartici, s opcionalnom malom jedinicom. */
 function Value({ children, unit, inverted = false }: { children: string; unit?: string; inverted?: boolean }) {
-  const main = inverted ? "text-paper dark:text-ink" : "text-ink dark:text-paper";
+  /* `inverted` je u OBJE teme tamna kartica sa svijetlim tekstom — vidi Card. */
+  const main = inverted ? "text-paper" : "text-ink dark:text-paper";
   return (
     <View className="flex-row items-baseline gap-1">
       <Text className={`font-grotesk-bold ${main}`} style={{ fontSize: 32, letterSpacing: -1 }}>
         {children}
       </Text>
-      {unit !== undefined && <Text className={`font-grotesk-medium text-[14px] ${inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/65 dark:text-paper/65"}`}>{unit}</Text>}
+      {unit !== undefined && <Text className={`font-grotesk-medium text-[14px] ${inverted ? "text-paper/70" : "text-ink/65 dark:text-paper/65"}`}>{unit}</Text>}
     </View>
   );
 }
@@ -140,7 +157,8 @@ function Compass({ windDir }: { windDir: number }) {
           narančasta) — isti jezik kao krivulja zalaska. userSpaceOnUse:
           koordinate su u sustavu rotirane grupe, pa gradijent prati iglu.
         */}
-        <LinearGradient id="needle" x1="52" y1="86" x2="52" y2="15" gradientUnits="userSpaceOnUse">
+        {/* y2 prati novi vrh (11), inače gradijent ne stigne do glave. */}
+        <LinearGradient id="needle" x1="52" y1="86" x2="52" y2="11" gradientUnits="userSpaceOnUse">
           <Stop offset="0" stopColor="#F5D547" />
           <Stop offset="1" stopColor="#EE6E3C" />
         </LinearGradient>
@@ -179,8 +197,16 @@ function Compass({ windDir }: { windDir: number }) {
       </SvgText>
       {/* Glava strelice na strani s koje vjetar puše — uz kraticu. */}
       <G rotation={windDir % 360} origin="52,52">
-        <Line x1="52" y1="86" x2="52" y2="26" stroke="url(#needle)" strokeWidth="3.5" strokeLinecap="round" />
-        <Path d="M52 15 l-6.5 12 13 0 z" fill="#EE6E3C" />
+        {/*
+          VRH SEŽE JEDNAKO DALEKO KAO REP (Markov ispravak 8.8.2026.).
+          Izmjereno u ovom viewBoxu (centar 52,52, vanjski krug r=46):
+          krilca repa sežu do y=93, dakle r=41, a vrh glave je stajao na
+          y=15 — samo r=37. Igla je zato izgledala kao da je sprijeda
+          podrezana. Vrh je spušten na y=11 (r=41) i trokut je za toliko
+          produžen, pa oba kraja staju jednako blizu ruba.
+        */}
+        <Line x1="52" y1="86" x2="52" y2="22" stroke="url(#needle)" strokeWidth="3.5" strokeLinecap="round" />
+        <Path d="M52 11 l-6.5 13 13 0 z" fill="#EE6E3C" />
         <Line x1="52" y1="86" x2="46" y2="93" stroke="#F5D547" strokeWidth="3" strokeLinecap="round" />
         <Line x1="52" y1="86" x2="58" y2="93" stroke="#F5D547" strokeWidth="3" strokeLinecap="round" />
       </G>
@@ -216,10 +242,19 @@ function PressureGauge({ hpa, size }: { hpa: number; size: number }) {
   const { dark } = useThemeColors();
   const fraction = Math.min(1, Math.max(0, (hpa - PRESSURE_MIN) / (PRESSURE_MAX - PRESSURE_MIN)));
   const lit = Math.round(fraction * GAUGE_TICKS);
-  const disc = dark ? colors.paper : colors.ink;
-  const dimTick = dark ? "rgba(20,20,20,.3)" : "rgba(250,250,248,.32)";
-  const text = dark ? colors.ink : colors.paper;
-  const subtext = dark ? "rgba(20,20,20,.55)" : "rgba(250,250,248,.55)";
+  /*
+   * DISK OSTAJE TAMAN I U TAMNOJ TEMI (popravak 8.8.2026.).
+   *
+   * Bio je `dark ? paper : ink`, dakle u tamnoj temi bijeli krug — isti
+   * kvar kao kod UV kartice: dvije svjetleće mrlje među tamnim
+   * karticama. Sada je disk uvijek taman (u tamnoj temi nijansu
+   * svjetliji od podloge, kao i `inverted` kartica), a tekst uvijek
+   * svijetao.
+   */
+  const disc = dark ? "#22252B" : colors.ink;
+  const dimTick = "rgba(250,250,248,.32)";
+  const text = colors.paper;
+  const subtext = "rgba(250,250,248,.55)";
 
   return (
     <Svg width={size} height={size} viewBox="0 0 96 96">
@@ -229,7 +264,8 @@ function PressureGauge({ hpa, size }: { hpa: number; size: number }) {
         const angle = -GAUGE_SWEEP / 2 + (i / (GAUGE_TICKS - 1)) * GAUGE_SWEEP;
         return (
           <G key={i} rotation={angle} origin="48,48">
-            <Line x1="48" y1="5" x2="48" y2="12" stroke={i < lit ? ACCENT_CORAL : dimTick} strokeWidth="1.8" strokeLinecap="round" />
+            {/* Upaljene crtice nose akcent — koraljna je maknuta 8.8.2026. */}
+            <Line x1="48" y1="5" x2="48" y2="12" stroke={i < lit ? ACCENT_STEEL : dimTick} strokeWidth="1.8" strokeLinecap="round" />
           </G>
         );
       })}

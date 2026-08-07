@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { Stack } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
-import { Pressable } from "react-native";
+import { Pressable, View } from "react-native";
 
 import { t } from "@/i18n";
 import { colors } from "@/theme/colors";
@@ -33,7 +33,10 @@ function HeaderBack({ tint }: { tint: string }) {
       accessibilityRole="button"
       style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}
     >
-      <ArrowLeft size={24} strokeWidth={2} color={tint} />
+      {/* SVG zna progutati dodir na Androidu — vidi tražilicu (8.8.2026.). */}
+      <View pointerEvents="none">
+        <ArrowLeft size={24} strokeWidth={2} color={tint} />
+      </View>
     </Pressable>
   );
 }

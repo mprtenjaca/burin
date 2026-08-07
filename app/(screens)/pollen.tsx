@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import { ScaleMarker } from "@/components/BentoGrid";
@@ -21,6 +22,25 @@ export default function PollenScreen() {
   const place = selected ?? (gps.status === "granted" ? gps.place : null);
   const { bundle } = useWeatherBundle(place);
 
+  /*
+   * LISTA VRSTA DOLAZI KADAR NAKON EKRANA (popravak 8.8.2026.).
+   *
+   * Dodir na peludnu karticu je imao vidljivu zadršku prije prve slike.
+   * Ekran nije spor sam po sebi — spor je PRVI KADAR: `useWeatherBundle`
+   * se ovdje pokreće iznova (isti upiti, iste korekcije), a odmah za njim
+   * se sinkrono crta i cijela lista vrsta sa skalama i markerima. Sve
+   * unutar navigacijskog prijelaza.
+   *
+   * Isti obrazac koji već nose početna (`belowFold`) i tražilica
+   * (`listsReady`): naslov s imenom mjesta dođe odmah, popis u sljedećem
+   * kadru. Prijelaz time kreće bez čekanja.
+   */
+  const [listReady, setListReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setListReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   const gradeLabels = [
     t.pollen.noneShort,
     t.pollen.low,
@@ -42,7 +62,7 @@ export default function PollenScreen() {
         </Text>
       )}
 
-      {species.length === 0 && (
+      {listReady && species.length === 0 && (
         <View className="items-center rounded-2xl bg-white px-4 py-10 dark:bg-coal">
           <Text className="font-grotesk-medium text-[15px] text-ink/65 dark:text-paper/65">
             {t.common.noData}
@@ -50,7 +70,7 @@ export default function PollenScreen() {
         </View>
       )}
 
-      {species.length > 0 && (
+      {listReady && species.length > 0 && (
         <View className="rounded-2xl bg-white px-4 py-1 dark:bg-coal">
           {species.map((s, i) => (
             <View key={s.key}>
