@@ -28,7 +28,7 @@ više nije ograničenje — nativni moduli su otvoreni (MapLibre, widget).
 | 14-dnevni min/max korekcija | Open | `debiasDaily` radi, ali korekcija mjerenjem se ne primjenjuje na dnevne vrijednosti — mogući blagi nesklad s razdobljima dana |
 | Vremenske vijesti / blog | Open, neistraženo | Marko pitao ima li izvora za HR i svijet. Nije istraženo — DHMZ ima vijesti, za svijet treba provjeriti |
 | Web kamere | Odgođeno | V&R koristi whatsupcams (komercijalni, bez API-ja); scraping ne dolazi u obzir. Čeka čist izvor (HAK/TZ popis?) |
-| **iOS widget** | Istraženo 7.8.2026., **čeka odluku o SDK upgradeu** | `expo-widgets` (Expo, prvoklasni) piše widget u TypeScriptu preko `@expo/ui/swift-ui` — **bez Swifta**. Ali najstarije izdanje je `sdk-55`, a ovisi o `@expo/ui` koji ide u paru sa SDK-om → **traži upgrade 54 → 57**. Dizajn: SAMO gradijent (vidi Recent Decisions), veličine `systemSmall` + `systemMedium` + `accessoryRectangular` |
+| **iOS widget** | Kod gotov 7.8.2026., **traži rebuild pa provjeru** | `expo-widgets` 57.0.8; layout u TypeScriptu (`src/widgets/`), bez Swifta. Četiri veličine: `systemSmall`, `systemMedium`, `accessoryRectangular` (tekst + H/L), `accessoryCircular` (luk s temperaturom na dnevnom rasponu). JEDNA verzija bez obzira na temu, bijeli tekst svugdje. 20 vlastitih PNG ikona (obrisne + pune) i suptilni ambijentalni slojevi. **Rebuild je obavezan** — nativni target |
 | **SDK upgrade 54 → 57** | **Izveden 7.8.2026., čeka provjeru na uređaju** | RN 0.81.5 → **0.86.2**, React 19.1 → **19.2.3**, TS 5.9 → **6.0.3**. Sve tri provjere + `expo-doctor` 20/20 čisti. Predviđanje se potvrdilo: MapLibre 11.3.6 **nije trebao dizanje** (već nosi Fabric codegen), Reanimated je otišao na 4.5.1, NativeWind ostao. Četiri zapreke, sve male — vidi Recent Decisions |
 | Android widget | Open, nakon iOS-a | v1.1; `burin:last-weather` (zustand persist) je pripremljen kao pohrana. `react-native-android-widget` radi na SDK 54 već sad. **Vjetrulja se ne može nacrtati u RemoteViews** (nema SVG-a) — trebat će PNG po tonu ili pojednostavljen glif |
 
@@ -74,22 +74,26 @@ Nakon builda su sve daljnje izmjene ovog kruga opet JS-only (reload).
 
 ### Zatim: iOS widget (`expo-widgets`)
 
-SDK upgrade je **izveden** i time je `expo-widgets` otvoren. Widget se radi
-**tek nakon** što ovaj build prođe provjeru na uređaju — inače se dvije
-nepoznanice (novi SDK i novi nativni target) traže u istom buildu.
+Widget je **napisan** (`src/widgets/`) i čeka isti rebuild. Nakon builda
+provjeriti, tim redom:
 
-```bash
-npx expo install expo-widgets
-```
+1. **Dodavanje na zaslon** — dugi pritisak → „+“ → Burin. Moraju se
+   ponuditi četiri veličine
+2. **Gradijent do ruba** — bez bijelog/crnog okvira (`contentMarginsDisabled`)
+3. **Ikone** — moraju se pojaviti. Ako ih nema, PNG-ovi nisu stigli u App
+   Group; provjeriti `syncWidgetIcons` i `widgetsDirectory`
+4. **Ambijent** — trake od vrha do dna, kiša i sjaj desno, oblak na
+   djelomično oblačnom. Sve suptilno, brojka mora ostati glavna
+5. **Mala pločica** — najveći rizik: zvijezde, pahulje i kiša moraju se
+   vidjeti i na njoj, ne samo na srednjoj
+6. **Zaključani zaslon** — pravokutni (pune ikone, H/L) i kružni (luk)
+7. **Tintani način** — dugi pritisak na pozadinu → tema → tintano. Gradijent
+   i ambijent moraju NESTATI, tekst i ikone ostati
 
-Dizajn je zaključan (vidi Recent Decisions): **samo gradijent**, jer
-`@expo/ui/swift-ui` nema ni jedan crtaći primitiv. Veličine `systemSmall`
-+ `systemMedium` + `accessoryRectangular` (lock screen je jednobojan).
-Sadržaj: temperatura, opis, mjesto, dnevni min/max i udari vjetra.
-
-Podaci idu `updateSnapshot()` / `updateTimeline()` iz `useWeatherBundle`
-nakon uspješnog dohvata — sve potrebno je već u `burin:last-weather`.
-Widget **ne može** čitati AsyncStorage (drugi proces, drugi kontejner).
+Podaci idu `updateTimeline()` iz `useWeatherBundle` nakon uspješnog
+dohvata — sve potrebno je već u `burin:last-weather`. Widget **ne može**
+čitati AsyncStorage (drugi proces, drugi kontejner), pa ide preko App
+Groupa `group.com.markop.burin`.
 
 Widget je nativni target → **svaka promjena konfiguracije traži rebuild**,
 ali samo mijenjanje TS izgleda ide reloadom.
@@ -112,7 +116,18 @@ bude sustavno preblaga, uzrok je tu, ne u pragovima.
 | `expo-font` i `expo-status-bar` moraju biti u `plugins` | SDK 57 ih više ne autolinka. `expo install --fix` ih traži, ali ih **ne može sam upisati** jer je config dinamičan (`app.config.ts`) — zato naredba završi izlaznim kodom 1 iako je instalacija uspjela. Lako se pročita kao neuspjeh upgradea, a nije |
 | `tsconfig` mora imati `"types": ["jest", "node"]` | `types` je IZRIČIT popis — što nije navedeno, ne učitava se. Baza Expa je do SDK 54 nosila node tipove, od 57 ne, pa su testovi ostali bez `global` i `require.resolve` (4 greške). `@types/node` je bio instaliran cijelo vrijeme, samo neuključen |
 | `expo-modules-core` treba `moduleNameMapper` u jestu | Na SDK 57 taj paket živi **ugniježđen** (`node_modules/expo/node_modules/`), a `jest-expo@57` ga ne deklarira kao ovisnost i traži ga u korijenu → **sva 23 suitea** padnu na "Cannot find module". Mapiranje na pravu putanju rješava; ne dirati strukturu `node_modules` |
-| Widget nosi SAMO gradijent, bez ambijentalnih slojeva | Izmjereno u dokumentaciji 7.8.2026.: `@expo/ui/swift-ui` **nema ni jedan crtaći primitiv** — nema `Path`, `Circle`, `Rectangle`, `Canvas`. Zvijezde, oblaci, kiša, mjesečev srp i vjetrulja se dakle ne mogu nacrtati ni kao mirna slika. Ali `foregroundStyle({type:"linearGradient", colors, startPoint, endPoint})` prima **točno onaj oblik koji `weatherGradient()` već vraća**, pa cijeli sustav paleta prelazi bez ijedne nove linije logike. Identitet ionako NOSI paleta — narančasto sunce, tamnoplava noć, siva naoblaka — pa widget izgleda kao heroj s ugašenim ambijentom |
+| Widget ima JEDNU verziju, uvijek tamnu | Tema telefona se ne prati (Markov odabir 7.8.2026.): pločica izgleda isto ujutro i navečer, jer korisnik ne mijenja temu zbog widgeta. Sve palete su potamnjene inačice onih iz aplikacije — isti ton, spuštena svjetlina dok bijeli tekst ne prijeđe **4.5:1**. Izmjereno svaku; najniže je djelomično oblačno sa 4.78:1. `dark` je time ispao iz cijelog lanca |
+| Vedar dan u widgetu je PLAVO NEBO, ne žuto sunce | Žuta iz aplikacije (`#F4C542`) daje bijelom tekstu **1.63:1**, a potamnjena postaje pečena narančasta u kojoj sunčan dan izgleda kao prašina (provjereno renderom). Plava (`#3E76AA`) prolazi sa **4.80:1** i čita se kao vedro NEBO — što je i točnije. Sunce ostaje u ikoni i u sjaju, ne u podlozi. Djelomično oblačno je isto plavo, samo tamnije: naoblaka nebo prigušuje, ne pretvara ga u narančasto |
+| Ambijent widgeta se slaže od `Rectangle` i `Circle` | Nema `Path` ni `Canvas`, pa se prave krivulje ne mogu crtati. Kose crte su zarotirani pravokutnici pod **29°** — izračunato iz `SLOPE = 0.55` u aplikaciji, da se poklapaju s kišom i zrakama na ekranu. Duljina 226 px je isto izračunata: 158 / cos(29°) = 181 px za visinu pločice, plus rezerva da se rez ne vidi. Oblaci i sjaj su zamućeni krugovi (`blur`) |
+| MALA pločica vidi samo pojas ±79 px od sredine | Uzrok dvaju bugova nađenih na pregledu (7.8.2026.): zvijezde, pahulje i kiša su bile raspoređene po širini SREDNJE pločice, pa je na maloj ostajala jedna-dvije ili nijedna. Sve što mora raditi na obje veličine mora biti unutar tog pojasa |
+| Ikone widgeta su PNG, ne SVG ni SF Symbols | Putanje se ne mogu crtati (nema `Path`), pa se glifovi renderiraju u `sharp` i učitavaju kroz `<Image uiImage>`. SF Symbols se NE koriste — to je Appleov vizualni jezik, a widget koji ga posudi izgleda kao Appleov widget. Vjetar je glif „Zapuh“ iz ikone aplikacije, iste putanje |
+| Zaključani zaslon dobiva PUNE ikone | iOS ondje crta u `vibrant` načinu: sve svede na jedan ton i masku, pa se prazna unutrašnjost obrisne ikone ne razlikuje od podloge, a tanke linije se stanje do neprimjetnosti. Zato i Apple ondje koristi `*.fill` simbole. Otud 20 ikona umjesto 10 |
+| Preklopljene ikone se režu MASKOM, ne ispunom | Mjesec iza oblaka je prvo bio samo obris, pa se linija mjeseca vidjela KROZ oblak i izgledalo je kao dva prstena koja se sijeku (Marko uočio). Ispuna ne dolazi u obzir jer je podloga gradijent — nema jedne boje. Maska ne dodaje boju, samo uklanja ono što je iza. Isto primijenjeno na sunce iza oblaka i munju |
+| Tintanu verziju widgeta iOS radi SAM | Ne postoji zasebna „tinted“ pločica koju bismo crtali — sustav uzme isti raspored i pretvori ga u jednobojnu masku (`widgetRenderingMode === "accented"`). Kod samo IZOSTAVLJA gradijent i ambijent u tom načinu, jer bi ostale nasumične sive crte preko ničega. To je druga stvar od `icon-tinted.png`, koji je ikona aplikacije |
+| Gradijent u widgetu ide `Rectangle` + `foregroundStyle`, ne `containerBackground` | **Ispravak prvotnog zaključka** (7.8.2026.): dokumentacijska stranica `@expo/ui` NE navodi oblike, pa je prvo zapisano da crtaćih primitiva nema. Čitanje instaliranih tipova pokazalo je suprotno — `@expo/ui/swift-ui/Shapes` izvozi **`Rectangle`, `Circle`, `Ellipse`, `Capsule`, `RoundedRectangle`**. Prava granica je drugdje: `containerBackground`, `background` i `backgroundOverlay` primaju samo `Color` (jednu boju), a **jedini** modifikator koji prima `linearGradient` je `foregroundStyle` — koji boji SADRŽAJ. Zato podloga = `Rectangle` s `foregroundStyle` kao najdublji sloj `ZStacka`, uz **obavezan `ignoreSafeArea()`** (bez njega iOS ostavi margine i vidi se okvir oko gradijenta). Smjer je isti dijagonalni (0,0)→(0.6,1) kao u heroju. Pouka: **tipove čitati iz `node_modules`, ne iz dokumentacije** |
+| Widget dobiva IZRAČUNATE boje i tekstove, ne WMO kod | Widget je zaseban proces: ne vidi AsyncStorage, ne ide na mrežu i **ne izvršava naš JS**, pa ne može uvesti `weatherLook.ts` ni `t`. Sve se računa u aplikaciji (`widgetData.ts`) i pošalje kao plosnati primitivi. Time paleta i pragovi ostaju na JEDNOM mjestu — promjena boje vremena stigne u widget bez ijedne izmjene u njemu |
+| Tip propova widgeta stoji u ZASEBNOJ datoteci (`props.ts`) | `BurinWidget.tsx` uvlači `expo-widgets` i `@expo/ui/swift-ui`, oboje nativno. Dok je tip živio tamo, `widgetData.ts` ga je uvozom povukao i **srušio vlastite testove** ("Cannot find native module 'ExpoWidgets'"). Isto pravilo koje je već naučeno na `MapTimeline` + AsyncStorage. `pushWidget` zato radi `require` LIJENO i u `try` — tako i Android prolazi (`expo export` potvrdio) |
+| Widget se puni `updateTimeline`, ne `updateSnapshot` | iOS **budžetira** buđenja widgeta (~40–70 dnevno) i sam odlučuje kad — snapshot bi do večeri prikazivao jutarnju temperaturu. Šalje se 12 sati unaprijed iz `hourly` (već korigiranog mjerenjem), pa widget ostaje točan i bez ijednog buđenja aplikacije. Tekući sat se **preskače** jer ga već nosi unos iz `current` — dva unosa s istim datumom su neispravna crta |
 | Widget podatke dobiva `updateSnapshot`, ne čitanjem AsyncStoragea | Widget je zaseban proces u drugom kontejneru i **fizički ne vidi** AsyncStorage aplikacije (na iOS-u je to datoteka u sandboxu). Dijeljenje ide preko App Groupa, a `expo-widgets` to pakira u `updateSnapshot()` / `updateTimeline()`. Svi potrebni podaci su ionako već u `burin:last-weather` — nema novog dohvaćanja |
 | `updateTimeline` za buduće sate, ne samo `updateSnapshot` | iOS **budžetira** osvježavanje widgeta (~40–70 buđenja dnevno) i sam odlučuje kad. `updateTimeline` unaprijed upiše niz unosa iz `hourly[]`, pa widget ostaje točan i kad ga sustav ne probudi — bez toga bi pokazivao zastarjelu temperaturu |
 | Lock screen widget je JEDNOBOJAN, i to je u redu | iOS `accessoryRectangular` renderira u jednom tonu — gradijenta tu nema i ne može biti. Dijeli podatke s velikim widgetom, ali ne izgled; ide unutra jer je gotovo besplatan, ne zato što će izgledati kao aplikacija |
@@ -179,7 +194,8 @@ bude sustavno preblaga, uzrok je tu, ne u pragovima.
 ```bash
 npx expo start --dev-client   # dev server; JS izmjene idu reloadom, BEZ rebuilda
 npm run typecheck             # tsc --noEmit
-npm test                      # jest, 243 testa u 23 skupine
+npm test                      # jest, 263 testa u 25 skupina
+node scripts/generate-widget-icons.mjs  # 20 ikona widgeta (traži sharp)
 npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 npx expo run:android          # nativni dev build
 node scripts/generate-icons.mjs      # ikone iz SVG glifa (traži sharp)
@@ -299,7 +315,13 @@ src/hooks/            useWeatherBundle, useWarnings, useNow, useRadarFrames,
 src/utils/            weatherCodes, weatherLook, emmaRegions, format, geo, dayParts
 src/theme/colors.ts   paper/ink/night/mint + mist (podloga) i coal (tamna kartica)
 src/i18n/hr.ts        SVI UI stringovi (kanonski rječnik = izvor tipa)
+src/widgets/          iOS widget: BurinWidget (raspored + ambijent),
+                      widgetData (most iz WeatherBundle u propove),
+                      props/iconNames (čisti tipovi bez nativnog),
+                      widgetIcons (kopiranje PNG-ova u App Group)
+assets/widget/        20 PNG ikona widgeta (obrisne + `-fill`)
 scripts/generate-icons.mjs  ikone iz glifa "Zapuh" (traži sharp)
+scripts/generate-widget-icons.mjs  ikone widgeta (traži sharp)
 docs/                 LOKALNO, u .gitignoreu od 6.8.2026. — zapisi odluka i
                       specovi su radni materijal; opće odluke žive OVDJE
                       (Recent Decisions) i u README-u

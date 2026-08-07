@@ -22,6 +22,8 @@ import {
   observationDelta,
 } from "@/api/weather";
 import { useLastWeather } from "@/store/lastWeather";
+import { useSettings } from "@/store/settings";
+import { pushWidget } from "@/widgets/widgetData";
 
 const MIN = 60 * 1000;
 
@@ -148,9 +150,32 @@ export function useWeatherBundle(place: Place | null) {
     bias.data,
   ]);
 
+  /*
+   * Jedinice za widget. Čitaju se OVDJE, a ne u `widgetData`, jer su to
+   * hookovi — a `widgetData` mora ostati čist modul da se može testirati
+   * bez nativnih modula (isto pravilo kao `MapTimeline`).
+   *
+   * TEMA se NE prosljeđuje (7.8.2026.): widget ima jednu verziju, uvijek
+   * tamnu s bijelim tekstom, pa bi tema samo uzalud okidala novi upis.
+   */
+  const tempUnit = useSettings((s) => s.tempUnit);
+  const windUnit = useSettings((s) => s.windUnit);
+
   useEffect(() => {
     if (fresh) save(fresh);
   }, [fresh, save]);
+
+  /*
+   * Widget se puni SAMO iz svježih podataka (7.8.2026.).
+   *
+   * Namjerno ne iz `cached`: keš se čita pri svakom pokretanju, pa bi
+   * widget dobivao stare vrijednosti i gasio novije koje je već imao.
+   * Vrti se i na promjenu jedinica — widget nosi IZRAČUNATE brojke, pa
+   * mora dobiti nove kad se postavka promijeni.
+   */
+  useEffect(() => {
+    if (fresh) void pushWidget(fresh, tempUnit, windUnit);
+  }, [fresh, tempUnit, windUnit]);
 
   const bundle = fresh ?? cached;
   const hasError = current.isError || forecast.isError;

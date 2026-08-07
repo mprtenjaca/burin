@@ -35,6 +35,15 @@ const config: ExpoConfig = {
       // buildu pita za izvozne propise o kriptografiji.
       ITSAppUsesNonExemptEncryption: false,
     },
+    /*
+     * App Group za widget (7.8.2026.). Mora stajati i OVDJE, ne samo u
+     * `expo-widgets` pluginu: to je zajednički sandbox, pa ga obje strane
+     * moraju imati u entitlementima. Aplikacija bez njega ne može
+     * upisati podatke koje widget čita.
+     */
+    entitlements: {
+      "com.apple.security.application-groups": ["group.com.markop.burin"],
+    },
   },
   android: {
     package: "com.markop.burin",
@@ -69,6 +78,46 @@ const config: ExpoConfig = {
      */
     "expo-font",
     "expo-status-bar",
+    /*
+     * iOS widget (7.8.2026.). `groupIdentifier` je App Group — widget je
+     * ZASEBAN PROCES u drugom kontejneru i bez njega ne može primiti ni
+     * jedan podatak od aplikacije (AsyncStorage mu je nedostupan).
+     *
+     * `name` mora biti identičan imenu u `createWidget()`; po njemu iOS
+     * spaja nativni target s TS rasporedom.
+     *
+     * Widget je nativni target → dodavanje ili promjena OVOG bloka traži
+     * rebuild. Mijenjanje samo izgleda u `BurinWidget.tsx` ide reloadom.
+     */
+    [
+      "expo-widgets",
+      {
+        groupIdentifier: "group.com.markop.burin",
+        widgets: [
+          {
+            name: "BurinWeather",
+            displayName: "Burin",
+            description: "Trenutna temperatura, opis vremena i dnevni raspon.",
+            /*
+             * `accessoryCircular` je LUK s trenutnom temperaturom na
+             * dnevnom rasponu (Markov odabir 7.8.2026., po Appleovom
+             * widgetu): `Gauge` u stilu `circular` s min/max na krajevima.
+             */
+            supportedFamilies: [
+              "systemSmall",
+              "systemMedium",
+              "accessoryRectangular",
+              "accessoryCircular",
+            ],
+            /*
+             * Bez ovoga iOS ostavi svoje margine oko sadržaja, pa
+             * gradijent ne dolazi do ruba pločice (vidi `Backdrop`).
+             */
+            contentMarginsDisabled: true,
+          },
+        ],
+      },
+    ],
     // Čita jezik sustava za zadani jezik sučelja (6.8.2026.). Samo čitanje
     // postavke uređaja — nema dozvola ni nativnog koda našeg pisanja.
     "expo-localization",
