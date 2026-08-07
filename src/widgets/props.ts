@@ -40,8 +40,21 @@ export type WidgetProps = {
   stops: [string, string, string];
   /** Boja teksta, iz `readableOn(stops[1])` — prati podlogu, ne temu. */
   fg: string;
-  /** Udari vjetra u korisnikovoj jedinici; `null` kad je ispod praga. */
-  gusts: number | null;
+  /**
+   * Ima li udara vrijednih prikaza (iznad praga značke).
+   *
+   * Postoji jer `gusts` VIŠE NE SMIJE BITI `null` (popravak 8.8.2026.).
+   * Propovi prelaze u nativni `[String: Any]`, a JS `null` ondje nema
+   * parnjaka — konverzija je pucala kao `Exception in HostFunction`, pa
+   * cijela crta nije bila upisana i widget je ostajao prazan.
+   *
+   * Odsutnost se zato izražava BOOLEANOM, a `gusts` nosi 0 kad udara
+   * nema. Isto pravilo vrijedi za sve buduće propove: preko granice idu
+   * samo brojevi, stringovi i booleani — nikad `null` ni `undefined`.
+   */
+  hasGusts: boolean;
+  /** Udari vjetra u korisnikovoj jedinici; 0 kad je ispod praga. */
+  gusts: number;
   /** Oznaka jedinice vjetra ("m/s"). */
   windUnit: string;
   /** "14:20" — kad su podaci dohvaćeni. */

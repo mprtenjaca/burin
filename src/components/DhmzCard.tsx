@@ -5,17 +5,36 @@ import { t } from "@/i18n";
 import type { TempUnit, WindUnit } from "@/utils/format";
 import { convertTemp, tempUnitLabel, windUnitLabel } from "@/utils/format";
 
-/** DHMZ međunarodne kratice smjera -> hrvatske. */
-const DIR_HR: Record<string, string> = {
-  N: "S",
-  NE: "SI",
-  E: "I",
-  SE: "JI",
-  S: "J",
-  SW: "JZ",
-  W: "Z",
-  NW: "SZ",
+/**
+ * DHMZ-ove međunarodne kratice smjera → kratice JEZIKA SUČELJA
+ * (popravak 8.8.2026.).
+ *
+ * Prije je ovo bila tvrda tablica u hrvatski (`N` → `S`, `E` → `I`), pa
+ * je kartica ostajala hrvatska i na engleskom.
+ *
+ * Preskakanje prijevoda NIJE rješenje: DHMZ-ov `S` znači SOUTH, a
+ * hrvatski `S` znači SJEVER — ista slova, suprotan smjer. Kratica zato
+ * mora proći kroz rječnik u oba jezika.
+ *
+ * Redoslijed je isti kao u `windDirs` (kut/45°), pa je indeks ujedno i
+ * prijevod: `N` je 0, `NE` 1, `E` 2 … Kad kratica nije poznata, vraća se
+ * onakva kakva je stigla.
+ */
+const DIR_INDEX: Record<string, number> = {
+  N: 0,
+  NE: 1,
+  E: 2,
+  SE: 3,
+  S: 4,
+  SW: 5,
+  W: 6,
+  NW: 7,
 };
+
+function dirLabel(raw: string): string {
+  const idx = DIR_INDEX[raw.toUpperCase()];
+  return idx === undefined ? raw : (t.windDirs[idx] ?? raw);
+}
 
 function Value({ label, value }: { label: string; value: string }) {
   return (
@@ -44,7 +63,7 @@ export function DhmzCard({
   const windValue =
     obs.windSpeed !== undefined
       ? `${Math.round(windUnit === "ms" ? obs.windSpeed : obs.windSpeed * 3.6)} ${windUnitLabel(windUnit)}${
-          obs.windDir ? ` ${DIR_HR[obs.windDir] ?? obs.windDir}` : ""
+          obs.windDir ? ` ${dirLabel(obs.windDir)}` : ""
         }`
       : "–";
 

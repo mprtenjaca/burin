@@ -142,14 +142,39 @@ describe("widgetEntries", () => {
     }
   });
 
-  it("udari ispod praga daju null, iznad praga broj u m/s", () => {
+  it("udari ispod praga gase hasGusts, iznad praga daju broj u m/s", () => {
     // Prag je 36 km/h (10 m/s) — ispod njega značke nema.
-    const calm = bundle({ current: { ...current, windGusts: 20 } });
-    expect(widgetEntries(calm, "C", "ms", NOW)[0].props.gusts).toBeNull();
+    const calm = widgetEntries(bundle({ current: { ...current, windGusts: 20 } }), "C", "ms", NOW);
+    expect(calm[0].props.hasGusts).toBe(false);
+    expect(calm[0].props.gusts).toBe(0);
 
-    const windy = bundle({ current: { ...current, windGusts: 72 } });
+    const windy = widgetEntries(bundle({ current: { ...current, windGusts: 72 } }), "C", "ms", NOW);
+    expect(windy[0].props.hasGusts).toBe(true);
     // 72 km/h = 20 m/s
-    expect(widgetEntries(windy, "C", "ms", NOW)[0].props.gusts).toBe(20);
+    expect(windy[0].props.gusts).toBe(20);
+  });
+
+  /*
+   * ČUVAR GRANICE PROCESA (8.8.2026.).
+   *
+   * Propovi prelaze u nativni `[String: Any]`, gdje JS `null` nema
+   * parnjaka — konverzija pukne kao `Exception in HostFunction` i crta se
+   * NE upiše, pa widget ostane prazan. To se na uređaju vidi tek kao
+   * bijela pločica, bez ikakve naznake koji je prop kriv.
+   *
+   * Zato se ovdje provjerava CIJELI niz unosa, a ne jedan prop: svaki
+   * novi prop koji netko doda mora proći isto pravilo.
+   */
+  it("nijedan prop nikad nije null ni undefined", () => {
+    const entries = widgetEntries(bundle(), "C", "ms", NOW);
+    expect(entries.length).toBeGreaterThan(1);
+
+    for (const entry of entries) {
+      for (const [key, value] of Object.entries(entry.props)) {
+        expect(`${key}=${value === null ? "null" : typeof value}`).not.toContain("null");
+        expect(value).toBeDefined();
+      }
+    }
   });
 
   it("Fahrenheit pretvara i temperaturu i raspon, uz slovo u jedinici", () => {

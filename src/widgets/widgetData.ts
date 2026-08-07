@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 import type { WeatherBundle } from "@/api/types";
 import type { TempUnit, WindUnit } from "@/utils/format";
 import { clockTime, convertTemp, convertWind, tempUnitSuffix, windUnitLabel } from "@/utils/format";
@@ -176,7 +178,12 @@ function toProps(
     stops,
     // Tekst prati PODLOGU, ne temu — isto pravilo kao heroj od 7.8.2026.
     fg: readableOn(stops[1]),
-    gusts,
+    /*
+     * `null` NE SMIJE preko granice procesa (popravak 8.8.2026.) — vidi
+     * `props.ts`. Odsutnost nosi `hasGusts`, a broj je tada 0.
+     */
+    hasGusts: gusts !== null,
+    gusts: gusts ?? 0,
     windUnit: windUnitLabel(windUnit),
     fetchedAt: clockTime(bundle.fetchedAt),
     icon: iconPath(iconForWeather(code, isDay)),
@@ -262,6 +269,59 @@ export async function pushWidget(
   windUnit: WindUnit,
 ): Promise<void> {
   /*
+   * ANDROID IDE SVOJIM PUTEM (popravak 8.8.2026.).
+   *
+   * Nađeno na uređaju: widget je ostajao na STAROM GRADU nakon promjene
+   * mjesta u aplikaciji. Uzrok je bio propust, ne kvar — `pushWidget` je
+   * zvao samo iOS `updateTimeline`, a za Android NIŠTA. Ondje se widget
+   * budio sam tek na `updatePeriodMillis`, a to je 30 minuta (Androidov
+   * minimum iz manifesta), pa je promjena grada čekala do pola sata.
+   *
+   * `requestWidgetUpdate` traži od sustava da pozove naš headless
+   * handler ODMAH, za svaku instancu na zaslonu. Handler i inače čita
+   * AsyncStorage u trenutku crtanja, pa mu podatke ne treba slati — samo
+   * ga treba probuditi. Zato se ovdje ne prosljeđuje ništa.
+   *
+   * Vraća se odmah nakon toga: ostatak funkcije je iOS-ov App Group put,
+   * koji na Androidu ne postoji.
+   */
+  if (Platform.OS === "android") {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { requestWidgetUpdate } = require("react-native-android-widget") as {
+        requestWidgetUpdate: (o: {
+          widgetName: string;
+          renderWidget: (info: unknown) => unknown;
+          widgetNotFound?: () => void;
+        }) => Promise<void>;
+      };
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { renderAndroidWidget } = require("./android/render") as {
+        renderAndroidWidget: (info: { widgetName: string; width: number }) => unknown;
+      };
+
+      /*
+       * Obje veličine se osvježavaju zasebno: knjižnica gađa widgete po
+       * IMENU, pa jedan poziv ne pokriva drugu veličinu. Ako korisnik
+       * nema ni jednu na zaslonu, `widgetNotFound` samo prošuti.
+       */
+      await Promise.all(
+        ["BurinSmall", "BurinMedium"].map((widgetName) =>
+          requestWidgetUpdate({
+            widgetName,
+            renderWidget: (info) =>
+              renderAndroidWidget(info as { widgetName: string; width: number }),
+            widgetNotFound: () => {},
+          }),
+        ),
+      );
+    } catch (e) {
+      console.warn("[burin] android widget nije osvježen:", e);
+    }
+    return;
+  }
+
+  /*
    * IKONE SU ODVOJENA BRIGA od upisa crte (popravak 7.8.2026.).
    *
    * Prije je sve stajalo u JEDNOM `try`, pa je pad `syncWidgetIcons`
@@ -297,7 +357,46 @@ export async function pushWidget(
     const { BurinWidget } = require("./BurinWidget") as {
       BurinWidget: { updateTimeline: (e: { date: Date; props: WidgetProps }[]) => void };
     };
-    BurinWidget.updateTimeline(widgetEntries(bundle, tempUnit, windUnit, Date.now(), iconPath));
+
+    const entries = widgetEntries(bundle, tempUnit, windUnit, Date.now(), iconPath);
+
+    /*
+     * DIJAGNOSTIKA PRIJE POZIVA (8.8.2026.).
+     *
+     * Prošli krug je na uređaju dao samo `Exception in HostFunction:
+     * <unknown>` — dakle nativna strana je odbila poziv, a razlog je
+     * ostao skriven. Ispis prvog unosa pokazuje TOČNO što je poslano, pa
+     * se sljedeći put vidi je li kriv sadržaj propova ili nešto drugo
+     * (npr. neregistriran layout, što native javlja kao
+     * `UpdatedTimelineWithoutLayout`).
+     *
+     * Ostaje samo u razvoju: `__DEV__` je `false` u produkcijskoj gradnji,
+     * pa korisnik ovo nikad ne vidi.
+     */
+    if (__DEV__) {
+      const types = Object.entries(entries[0]?.props ?? {})
+        .map(([k, v]) => `${k}:${v === null ? "NULL" : typeof v}`)
+        .join(" ");
+      /*
+       * Ispisuje se SAMO kad se oblik promijeni: `pushWidget` se vrti pri
+       * svakom svježem dohvatu (a react-query ih složi nekoliko dok se
+       * upiti slegnu), pa je isti redak znao ići šest puta zaredom i
+       * zatrpati Metro log.
+       *
+       * Oznaka stoji na `globalThis`, NE u varijabli na razini modula
+       * (nađeno na uređaju 8.8.2026.: `ReferenceError: Property
+       * 'lastLoggedShape' doesn't exist`). Razlog je isti onaj zbog kojeg
+       * su pomoćne komponente morale ući u `'widget'` funkciju: doseg
+       * modula ovdje nije zajamčen, pa se stanje mora nositi drugdje.
+       */
+      const g = globalThis as { __burinWidgetShape?: string };
+      if (types !== g.__burinWidgetShape) {
+        g.__burinWidgetShape = types;
+        console.log(`[burin] widget šalje ${entries.length} unosa — ${types}`);
+      }
+    }
+
+    BurinWidget.updateTimeline(entries);
   } catch (e) {
     /*
      * Greška se VIŠE NE GUTA TIHO: widget je ukras i ne smije srušiti

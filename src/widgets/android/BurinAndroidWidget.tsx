@@ -85,24 +85,51 @@ function ambientSvg(kind: string, width: number): string {
   const streak = (x: number, y: number, len: number, w: number, o: number) =>
     `<rect x="${(cx + x - w / 2).toFixed(1)}" y="${(cy + y - len / 2).toFixed(1)}" width="${w}" height="${len}" fill="${W}" opacity="${o}" transform="rotate(29 ${(cx + x).toFixed(1)} ${(cy + y).toFixed(1)})"/>`;
 
-  /** Točka; `blur` je opcionalan (oblaci, sjaj, pahulje). */
-  const dot = (x: number, y: number, r: number, o: number, col = W, blur = 0) =>
-    `<circle cx="${(cx + x).toFixed(1)}" cy="${(cy + y).toFixed(1)}" r="${r}" fill="${col}" opacity="${o}"${blur ? ` filter="url(#b${blur})"` : ""}/>`;
-
   /*
-   * Zamućenja se deklariraju unaprijed, jer SVG filter mora postojati
-   * prije upotrebe. Koriste se samo one vrijednosti koje slojevi traže.
+   * MEKI RUBOVI IDU GRADIJENTOM, NE `feGaussianBlur` (popravak 8.8.2026.).
+   *
+   * Nađeno na uređaju: oblaci su imali TVRDE rubove — vidio se obris
+   * kruga umjesto mekane mrlje. Uzrok je u tome KAKO Android crta widget:
+   * `RemoteViews` ne izvršava SVG filtere pouzdano (nema pravog
+   * kompozitnog sloja kao browser), pa `feGaussianBlur` jednostavno
+   * otpadne i ostane goli `<circle>` pune prozirnosti.
+   *
+   * `radialGradient` nije filter nego ISPUNA, pa prolazi svuda gdje
+   * prolazi i sam krug. Mekoća se dobiva time što prozirnost pada od
+   * središta prema rubu, gdje dođe na nulu — rub time nestaje umjesto da
+   * se reže. Vizualno je to isto što je blur i radio, samo bez oslanjanja
+   * na filtere.
+   *
+   * `soft` je udio polumjera na kojem ispuna JOŠ drži punu jačinu; ostatak
+   * je prijelaz u ništa. Manji broj = mekši oblak.
    */
-  const blurs = [9, 10, 11, 12, 13, 16, 20, 26, 34]
-    .map((n) => `<filter id="b${n}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${n / 2}"/></filter>`)
-    .join("");
+  const fades: string[] = [];
+  const softDot = (x: number, y: number, r: number, o: number, col = W, soft = 0.35) => {
+    const id = `f${fades.length}`;
+    fades.push(
+      `<radialGradient id="${id}">` +
+        `<stop offset="0" stop-color="${col}" stop-opacity="${o}"/>` +
+        `<stop offset="${soft}" stop-color="${col}" stop-opacity="${(o * 0.82).toFixed(3)}"/>` +
+        `<stop offset="1" stop-color="${col}" stop-opacity="0"/>` +
+        `</radialGradient>`,
+    );
+    return `<circle cx="${(cx + x).toFixed(1)}" cy="${(cy + y).toFixed(1)}" r="${r}" fill="url(#${id})"/>`;
+  };
+
+  /**
+   * Točka s TVRDIM rubom — za zvijezde i pahulje, koje su sitne i moraju
+   * ostati oštre. Njima blur nikad nije ni trebao.
+   */
+  const dot = (x: number, y: number, r: number, o: number, col = W) =>
+    `<circle cx="${(cx + x).toFixed(1)}" cy="${(cy + y).toFixed(1)}" r="${r}" fill="${col}" opacity="${o}"/>`;
 
   const FL = 226;
   let body = "";
 
   if (kind === "rays") {
     body =
-      dot(190, -30, 72, 0.2, W, 34) + dot(168, -24, 40, 0.14, W, 20) +
+      // Sjaj sunca: vrlo mekan (soft 0.15) — sav mu je smisao u prijelazu.
+      softDot(190, -30, 72, 0.2, W, 0.15) + softDot(168, -24, 40, 0.14, W, 0.2) +
       streak(74, 0, FL, 11, 0.24) + streak(98, 0, FL, 6, 0.19) +
       streak(118, 0, FL, 9, 0.22) + streak(140, 0, FL, 4, 0.16) +
       streak(156, 0, FL, 3, 0.14);
@@ -130,18 +157,27 @@ function ambientSvg(kind: string, width: number): string {
     ];
     body = pahulje.map((p) => dot(p[0], p[1], p[2], p[3])).join("");
   } else if (kind === "partly") {
-    // Oblak desno (bijele mrlje) + sjena ispod njega.
+    /*
+     * Oblak desno (bijele mrlje) + sjena ispod njega. Sve mekano: oblak
+     * bez mekog ruba izgleda kao niz krugova, što je i bilo vidljivo na
+     * uređaju prije popravka 8.8.2026.
+     */
     body =
-      dot(104, 2, 38, 0.1, "#000000", 20) +
-      dot(96, -18, 30, 0.17, W, 12) + dot(128, -30, 24, 0.16, W, 11) +
-      dot(70, -28, 20, 0.14, W, 10) + dot(166, -52, 18, 0.1, W, 9);
+      softDot(104, 2, 38, 0.1, "#000000", 0.2) +
+      softDot(96, -18, 30, 0.17, W, 0.3) + softDot(128, -30, 24, 0.16, W, 0.3) +
+      softDot(70, -28, 20, 0.14, W, 0.3) + softDot(166, -52, 18, 0.1, W, 0.28);
   } else if (kind === "clouds") {
     body =
-      dot(-70, -40, 28, 0.07, "#000000", 16) + dot(-24, -52, 21, 0.055, "#000000", 12) +
-      dot(56, -38, 32, 0.065, "#000000", 16) + dot(116, -48, 23, 0.05, "#000000", 12);
+      softDot(-70, -40, 28, 0.07, "#000000", 0.3) + softDot(-24, -52, 21, 0.055, "#000000", 0.3) +
+      softDot(56, -38, 32, 0.065, "#000000", 0.3) + softDot(116, -48, 23, 0.05, "#000000", 0.3);
   }
 
-  return body ? `<defs>${blurs}</defs>${body}` : "";
+  /*
+   * `fades` se puni TEK dok se gradi `body` (svaki `softDot` doda svoj
+   * gradijent), pa se `<defs>` mora sastaviti POSLIJE — ne prije, kako je
+   * stajalo dok su to bili fiksni filteri.
+   */
+  return body ? `<defs>${fades.join("")}</defs>${body}` : "";
 }
 
 /**
@@ -153,7 +189,11 @@ function ambientSvg(kind: string, width: number): string {
  */
 export function AndroidSmall({ props, width }: { props: AndroidProps; width: number }) {
   return (
-    <OverlapWidget style={{ width, height: H }}>
+    <OverlapWidget
+      style={{ width, height: H }}
+      clickAction="OPEN_APP"
+      accessibilityLabel={`Burin: ${props.place}, ${props.temp}${props.unit}, ${props.condition}`}
+    >
       <SvgWidget svg={backdropSvg(props, width)} style={{ width, height: H }} />
       <FlexWidget
         style={{
@@ -192,7 +232,11 @@ export function AndroidSmall({ props, width }: { props: AndroidProps; width: num
 /** SREDNJI WIDGET (4×2) — isto plus udari vjetra i vrijeme dohvata desno. */
 export function AndroidMedium({ props, width }: { props: AndroidProps; width: number }) {
   return (
-    <OverlapWidget style={{ width, height: H }}>
+    <OverlapWidget
+      style={{ width, height: H }}
+      clickAction="OPEN_APP"
+      accessibilityLabel={`Burin: ${props.place}, ${props.temp}${props.unit}, ${props.condition}`}
+    >
       <SvgWidget svg={backdropSvg(props, width)} style={{ width, height: H }} />
       <FlexWidget
         style={{
@@ -229,7 +273,7 @@ export function AndroidMedium({ props, width }: { props: AndroidProps; width: nu
             style={{ fontSize: 13, color: props.fg }}
           />
           <FlexWidget style={{ flex: 1 }} />
-          {props.gusts !== null && (
+          {props.hasGusts && (
             <FlexWidget style={{ flexDirection: "row" }}>
               {props.windIcon !== null && <ImageWidget image={props.windIcon} imageWidth={16} imageHeight={16} />}
               <TextWidget

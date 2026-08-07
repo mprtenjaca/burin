@@ -117,7 +117,8 @@ function Value({ children, unit, inverted = false }: { children: string; unit?: 
 
 /**
  * Kompas (odabir "A" s mockupa, 6.8.2026.): velika strelica PREKO cijelog
- * kruga s repnim krilcima, kratica smjera u sredini, slova S/I/J/Z okolo.
+ * kruga s repnim krilcima, kratica smjera u sredini, četiri strane
+ * svijeta okolo — sve iz rječnika, pa krug prati jezik sučelja.
  *
  * Semantika (okrenuto po Markovoj provjeri na uređaju 6.8.2026.): glava
  * strelice pokazuje NA STRANU ČIJE IME PIŠE u sredini — "JI" i strelica
@@ -150,17 +151,31 @@ function Compass({ windDir }: { windDir: number }) {
           <Line x1="52" y1="6" x2="52" y2="11" stroke={faint} strokeWidth="1.5" />
         </G>
       ))}
+      {/*
+        Strane svijeta se ČITAJU IZ RJEČNIKA (popravak 8.8.2026.).
+
+        Bile su tvrdo upisane kao "S"/"I"/"J"/"Z", pa je krug ostajao
+        HRVATSKI i na engleskom — dok je kratica u sredini već bila
+        prevedena. Time je engleski korisnik gledao "E" u sredini i "I" na
+        rubu, dakle dva zapisa istog smjera.
+
+        Opasnije od nesklada: hrvatsko "S" (sjever) je englesko "S"
+        (south) — isto slovo, SUPROTAN smjer. Neprevedeni krug zato nije
+        bio samo ružan nego i pogrešan.
+
+        Indeksi su kut/45°: 0 = sjever, 2 = istok, 4 = jug, 6 = zapad.
+      */}
       <SvgText x="52" y="21" fontSize="10" fontWeight="700" textAnchor="middle" fill={label}>
-        S
+        {t.windDirs[0]}
       </SvgText>
       <SvgText x="86" y="55.5" fontSize="10" textAnchor="middle" fill={label}>
-        I
+        {t.windDirs[2]}
       </SvgText>
       <SvgText x="52" y="90" fontSize="10" textAnchor="middle" fill={label}>
-        J
+        {t.windDirs[4]}
       </SvgText>
       <SvgText x="18" y="55.5" fontSize="10" textAnchor="middle" fill={label}>
-        Z
+        {t.windDirs[6]}
       </SvgText>
       {/* Glava strelice na strani s koje vjetar puše — uz kraticu. */}
       <G rotation={windDir % 360} origin="52,52">

@@ -10,7 +10,9 @@ import {
   ZStack,
 } from "@expo/ui/swift-ui";
 import {
+  aspectRatio,
   blur,
+  clipped,
   font,
   foregroundStyle,
   frame,
@@ -19,6 +21,7 @@ import {
   offset,
   opacity,
   padding,
+  resizable,
   rotationEffect,
 } from "@expo/ui/swift-ui/modifiers";
 import { createWidget, type WidgetEnvironment } from "expo-widgets";
@@ -137,6 +140,30 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
    */
   const FULL_LEN = 226;
 
+  /**
+   * OKVIR AMBIJENTA — pločica, ne sadržaj (popravak 8.8.2026.).
+   *
+   * Nađeno na uređaju: na VEDROM danu je nestajalo sve osim velike
+   * brojke — ni mjesto, ni opis, ni min/max. Kiša i oblačno su bili
+   * uredni, pa je izgledalo kao greška u tekstu; nije bila.
+   *
+   * Uzrok je VISINA: `ZStack` u SwiftUI-u poprimi veličinu svog NAJVEĆEG
+   * djeteta. Zrake su duge `FULL_LEN` (226 px) jer moraju prijeći pločicu
+   * pod nagibom i završiti izvan kadra — pa je ambijentalni stack ispao
+   * 226 px visok u pločici od 158 px, a s njim i korijenski stack.
+   * Sadržaj je time bio gurnut izvan vidljivog dijela.
+   *
+   * Kiša toga nije imala jer su joj crte kratke (do 32 px), a oblaci su
+   * krugovi do 64 px — oboje stane, pa se kvar vidio SAMO na suncu.
+   *
+   * `frame` veže ambijent na veličinu pločice, a `clipped` reže ono što
+   * viri. Zrake i dalje idu od ruba do ruba — samo više ne rastežu
+   * roditelja. Vrijedi za obje veličine: 4×2 je širi, ali `frame` uzima
+   * veću širinu, a višak se odreže isto kao na 2×2.
+   */
+  const TILE_W = 360;
+  const TILE_H = 158;
+
   /** Jedna kosa crta (kiša, zrake): tanki pravokutnik pod nagibom. */
   function Streak({
   x,
@@ -237,7 +264,7 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
      * strane, pa zrake s druge nemaju izvor.
      */
     return (
-      <ZStack>
+      <ZStack modifiers={[frame({ width: TILE_W, height: TILE_H }), clipped()]}>
         {Dot({ x: 190, y: -30, r: 72, tint: "#FFFFFF", alpha: 0.2, soft: 34 })}
         {Dot({ x: 168, y: -24, r: 40, tint: "#FFFFFF", alpha: 0.14, soft: 20 })}
         {Streak({ x: 74, y: 0, len: FULL_LEN, w: 11, tint: tint, alpha: 0.24 })}
@@ -268,7 +295,7 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
      * pojas ±79 px od sredine — uhvati četiri kapi umjesto jedne.
      */
     return (
-      <ZStack>
+      <ZStack modifiers={[frame({ width: TILE_W, height: TILE_H }), clipped()]}>
         {Streak({ x: 8, y: -34, len: 30, w: 2.4, tint: tint, alpha: 0.22 })}
         {Streak({ x: 24, y: 6, len: 24, w: 2.2, tint: tint, alpha: 0.18 })}
         {Streak({ x: 40, y: -48, len: 32, w: 2.4, tint: tint, alpha: 0.23 })}
@@ -295,7 +322,7 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
      * zvjezdano nebo se vidjelo samo na srednjem widgetu.
      */
     return (
-      <ZStack>
+      <ZStack modifiers={[frame({ width: TILE_W, height: TILE_H }), clipped()]}>
         {Dot({ x: -58, y: -48, r: 1.9, tint: tint, alpha: 0.28 })}
         {Dot({ x: -34, y: -18, r: 1.3, tint: tint, alpha: 0.18 })}
         {Dot({ x: -8, y: -54, r: 1.7, tint: tint, alpha: 0.25 })}
@@ -319,7 +346,7 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
      * vidi samo srednji pojas: sve što je izvan ±79 px na njoj otpada.
      */
     return (
-      <ZStack>
+      <ZStack modifiers={[frame({ width: TILE_W, height: TILE_H }), clipped()]}>
         {Dot({ x: -62, y: -42, r: 4, tint: tint, alpha: 0.28, soft: 0.5 })}
         {Dot({ x: -30, y: -2, r: 3.2, tint: tint, alpha: 0.22, soft: 0.5 })}
         {Dot({ x: -4, y: -48, r: 4.4, tint: tint, alpha: 0.28, soft: 0.5 })}
@@ -355,7 +382,7 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
      * nje oblak lebdi kao naljepnica.
      */
     return (
-      <ZStack>
+      <ZStack modifiers={[frame({ width: TILE_W, height: TILE_H }), clipped()]}>
         {/* Sjena ispod oblaka — prvo, da bude ispod njega. */}
         {Dot({ x: 104, y: 2, r: 38, tint: "#000000", alpha: 0.1, soft: 20 })}
         {/* Tijelo oblaka: podnožje pa dva vrha. */}
@@ -375,7 +402,7 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
    * isprale boju, umjesto da daju dojam naoblake.
    */
   return (
-    <ZStack>
+    <ZStack modifiers={[frame({ width: TILE_W, height: TILE_H }), clipped()]}>
       {Dot({ x: -70, y: -40, r: 28, tint: "#000000", alpha: 0.07, soft: 15 })}
       {Dot({ x: -24, y: -52, r: 21, tint: "#000000", alpha: 0.055, soft: 12 })}
       {Dot({ x: 56, y: -38, r: 32, tint: "#000000", alpha: 0.065, soft: 16 })}
@@ -394,7 +421,31 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
    */
   function Icon({ path, size, tint }: { path: string; size: number; tint: string }) {
   if (!path) return null;
-  return <Image uiImage={path} size={size} color={tint} modifiers={[frame({ width: size, height: size })]} />;
+  /*
+   * `resizable` JE OBAVEZAN za slike iz datoteke (nađeno na uređaju
+   * 8.8.2026.: ikona je bila golema i odrezana rubom pločice).
+   *
+   * Prop `size` vrijedi samo za SF Symbole ("fixed size of the system
+   * image" u tipovima), a naši PNG-ovi su datoteke — one se crtaju u
+   * SVOJOJ punoj veličini dok im se izričito ne kaže da se smiju
+   * skalirati. Sam `frame` tu ne pomaže: on odredi PROSTOR, ali sliku
+   * koja je veća od njega samo OBREŽE.
+   *
+   * Redoslijed je važan i prati SwiftUI: prvo `resizable` (smije se
+   * skalirati), pa `aspectRatio` (bez izobličenja), pa tek `frame`
+   * (na koliko). Obrnuto bi opet dalo obrezanu sliku.
+   */
+  return (
+    <Image
+      uiImage={path}
+      color={tint}
+      modifiers={[
+        resizable(),
+        aspectRatio({ contentMode: "fit" }),
+        frame({ width: size, height: size }),
+      ]}
+    />
+  );
   }
 
   /**
@@ -491,11 +542,15 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
         <Spacer />
 
         {/*
-          Udari se prikazuju SAMO iznad praga (10 m/s) — aplikacija zato
-          šalje `null`, a ne nulu. Značka koja stoji uvijek prestane
-          nositi informaciju; isto pravilo kao `WindFlag` u aplikaciji.
+          Udari se prikazuju SAMO iznad praga (10 m/s) — značka koja stoji
+          uvijek prestane nositi informaciju; isto pravilo kao `WindFlag`
+          u aplikaciji.
+
+          Odsutnost nosi `hasGusts`, a NE `gusts === null` (popravak
+          8.8.2026.): `null` preko granice procesa puca u nativnoj
+          konverziji, pa je cijela crta ostajala neupisana.
         */}
-        {props.gusts !== null && (
+        {props.hasGusts && (
           <HStack spacing={4}>
             {Icon({ path: props.windIcon, size: 16, tint: props.fg })}
             <Text

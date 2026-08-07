@@ -2,7 +2,7 @@ import { memo, useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet } from "react-native";
 import Svg, { Line } from "react-native-svg";
 
-import { SLOPE, SPEED_BY_INTENSITY, type LayerProps } from "./shared";
+import { IS_LOW_END, SLOPE, SPEED_BY_INTENSITY, thin, type LayerProps } from "./shared";
 
 /**
  * KIŠA — isprekidane kose zrake koje klize niz dijagonalu.
@@ -130,6 +130,29 @@ const STRIPES: [number, number, number][] = [
   [906, 3, 0.34],
 ];
 
+/**
+ * Zrake koje se STVARNO crtaju, s IZVORNIM indeksom svake.
+ *
+ * Indeks se nosi sa sobom jer o njemu ovise uzorak crtica i faza
+ * (`DASH_PATTERNS` / `DASH_PHASES`). Da se uzme položaj u prorijeđenom
+ * nizu, susjedne zrake bi dobile druge kombinacije i pažljivo posložena
+ * nepravilnost bi se raspala — a upravo ona sprječava vodoravni prazan
+ * "val" preko ekrana (nađen na uređaju 6.8.2026.).
+ *
+ * Računa se JEDNOM, na razini modula: `IS_LOW_END` se ne mijenja za
+ * života procesa, pa bi svaki render trošio uzalud.
+ */
+const VISIBLE_STRIPES: [number, number, number, number][] = thin(
+  STRIPES.map(([offset, w, opacity], i): [number, number, number, number] => [
+    offset,
+    w,
+    opacity,
+    i,
+  ]),
+  // 63 → 32: prepolovljeno, ali dovoljno gusto da kiša ostane kiša.
+  IS_LOW_END ? 32 : STRIPES.length,
+);
+
 export const RainLayer = memo(function RainLayer({
   width,
   height,
@@ -217,7 +240,7 @@ export const RainLayer = memo(function RainLayer({
         height={height + pad * 2}
         style={{ position: "absolute", top: -pad, left: -SIDE_PAD }}
       >
-        {STRIPES.map(([offset, w, opacity], i) => (
+        {VISIBLE_STRIPES.map(([offset, w, opacity, i]) => (
           <Line
             key={offset}
             x1={SIDE_PAD + width - offset + pad * SLOPE}
@@ -229,7 +252,12 @@ export const RainLayer = memo(function RainLayer({
             strokeOpacity={opacity}
             strokeDasharray={DASH_PATTERNS[i % DASH_PATTERNS.length]}
             strokeDashoffset={-(DASH_PHASES[i % DASH_PHASES.length] ?? 0) * DASH_PERIOD}
-            strokeLinecap="round"
+            /*
+             * Okrugli krajevi otpadaju na slabijim uređajima (8.8.2026.):
+             * svaki kraj je zaseban luk koji se rasterizira na CPU-u, a
+             * na crtici širokoj 3–6 px razlika se golim okom ne vidi.
+             */
+            strokeLinecap={IS_LOW_END ? "butt" : "round"}
           />
         ))}
       </Svg>
