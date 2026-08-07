@@ -29,7 +29,7 @@ import { useCities } from "@/store/cities";
 import { useSettings } from "@/store/settings";
 import { colors } from "@/theme/colors";
 import { useThemeColors } from "@/theme/useThemeColors";
-import { weatherGradient } from "@/utils/weatherLook";
+import { ACCENT_UI, weatherGradient } from "@/utils/weatherLook";
 
 /**
  * Ladica se otvara METODOM na navigaciji, ne `dispatch`-em akcije
@@ -357,7 +357,13 @@ export default function HomeScreen() {
           vrhu bi se tukao s datumom, a niže je tihi potpis, ne naslov.
         */}
         <Animated.View pointerEvents="none" style={{ opacity: wordmarkOpacity }}>
-          <Wordmark color={dark ? colors.paper : colors.ink} textSize={16} />
+          {/*
+            Zapuh je PLAV, ne koraljan (8.8.2026.). Ovdje stoji `ACCENT_UI`,
+            a ne `ACCENT_STEEL` kao na karti i u ladici: te dvije podloge su
+            tamne, a zaglavlje početnog ekrana je svijetla stranica —
+            svjetlija plava bi na njoj pala na 3.33:1.
+          */}
+          <Wordmark color={dark ? colors.paper : colors.ink} accent={ACCENT_UI} textSize={16} />
         </Animated.View>
         <TopButton
           onPress={() => navigation.openDrawer()}

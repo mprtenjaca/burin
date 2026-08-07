@@ -11,9 +11,23 @@
  */
 import sharp from "sharp";
 
-const CORAL = "#EE6E3C";
+/**
+ * KORALJNA JE MAKNUTA IZ IKONE (Markov odabir 8.8.2026., varijanta 7).
+ *
+ * Aplikacija je prešla na plavo nebo, pa je narančasta ostala jedina
+ * topla mrlja i na ikoni je izgledala kao ostatak starog dizajna.
+ *
+ * `STEEL` je ista plava koju nosi wordmark na karti i u ladici — logo
+ * time izgleda jednako gdje god stajao.
+ */
+const STEEL = "#4C8FDF";
 const PAPER = "#FAFAF8";
-const NIGHT = "#0E0E0E";
+/**
+ * Podloga glavne ikone: gotovo crna, s blagim PLAVIM pomakom (#141821
+ * umjesto čistog #0E0E0E). Neutralna crna uz plavi potez izgleda kao
+ * odsutnost boje; ova se čita kao namjerno odabran ton.
+ */
+const TILE = "#141821";
 const INK = "#141414";
 
 /**
@@ -37,14 +51,18 @@ const tileSvg = (bg, c1, c2) => `<svg width="1024" height="1024" viewBox="-7 -7 
 </svg>`;
 
 /**
- * SVIJETLA pločica — glavna ikona. Vanjski potezi idu u TINTU, ne ostaju
- * bijeli: bijelo na papirnatoj podlozi je nevidljivo, pa bi od glifa
- * ostao samo srednji koraljni potez i ikona bi izgledala kao jedna crta.
+ * GLAVNA IKONA JE TAMNA (Markov odabir 8.8.2026.).
+ *
+ * Prije je glavna bila svijetla (papirnata podloga, tintani potezi).
+ * Tamna podloga je otpornija: na svijetlim i šarenim pozadinama zaslona
+ * pločica ostaje odvojena, a plavi potez na njoj puca najjače.
+ *
+ * `light` i `dark` su OVDJE ISTI. iOS 18 dopušta zasebnu svijetlu
+ * varijantu, ali ikona koja mijenja podlogu s temom prestaje biti isti
+ * znak — a i widget već ima jednu verziju bez obzira na temu.
  */
-const lightSvg = tileSvg(PAPER, INK, CORAL);
-
-/** TAMNA pločica — dosadašnja glavna, sada iOS `dark` varijanta. */
-const darkSvg = tileSvg(NIGHT, PAPER, CORAL);
+const lightSvg = tileSvg(TILE, PAPER, STEEL);
+const darkSvg = lightSvg;
 
 /**
  * TINTED (iOS 18): Apple traži JEDNOBOJAN glif na CRNOJ podlozi i sam mu
@@ -58,7 +76,7 @@ const darkSvg = tileSvg(NIGHT, PAPER, CORAL);
 const tintedSvg = tileSvg("#000000", "#FFFFFF", "#B8B8B8");
 
 /** Adaptivni foreground: glif u sigurnoj zoni (~52 % sredine), proziran. */
-const foregroundSvg = (color1 = PAPER, color2 = CORAL) => `<svg width="1024" height="1024" viewBox="-11 -11 46 46" xmlns="http://www.w3.org/2000/svg">
+const foregroundSvg = (color1 = PAPER, color2 = STEEL) => `<svg width="1024" height="1024" viewBox="-11 -11 46 46" xmlns="http://www.w3.org/2000/svg">
   ${glyph(color1, color2)}
 </svg>`;
 
@@ -79,13 +97,13 @@ async function main() {
    * kad korisnik uključi Material You temiranje, sustav uzme taj glif i
    * sam ga oboji prema svojoj paleti, u svijetloj i tamnoj temi jednako.
    *
-   * Zato foreground i background prate SVIJETLU pločicu (glavna ikona),
-   * a monochrome ostaje pun bijeli glif.
+   * Foreground i background prate GLAVNU pločicu, koja je od 8.8.2026.
+   * TAMNA: bijeli potezi s plavim srednjim na podlozi #141821.
    */
-  await sharp(Buffer.from(foregroundSvg(INK, CORAL)))
+  await sharp(Buffer.from(foregroundSvg(PAPER, STEEL)))
     .png()
     .toFile("assets/android-icon-foreground.png");
-  await sharp(Buffer.from(backgroundSvg(PAPER)))
+  await sharp(Buffer.from(backgroundSvg(TILE)))
     .png()
     .toFile("assets/android-icon-background.png");
   /*
@@ -99,10 +117,11 @@ async function main() {
 
   // --- Splash i web ---
   /*
-   * Splash glif ide u TINTU (svijetla podloga u app.config.ts), ne u
-   * papirnatu — inače su vanjska dva poteza nevidljiva na splashu.
+   * Splash glif ide u TINTU, ne u papirnatu: podloga splasha je i dalje
+   * papirnata (`backgroundColor: "#FAFAF8"` u `app.config.ts`), pa bi
+   * bijeli potezi ondje bili nevidljivi. Srednji je plav kao na ikoni.
    */
-  await sharp(Buffer.from(foregroundSvg(INK, CORAL)))
+  await sharp(Buffer.from(foregroundSvg(INK, STEEL)))
     .png()
     .toFile("assets/splash-icon.png");
   await sharp(Buffer.from(lightSvg)).resize(196, 196).png().toFile("assets/favicon.png");
