@@ -158,11 +158,17 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
    *
    * `frame` veže ambijent na veličinu pločice, a `clipped` reže ono što
    * viri. Zrake i dalje idu od ruba do ruba — samo više ne rastežu
-   * roditelja. Vrijedi za obje veličine: 4×2 je širi, ali `frame` uzima
-   * veću širinu, a višak se odreže isto kao na 2×2.
+   * roditelja.
+   *
+   * ŠIRINA MORA PRATITI VELIČINU PLOČICE (ispravak 8.8.2026., drugi
+   * krug). Prvo je ovdje stajala konstanta od 360 px, što je otprilike
+   * točno za 4×2 ali je DVOSTRUKO PREVIŠE za 2×2 (~158 px). Mali widget
+   * je time dobio ambijent širok 360 px, korijenski stack se rastegnuo s
+   * njim i sadržaj je izašao iz kadra — nestale su sve brojke, ostala je
+   * samo slika. Isti kvar kao s visinom, samo po drugoj osi.
    */
-  const TILE_W = 360;
   const TILE_H = 158;
+  const TILE_W = environment.widgetFamily === "systemSmall" ? 158 : 360;
 
   /** Jedna kosa crta (kiša, zrake): tanki pravokutnik pod nagibom. */
   function Streak({
@@ -692,7 +698,20 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
         ispadale sive i izgledale kao prljavština umjesto kao svjetlo.
       */}
       {!flat && Ambient({ kind: props.ambient as AmbientKind, tint: "#FFFFFF" })}
-      <VStack modifiers={[padding({ all: 14 })]}>
+      {/*
+        RAZMAK OD RUBA JE 18, NE 14 (Markov ispravak 8.8.2026.).
+
+        Na uređaju je sadržaj stajao pretijesno uz rub, a Android je uz
+        ISTIH 14 izgledao prozračnije. Razlika nije u broju nego u tome
+        što iOS oko widgeta inače sam dodaje sustavne margine — a
+        `Backdrop` ih isključuje s `ignoreSafeArea()` da gradijent ide do
+        samog ruba. Time otpadnu i za sadržaj, pa je ostajalo samo naših
+        14. Android nema taj sloj, zato je ondje isti broj bio dovoljan.
+
+        18 vraća otprilike ono što je iOS oduzeo, a gradijent i dalje ide
+        do ruba jer se pozadina crta ispod ovog spremnika.
+      */}
+      <VStack modifiers={[padding({ all: 18 })]}>
         {family === "systemSmall" ? SmallLayout(props) : MediumLayout(props)}
       </VStack>
     </ZStack>
