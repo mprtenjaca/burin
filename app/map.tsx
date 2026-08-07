@@ -362,6 +362,25 @@ export default function MapScreen() {
             tileSize={layer.tileSize}
             maxzoom={layer.maxNativeZ}
           >
+            {/*
+              PODLOŽNI sloj za `doubleUp` (8.8.2026.) — ista pločica još
+              jednom, ispod glavne. Podiže efektivnu alfu s 30 % na 51 %
+              kod izvora koji je poluproziran u samom PNG-u; vidi
+              `doubleUp` u `MAP_LAYERS`. Ne dohvaća ništa novo.
+            */}
+            {layer.doubleUp && (
+              <Layer
+                type="raster"
+                id={`${tile.key}-layer-base`}
+                beforeId={MAP_LABELS_LAYER_ID}
+                paint={{
+                  "raster-opacity": tile.active ? layer.opacity : 0,
+                  "raster-saturation": layer.saturation ?? 0,
+                  "raster-contrast": layer.contrast ?? 0,
+                  "raster-fade-duration": 0,
+                }}
+              />
+            )}
             <Layer
               type="raster"
               id={`${tile.key}-layer`}

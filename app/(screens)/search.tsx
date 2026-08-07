@@ -17,7 +17,7 @@ import { useSettings } from "@/store/settings";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { convertTemp, tempUnitSuffix } from "@/utils/format";
 import { codeToCondition } from "@/utils/weatherCodes";
-import { ACCENT_CORAL } from "@/utils/weatherLook";
+import { ACCENT_UI } from "@/utils/weatherLook";
 
 const DEBOUNCE_MS = 350;
 
@@ -76,7 +76,7 @@ function PlaceRow({
         style={pressed ? { opacity: 0.5, transform: [{ scale: 0.97 }] } : undefined}
         onPress={onOpen}
       >
-        <Text className={`font-grotesk-medium text-[17px] ${active ? "" : "text-ink dark:text-paper"}`} style={active ? { color: ACCENT_CORAL } : undefined}>
+        <Text className={`font-grotesk-medium text-[17px] ${active ? "" : "text-ink dark:text-paper"}`} style={active ? { color: ACCENT_UI } : undefined}>
           {place.name}
         </Text>
         {place.country && <Text className="font-grotesk text-[13.5px] text-ink/65 dark:text-paper/65">{place.country}</Text>}
@@ -265,7 +265,7 @@ export default function SearchScreen() {
 
       {selected === null && saved.length === 0 && query.length === 0 && <Text className="text-center font-grotesk-medium text-[15px] text-ink/65 dark:text-paper/65">{t.search.pickCityToStart}</Text>}
 
-      {searching && <ActivityIndicator size="small" color={ACCENT_CORAL} />}
+      {searching && <ActivityIndicator size="small" color={ACCENT_UI} />}
 
       {failed && <ErrorView onRetry={() => setAttempt((n) => n + 1)} />}
 
@@ -284,7 +284,7 @@ export default function SearchScreen() {
                 onOpen={() => open(place)}
                 action={
                   <Pressable hitSlop={12} onPress={() => (isSaved(place.id) ? removeCity(place.id) : addCity(place))}>
-                    {isSaved(place.id) ? <BookmarkCheck size={22} strokeWidth={2} color={ACCENT_CORAL} /> : <Bookmark size={22} strokeWidth={2} color={fg} opacity={0.5} />}
+                    {isSaved(place.id) ? <BookmarkCheck size={22} strokeWidth={2} color={ACCENT_UI} /> : <Bookmark size={22} strokeWidth={2} color={fg} opacity={0.5} />}
                   </Pressable>
                 }
               />
@@ -303,7 +303,7 @@ export default function SearchScreen() {
         <Text className="px-1 font-grotesk-bold text-[13.5px] text-ink/55 dark:text-paper/55">{t.search.myLocation}</Text>
         <View className="rounded-2xl bg-white py-0.5 dark:bg-coal">
           {gps.status === "granted" ? (
-            <PlaceRow place={gps.place} active={selected === null} showWeather onOpen={openMyLocation} action={<MapPin size={20} strokeWidth={2} color={ACCENT_CORAL} />} />
+            <PlaceRow place={gps.place} active={selected === null} showWeather onOpen={openMyLocation} action={<MapPin size={20} strokeWidth={2} color={ACCENT_UI} />} />
           ) : (
             <Pressable
               className="flex-row items-center gap-3 px-4 py-4"

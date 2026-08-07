@@ -13,6 +13,7 @@ import { useColorScheme } from "nativewind";
 import { useEffect } from "react";
 
 import { DrawerContent } from "@/components/DrawerContent";
+import { useRefreshSavedCities } from "@/hooks/useRefreshSavedCities";
 import { t } from "@/i18n";
 import { useLanguage } from "@/i18n/useLanguage";
 import { useSettings } from "@/store/settings";
@@ -50,6 +51,14 @@ export default function RootLayout() {
   useEffect(() => {
     setColorScheme(theme);
   }, [theme, setColorScheme]);
+
+  /*
+   * Temperature u ladici i tražilici se osvježavaju JEDNIM upitom pri
+   * pokretanju (8.8.2026.) — bez toga ondje stoji keširana brojka od
+   * zadnjeg otvaranja tog grada. Stoji u korijenu jer keš dijele dva
+   * ekrana, pa ne pripada nijednom od njih.
+   */
+  useRefreshSavedCities();
 
   const dark = colorScheme === "dark";
 

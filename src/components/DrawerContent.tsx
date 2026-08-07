@@ -22,7 +22,7 @@ import { convertTemp } from "@/utils/format";
 import { WindFlag } from "@/components/WindFlag";
 import { Wordmark } from "@/components/Wordmark";
 import { BACKDROP_LAYERS } from "@/components/HeroBackdrop";
-import { ACCENT_CORAL, ACCENT_UI, backdropEffects, heroAccent, precipIntensity, readableOn, weatherGradient } from "@/utils/weatherLook";
+import { ACCENT_CORAL, ACCENT_STEEL, ACCENT_UI, backdropEffects, precipIntensity, readableOn, weatherGradient } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
 type DrawerNav = { closeDrawer: () => void };
@@ -230,10 +230,15 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
 
       <View onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })} style={{ paddingTop: insets.top + 18, paddingBottom: 20 }} className="px-7">
         {/*
-          Podcrta OVDJE dobiva `heroAccent`, ne koraljnu (6.8.2026.):
-          zaglavlje ladice crta gradijent trenutnog vremena, a na toplim
-          narančastim podlogama se koraljna utapa. Kod wordmarka "Podcrt"
-          akcent NOSI cijeli logo, pa bi se bez ovoga sveo na sam tekst.
+          Zapuh je ČELIČNO PLAV, ne `heroAccent` (ispravak 8.8.2026.).
+
+          `heroAccent` na vedrom danu vraća ZLATNU — to je bila ona žuta
+          crta ispod imena u ladici. Zlatna je ispravna na tamnoplavom
+          NEBU heroja, ali ovdje stoji uz tekst zaglavlja i čita se kao
+          strano tijelo.
+
+          `ACCENT_STEEL` je ista plava koju nosi wordmark na karti, pa
+          logo izgleda jednako gdje god stajao na tamnoj podlozi.
         */}
         {/*
           Boja teksta PRATI GRADIJENT, ne temu (8.8.2026.).
@@ -242,7 +247,7 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
           isto pravilo kao u heroju. Otkad je vedar dan tamnoplav, `ink` je
           ovdje u svijetloj temi bio taman na tamnom i wordmark se gubio.
         */}
-        <Wordmark color={headerFg} accent={heroAccent(bundle.current.code, bundle.current.isDay)} textSize={16} />
+        <Wordmark color={headerFg} accent={ACCENT_STEEL} textSize={16} />
 
         {/*
           Raspored "vrijeme lijevo, ime desno" (Markov odabir 6.8.2026.):
@@ -361,14 +366,19 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
   const onMap = pathname === "/map";
 
   /*
-   * Boja aktivnog GRADA prati podlogu (6.8.2026.): rep gradijenta
-   * zaglavlja se prelijeva preko prvih stavki s gradovima (`FADE_H`), pa
-   * na toplim narančastim vremenima koraljna ondje gubi kontrast. Ostale
-   * grupe (KARTE, APLIKACIJA) stoje na mist podlozi i ostaju koraljne.
+   * Aktivan GRAD dobiva ISTU plavu kao sve ostalo odabrano
+   * (ispravak 8.8.2026.).
+   *
+   * Prije je uzimao `heroAccent`, jer se koraljna na TOPLIM narančastim
+   * gradijentima utapala. Ta podloga više ne postoji — vedro je sada
+   * plavo — a `heroAccent` ondje vraća ZLATNU, koja na bijeloj kartici
+   * grada daje **1.63:1** i praktički se ne vidi. To je ona žuta koja je
+   * ostala u ladici.
+   *
+   * Stavke gradova su uvijek bijele/coal kartice, dakle podloga im NE
+   * ovisi o vremenu — pa ni boja ne treba. `ACCENT_UI` drži 5.03:1.
    */
-  const cityAccent = headerBundle
-    ? heroAccent(headerBundle.current.code, headerBundle.current.isDay)
-    : ACCENT_UI;
+  const cityAccent = ACCENT_UI;
 
   /**
    * Temperatura + ikona vremena za grad, ako je ikad dohvaćen.
@@ -425,7 +435,8 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
               <View className="flex-row items-center gap-3">
                 {cityRight(unsavedSelected)}
                 <Pressable hitSlop={12} accessibilityRole="button" accessibilityLabel={t.drawer.saveCity} onPress={() => addCity(unsavedSelected)}>
-                  <BookmarkPlus size={21} strokeWidth={2} color={ACCENT_CORAL} />
+                  {/* Ista plava kao oznaka spremljenog u tražilici. */}
+                  <BookmarkPlus size={21} strokeWidth={2} color={ACCENT_UI} />
                 </Pressable>
               </View>
             }

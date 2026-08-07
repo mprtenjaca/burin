@@ -108,6 +108,22 @@ export type MapLayer = {
    * problem (ili nemaju pločicu) idu do `MAP_MAX_ZOOM`.
    */
   maxUserZoom: number;
+  /**
+   * Crtaj pločicu DVAPUT, jednu preko druge (8.8.2026.).
+   *
+   * Zaobilazi ograničenje besplatnog OWM izvora: `temp_new` ima alfu
+   * **76/255 (30 %)** na svakom pikselu, pa 70 % onoga što se vidi dolazi
+   * od podloge i karta izgleda isprano. `raster-opacity` iznad 1.0 ne
+   * ide, a zasićenje pojačava boju pločice — ne njenu prisutnost.
+   *
+   * Dva sloja iste pločice slože se jedan na drugi i efektivna alfa raste
+   * s 30 % na **51 %**. Izmjereno na vrućem pikselu: kroma 53 → **89**,
+   * dakle crvena je stvarno jača, a ne samo tamnija.
+   *
+   * Ne košta novo dohvaćanje — oba sloja čitaju ISTI izvor, pa pločica
+   * ide preko mreže jednom.
+   */
+  doubleUp?: boolean;
   attribution: { label: string; url: string };
   timeline: TimelineKind;
 };
@@ -194,6 +210,8 @@ export const MAP_LAYERS: MapLayer[] = [
      */
     saturation: 0.9,
     contrast: 0.45,
+    // Dva sloja iste pločice: alfa 30 % → 51 %, kroma 53 → 89 (vidi tip).
+    doubleUp: true,
     maxNativeZ: 12,
     tileSize: 256,
     // Podaci sežu do 12, koliko i karta — nema rastezanja ni razloga za rez.

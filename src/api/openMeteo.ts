@@ -200,6 +200,50 @@ export async function fetchCurrent(lat: number, lon: number): Promise<CurrentWea
   return mapCurrent((await fetchJson<OmCurrentResponse>(base)).current);
 }
 
+/**
+ * Trenutno vrijeme za VIŠE mjesta odjednom — JEDAN upit (8.8.2026.).
+ *
+ * Postoji zbog ladice i tražilice: one pokazuju temperaturu po gradu iz
+ * keša (`burin:last-weather`), a keš nitko nije osvježavao. Nakon dan-dva
+ * je ondje stajala temperatura koja odavno ne vrijedi.
+ *
+ * Zašto jedan upit, a ne petlja: Open-Meteo ima SATNU KVOTU (~600/h,
+ * probijena testiranjem 6.8.). Šest gradova × svako pokretanje bi je
+ * trošilo bez potrebe. Ovaj oblik prima liste koordinata odvojene
+ * zarezom i vraća NIZ odgovora istim redoslijedom.
+ *
+ * Vraća `null` na mjestu svakog grada koji nije uspio — pozivatelj tada
+ * zadrži staru vrijednost umjesto da je obriše.
+ */
+export async function fetchCurrentBatch(
+  points: { lat: number; lon: number }[],
+): Promise<(CurrentWeather | null)[]> {
+  if (points.length === 0) return [];
+
+  const lats = points.map((p) => p.lat).join(",");
+  const lons = points.map((p) => p.lon).join(",");
+  const url =
+    `${FORECAST_BASE}?latitude=${lats}&longitude=${lons}` +
+    `&current=${CURRENT_PARAMS}&timezone=auto&models=${PRIMARY_MODEL}`;
+
+  try {
+    const res = await fetchJson<OmCurrentResponse | OmCurrentResponse[]>(url);
+    /*
+     * Za JEDNU točku Open-Meteo vraća objekt, za više njih NIZ. Oba
+     * oblika se moraju podnijeti — inače bi jedan spremljeni grad rušio
+     * osvježavanje.
+     */
+    const list = Array.isArray(res) ? res : [res];
+    return points.map((_, i) => {
+      const cur = list[i]?.current;
+      return typeof cur?.temperature_2m === "number" ? mapCurrent(cur) : null;
+    });
+  } catch {
+    // Kvota, mreža ili neispravan odgovor — keš ostaje kakav je bio.
+    return points.map(() => null);
+  }
+}
+
 type OmForecastResponse = { hourly: OmRawHourly; daily: OmRawDaily };
 
 /**

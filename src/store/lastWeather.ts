@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import type { WeatherBundle } from "@/api/types";
+import type { CurrentWeather, WeatherBundle } from "@/api/types";
 
 /**
  * Zadnji uspješno dohvaćeni podaci po mjestu — za offline prikaz
@@ -12,6 +12,19 @@ import type { WeatherBundle } from "@/api/types";
 type LastWeatherState = {
   byPlaceId: Record<string, WeatherBundle>;
   save: (bundle: WeatherBundle) => void;
+  /**
+   * Osvježi SAMO trenutno stanje spremljenih mjesta (8.8.2026.).
+   *
+   * Ladica i tražilica pokazuju temperaturu po gradu iz ovog keša, a
+   * dosad ga je punio jedino puni dohvat za OTVORENO mjesto. Ostali
+   * gradovi su zato držali temperaturu od zadnjeg puta kad su bili
+   * otvoreni — nakon dan-dva posve krivu.
+   *
+   * Mijenja se samo `current` i `fetchedAt`; prognoza (`hourly`,
+   * `daily`) ostaje stara jer je za popis nevažna, a njeno dohvaćanje
+   * bi bilo mnogo skuplje. Mjesta kojih nema u `updates` se ne diraju.
+   */
+  refreshCurrent: (updates: Record<string, CurrentWeather>) => void;
 };
 
 /**
@@ -43,6 +56,23 @@ export const useLastWeather = create<LastWeatherState>()(
         set((s) => ({
           byPlaceId: { ...s.byPlaceId, [bundle.place.id]: bundle },
         })),
+      refreshCurrent: (updates) =>
+        set((s) => {
+          const next: Record<string, WeatherBundle> = { ...s.byPlaceId };
+          let changed = false;
+          for (const [id, current] of Object.entries(updates)) {
+            const old = next[id];
+            // Osvježava se samo ono što VEĆ postoji: nepoznato mjesto bi
+            // dalo paket bez prognoze, a takav bi srušio ekran ako se
+            // otvori offline.
+            if (!old) continue;
+            next[id] = { ...old, current, fetchedAt: Date.now() };
+            changed = true;
+          }
+          // Bez promjene se stanje NE dira — inače svaki pokušaj gura
+          // novi objekt i pretplatnici se osvježe bez razloga.
+          return changed ? { byPlaceId: next } : s;
+        }),
     }),
     {
       name: "burin:last-weather",
