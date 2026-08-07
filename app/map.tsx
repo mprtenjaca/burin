@@ -338,7 +338,12 @@ export default function MapScreen() {
             zoom: focus ? REGION_ZOOM : COUNTRY_ZOOM,
           }}
           minZoom={MAP_MIN_ZOOM}
-          maxZoom={MAP_MAX_ZOOM}
+          /*
+           * Granica po SLOJU, ne jedna za sve (8.8.2026.): radar staje na
+           * 9 jer mu podaci staju na 7, pa bi dalje bile samo rastegnute
+           * kocke. Vjetar i temperatura idu do kraja — vidi `maxUserZoom`.
+           */
+          maxZoom={layer.maxUserZoom}
         />
 
         {/*

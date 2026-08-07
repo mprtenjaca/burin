@@ -95,6 +95,19 @@ export type MapLayer = {
    * okvir: 512 stisnut u 256 izgleda gore nego izvorni 256.
    */
   tileSize: 256 | 512;
+  /**
+   * Najdublje približavanje DOPUŠTENO na ovom sloju (8.8.2026.).
+   *
+   * Odvojeno od `maxNativeZ`: ono kaže dokle izvor IMA podatke, ovo dokle
+   * korisnik SMIJE ići. Iznad `maxNativeZ` MapLibre rasteže jedan piksel
+   * podatka preko sve više ekrana — na z=12 to je 32×32 px po pikselu,
+   * odakle one stepenaste kocke na radaru.
+   *
+   * Radar se zato zaustavlja odmah iznad svoje granice: mrlja ostaje
+   * glatka umjesto da se raspadne u kvadrate. Slojevi koji nemaju taj
+   * problem (ili nemaju pločicu) idu do `MAP_MAX_ZOOM`.
+   */
+  maxUserZoom: number;
   attribution: { label: string; url: string };
   timeline: TimelineKind;
 };
@@ -126,6 +139,21 @@ export const MAP_LAYERS: MapLayer[] = [
     maxNativeZ: 7,
     // Jedini sloj na 512 — RainViewer ih nudi, i nose 3.5× više detalja.
     tileSize: 512,
+    /*
+     * STAJE NA 9, iako karta ide do 12 (Markov nalaz 8.8.2026.:
+     * „radar je izmuljan kad priblizim").
+     *
+     * Podaci staju na z=7. Svaka razina iznad toga učetverostručuje
+     * površinu po jednom pikselu podatka: z=8 → 2×2 px, z=10 → 8×8,
+     * **z=12 → 32×32 px**. Odatle stepenaste kocke na snimci — nije
+     * greška u glačanju (`1_1` je uključen i provjeren) nego čisto
+     * rastezanje.
+     *
+     * 9 je granica jer pločica od 512 px već nosi jednu razinu viška
+     * (512@z7 ima gustoću 256@z8), pa je stvarno rastezanje na z=9
+     * samo 2×2 px — još uvijek glatko. Iznad toga se raspada.
+     */
+    maxUserZoom: 9,
     attribution: { label: t.map.radarAttribution, url: "https://www.rainviewer.com" },
     timeline: "frames",
   },
@@ -153,6 +181,8 @@ export const MAP_LAYERS: MapLayer[] = [
     contrast: 0.25,
     maxNativeZ: 12,
     tileSize: 256,
+    // Podaci sežu do 12, koliko i karta — nema rastezanja ni razloga za rez.
+    maxUserZoom: MAP_MAX_ZOOM,
     attribution: { label: t.map.owmAttribution, url: "https://openweathermap.org" },
     timeline: "hours",
   },
@@ -168,6 +198,12 @@ export const MAP_LAYERS: MapLayer[] = [
     // Iznad 6 se gubi (z=10 je prazan), pa se rasteže s niže razine.
     maxNativeZ: 6,
     tileSize: 256,
+    /*
+     * Naoblaka je MEKANA po prirodi (velike plohe bez oštrih rubova), pa
+     * rastezanje na njoj ne daje kocke kao na radaru — ali ni tu nema
+     * smisla ići do kraja. 9 je isti rez kao na radaru.
+     */
+    maxUserZoom: 9,
     attribution: { label: t.map.owmAttribution, url: "https://openweathermap.org" },
     timeline: "hours",
   },
@@ -192,6 +228,8 @@ export const MAP_LAYERS: MapLayer[] = [
     maxNativeZ: MAP_MAX_ZOOM,
     // Nema pločice; vrijednost je ovdje samo da tip ostane potpun.
     tileSize: 256,
+    // Crtice su vektorske — ostaju oštre na svakoj razini.
+    maxUserZoom: MAP_MAX_ZOOM,
     attribution: { label: t.map.omAttribution, url: "https://open-meteo.com" },
     timeline: "hours",
   },

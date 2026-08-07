@@ -18,7 +18,17 @@ import { type Bounds, type WindGridPoint, windFeatures } from "@/api/windGrid";
  * obična promjena stila koju GL primjenjuje odmah.
  */
 
-/** Bijelo za slab vjetar, prema mint i žuto za olujni — kao legenda. */
+/**
+ * BIJELO → JANTARNO, BEZ ZELENE (Markov ispravak 8.8.2026.).
+ *
+ * Prije je skala išla kroz mint i jarko zelenu (#2EE6A8). Na plavoj
+ * podlozi sloja vjetra zelena se čitala kao vlastita informacija —
+ * podsjećala je na oborinu ili vegetaciju — umjesto kao "jače puše".
+ *
+ * Sada je to jedna svjetlosna skala: bijela za slab vjetar, preko
+ * blijedožute do jantarne za olujni. Boja time raste u JEDNOM smjeru
+ * (toplije = jače) i ne uvodi drugi ton koji se natječe s podlogom.
+ */
 const SPEED_COLOR: DataDrivenPropertyValueSpecification<string> = [
   "interpolate",
   ["linear"],
@@ -26,11 +36,11 @@ const SPEED_COLOR: DataDrivenPropertyValueSpecification<string> = [
   0,
   "rgba(255,255,255,0.85)",
   25,
-  "#B9F2E2",
+  "rgba(255,255,255,0.95)",
   45,
-  "#2EE6A8",
+  "#FFE9A8",
   70,
-  "#F5E12E",
+  "#FFC24D",
 ];
 
 /** Jači vjetar = deblja crtica; raste sa zoomom da ostane vidljiva. */
@@ -83,67 +93,33 @@ const DASH_FRAMES: number[][] = Array.from({ length: DASH_KADROVA }, (_, i) =>
   dashFrame(i),
 );
 
-/**
- * Kadrovi REPA: isti ciklus i isti pomak kao glava, ali kraća crtica koja
- * zaostaje za njom.
- *
- * `TAIL_LAG` je koliko rep kasni; time se rep nalazi IZA glave i zajedno
- * čine jedan potez koji se prema naprijed puni. Zbroj svakog kadra mora
- * ostati `DASH_CIKLUS` — inače rep i glava putuju različitim brzinama i
- * razilaze se.
- */
-const TAIL_LAG = 0.55;
-
-function tailFrame(index: number): number[] {
-  const pomak = ((index / DASH_KADROVA) * DASH_CIKLUS + TAIL_LAG) % DASH_CIKLUS;
-  const vidljivo = Math.min(TAIL_CRTICA, Math.max(0, DASH_CIKLUS - pomak));
-  const rep = TAIL_CRTICA - vidljivo;
-  const razmak = DASH_CIKLUS - pomak - vidljivo;
-  return razmak >= 0
-    ? [0, pomak, vidljivo, razmak]
-    : [rep, DASH_CIKLUS - rep];
-}
-
-const TAIL_FRAMES: number[][] = Array.from({ length: DASH_KADROVA }, (_, i) =>
-  tailFrame(i),
-);
-
-/** Rep je upola tanji od glave — potez se time sužava prema natrag. */
-const TAIL_WIDTH: DataDrivenPropertyValueSpecification<number> = [
-  "interpolate",
-  ["linear"],
-  ["zoom"],
-  5,
-  ["interpolate", ["linear"], ["get", "speed"], 0, 0.4, 70, 0.9],
-  10,
-  ["interpolate", ["linear"], ["get", "speed"], 0, 0.8, 70, 1.8],
-];
-
 /** Brzina animacije. 130 ms je izmjereno kao "teče", a ne "trza". */
 const FRAME_MS = 130;
 
 /**
- * REP CRTICE — odatle se čita SMJER (Markov zahtjev 8.8.2026.).
+ * SMJER STRUJNICA — TRI ODBAČENA POKUŠAJA (8.8.2026.).
  *
  * Crtica jednake debljine se čita u oba smjera: vidi se KUDA teče zrak,
- * ali ne i NA KOJU STRANU. Referenca to rješava potezom koji je straga
- * tanak, a prema naprijed pun.
+ * ali ne i NA KOJU STRANU. Traženo je da se, kao na referenci, potez
+ * prema naprijed puni. Nijedno od ovoga ne radi:
  *
- * Dva pokušaja koja su ODBAČENA jer bi se tiho ne nacrtala:
- *
- *  1. `symbol` sloj s vrškom „▶" duž crte. CARTO poslužuje glifove samo
- *     za osnovni ASCII — raspon 9472–9727 se preuzme, ali je PRAZAN (u
- *     fontu nema ni U+25B6 ni „→"). Provjereno dekodiranjem `.pbf`-a.
- *  2. `line-gradient` (prozirno straga → puno sprijeda). Specifikacija
+ *  1. `symbol` sloj s vrškom „▶" duž crte — CARTO poslužuje glifove samo
+ *     za osnovni ASCII. Raspon 9472–9727 se preuzme, ali je PRAZAN
+ *     (dekodiran `.pbf`: nema ni U+25B6 ni „→"). Vršak se ne bi nacrtao.
+ *  2. `line-gradient` (prozirno straga → puno sprijeda) — specifikacija
  *     ga IZRIČITO zabranjuje uz crtice: `"requires": [{"!":
- *     "line-dasharray"}]`. Zajedno bi gradijent jednostavno otpao.
+ *     "line-dasharray"}]`. Gradijent bi tiho otpao.
+ *  3. DRUGI sloj crtica (kraći i tanji rep ispod glave) — izgledao je
+ *     ispravno u kodu i prošao typecheck, ali je NA UREĐAJU srušio
+ *     ekran karte (`WindBarbs` → `Layer`). Dva `line-dasharray` sloja
+ *     nad istim `GeoJSONSource`, oba mijenjana svakih 130 ms, nativni
+ *     sloj ne podnosi.
  *
- * Radi zato DRUGI SLOJ crtica ispod glavnog: isti ciklus i isti pomak,
- * ali kraća crtica koja stoji IZA glave i tanja je. Oko time vidi potez
- * koji se prema naprijed puni — bez ijednog dodatnog znaka i bez sukoba
- * sa specifikacijom.
+ * Zato sloj OSTAJE na jednoj crti bez oznake smjera. Smjer se za sada
+ * čita iz kretanja crtica; prava strelica traži vlastitu sličicu
+ * registriranu u stilu karte (`Image` + `icon-image`), što je zaseban
+ * zahvat jer se stil gradi u letu (`buildWindStyle`).
  */
-const TAIL_CRTICA = 0.55;
 
 export function WindBarbs({
   grid,
@@ -179,25 +155,6 @@ export function WindBarbs({
 
   return (
     <GeoJSONSource id="wind-grid" data={features}>
-      {/*
-        REP ide PRVI, dakle ispod glave: tanji je i blijedi, pa se čita
-        kao mjesto s kojeg je potez došao. Zajedno s glavom daje crticu
-        koja se prema naprijed puni — odatle se vidi SMJER (vidi
-        `TAIL_CRTICA`).
-      */}
-      <Layer
-        type="line"
-        id="wind-grid-tails"
-        beforeId={MAP_LABELS_LAYER_ID}
-        layout={{ "line-cap": "round" }}
-        paint={{
-          "line-color": SPEED_COLOR,
-          // Upola tanji od glave — potez se time sužava prema natrag.
-          "line-width": TAIL_WIDTH,
-          "line-opacity": 0.5,
-          "line-dasharray": TAIL_FRAMES[frame]!,
-        }}
-      />
       <Layer
         type="line"
         id="wind-grid-lines"

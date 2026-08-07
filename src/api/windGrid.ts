@@ -203,6 +203,28 @@ const REFERENCE_SPAN_DEG = 2.14;
 const MIN_STEP_DEG = 0.0015;
 const MAX_STEP_DEG = 0.05;
 
+/**
+ * Dodatni početci strujnica unutar svake ćelije mreže (8.8.2026.).
+ *
+ * Namjerno NESIMETRIČNI: pravilni pomaci (0.5/0.5) bi posložili strujnice
+ * u vidljivu rešetku, a polje vjetra mora izgledati kao polje. Množe se
+ * duljinom koraka, pa gustoća prati približavanje kao i sve ostalo.
+ */
+const SEED_OFFSETS: [number, number][] = [
+  [0.35, 0.65],
+  [-0.6, 0.3],
+  [0.55, -0.45],
+];
+
+/**
+ * Koliko daleko od čvora smiju pasti dodatni početci, u koracima.
+ *
+ * Prevelik razmak bi ih izbacio u susjednu ćeliju i strujnice bi se
+ * udvostručile jedna preko druge; premalen bi ih zbio uz čvor i ne bi se
+ * dobilo ništa. 9 koraka je otprilike pola ćelije pri tipičnom kadru.
+ */
+const SEED_SPREAD = 9;
+
 /** Duljina koraka strujnice za dani kadar; bez kadra ostaje zadana. */
 export function stepDegFor(bounds?: Bounds): number {
   if (!bounds) return STEP_DEG;
@@ -240,9 +262,35 @@ export function windFeatures(
 
   const features: GeoJSON.Feature<GeoJSON.LineString>[] = [];
 
-  for (const start of grid) {
-    if (!hourIndex.has(start)) continue;
+  /*
+   * VIŠE STRUJNICA IZ ISTIH PODATAKA (Markov zahtjev 8.8.2026.: „mozda
+   * da ih vise ima, pogotovo na zoom-inu").
+   *
+   * Mreža se NE može zgusnuti — model je na ~0.1°, pa bi gušće točke
+   * vratile iste brojeve i samo trošile satnu kvotu (izmjereno 6.8.,
+   * vidi `MIN_GRID_STEP_DEG`). Ali strujnice se INTERPOLIRAJU
+   * (`sampleWind` računa vjetar na BILO KOJOJ točki), pa se između
+   * čvorova mreže smiju posijati dodatne bez ijednog novog upita.
+   *
+   * Svaki čvor time daje četiri početka umjesto jednog: sam čvor i tri
+   * pomaknuta unutar njegove ćelije. Pomaci su nesimetrični (0.35/0.65)
+   * da se ne poslažu u pravilnu rešetku — inače bi se vidjeli redovi
+   * umjesto polja.
+   */
+  const seeds: { lat: number; lon: number; from: WindGridPoint }[] = [];
+  for (const point of grid) {
+    if (!hourIndex.has(point)) continue;
+    seeds.push({ lat: point.lat, lon: point.lon, from: point });
+    for (const [dLat, dLon] of SEED_OFFSETS) {
+      seeds.push({
+        lat: point.lat + dLat * stepDeg * SEED_SPREAD,
+        lon: point.lon + dLon * stepDeg * SEED_SPREAD,
+        from: point,
+      });
+    }
+  }
 
+  for (const start of seeds) {
     const coords: [number, number][] = [];
     let lat = start.lat;
     let lon = start.lon;

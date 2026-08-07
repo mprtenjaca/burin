@@ -21,9 +21,19 @@ const SCALES: Record<MapLayerId, { colors: string[]; from: string; to: string }>
     from: "0 %",
     to: "100 %",
   },
-  // Prati boje strujnica u WindBarbs: bijelo (mirno) → mint → žuto (olujno).
+  /*
+   * Prati `SPEED_COLOR` u `WindBarbs`: bijelo (mirno) → jantarno
+   * (olujno). Zelena je maknuta 8.8.2026. — na plavoj podlozi se čitala
+   * kao vlastita informacija, a ne kao jačina.
+   */
   wind_new: {
-    colors: ["#FFFFFF", "#8CE8D0", "#2EE6A8", "#F5E12E"],
+    /*
+     * Nijedna boja se NE SMIJE ponoviti: legenda ih koristi kao React
+     * `key` (nađeno na uređaju 8.8.2026. — dva puta #FFFFFF je srušilo
+     * ekran karte). Zato je drugi stupanj tek malo topliji od bijele,
+     * umjesto da bude ista bijela.
+     */
+    colors: ["#FFFFFF", "#FFF7E0", "#FFE9A8", "#FFC24D"],
     from: "0 km/h",
     to: "70+ km/h",
   },
@@ -37,8 +47,14 @@ export function LayerLegend({ layer }: { layer: MapLayerId }) {
     // karte varira, tamna je jedina koja svugdje drži kontrast.
     <View className="gap-1.5 rounded-2xl bg-ink/85 px-3 py-2">
       <View className="h-1.5 flex-row overflow-hidden rounded-full">
-        {scale.colors.map((color) => (
-          <View key={color} className="flex-1" style={{ backgroundColor: color }} />
+        {/*
+          Ključ je POLOŽAJ, ne boja (popravak 8.8.2026.): skala smije
+          imati dvije iste boje (npr. dva bijela stupnja), a boja kao
+          ključ je tada duplikat i React sruši ekran. Redoslijed je
+          fiksan, pa je indeks ovdje ispravan ključ.
+        */}
+        {scale.colors.map((color, i) => (
+          <View key={i} className="flex-1" style={{ backgroundColor: color }} />
         ))}
       </View>
       <View className="flex-row justify-between">
