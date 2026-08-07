@@ -434,9 +434,16 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
             right={
               <View className="flex-row items-center gap-3">
                 {cityRight(unsavedSelected)}
-                <Pressable hitSlop={12} accessibilityRole="button" accessibilityLabel={t.drawer.saveCity} onPress={() => addCity(unsavedSelected)}>
-                  {/* Ista plava kao oznaka spremljenog u tražilici. */}
-                  <BookmarkPlus size={21} strokeWidth={2} color={ACCENT_UI} />
+                {/*
+                  Pravi padding + ikona bez dodira — isti popravak kao u
+                  tražilici (8.8.2026.): SVG zna progutati dodir, a sama
+                  ikona s hitSlopom je premala meta.
+                */}
+                <Pressable hitSlop={8} className="-m-2 p-2" accessibilityRole="button" accessibilityLabel={t.drawer.saveCity} onPress={() => addCity(unsavedSelected)}>
+                  <View pointerEvents="none">
+                    {/* Ista plava kao oznaka spremljenog u tražilici. */}
+                    <BookmarkPlus size={21} strokeWidth={2} color={ACCENT_UI} />
+                  </View>
                 </Pressable>
               </View>
             }

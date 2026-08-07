@@ -300,8 +300,24 @@ export default function SearchScreen() {
                 place={place}
                 onOpen={() => open(place)}
                 action={
-                  <Pressable hitSlop={12} onPress={() => (isSaved(place.id) ? removeCity(place.id) : addCity(place))}>
-                    {isSaved(place.id) ? <BookmarkCheck size={22} strokeWidth={2} color={ACCENT_UI} /> : <Bookmark size={22} strokeWidth={2} color={fg} opacity={0.5} />}
+                  /*
+                   * AKCIJA IMA PRAVI PADDING, A IKONA NE PRIMA DODIR
+                   * (popravak 8.8.2026., nađeno na uređaju: dodir NA ikonu
+                   * nije radio, tek desno od nje).
+                   *
+                   * Dva uzroka, oba riješena:
+                   *  - lucide ikona je SVG (`react-native-svg`), koji na
+                   *    Androidu zna PROGUTATI dodir umjesto da ga pusti
+                   *    Pressableu → `pointerEvents="none"` na omotu.
+                   *  - meta je bila samo ikona od 22 px + `hitSlop`, a
+                   *    hitSlop je nevidljiv i ne raste s ikonom → `p-2`
+                   *    daje stvarnu kutiju od ~38 px; `-m-2` vraća glif
+                   *    na staro mjesto u redu.
+                   */
+                  <Pressable hitSlop={8} className="-m-2 p-2" onPress={() => (isSaved(place.id) ? removeCity(place.id) : addCity(place))}>
+                    <View pointerEvents="none">
+                      {isSaved(place.id) ? <BookmarkCheck size={22} strokeWidth={2} color={ACCENT_UI} /> : <Bookmark size={22} strokeWidth={2} color={fg} opacity={0.5} />}
+                    </View>
                   </Pressable>
                 }
               />
@@ -353,8 +369,11 @@ export default function SearchScreen() {
               showWeather
               onOpen={() => open(lastViewed)}
               action={
-                <Pressable hitSlop={12} onPress={() => addCity(lastViewed)} accessibilityLabel={t.drawer.saveCity}>
-                  <Bookmark size={22} strokeWidth={2} color={fg} opacity={0.5} />
+                /* Isti popravak dodira kao na rezultatima — vidi gore. */
+                <Pressable hitSlop={8} className="-m-2 p-2" onPress={() => addCity(lastViewed)} accessibilityLabel={t.drawer.saveCity}>
+                  <View pointerEvents="none">
+                    <Bookmark size={22} strokeWidth={2} color={fg} opacity={0.5} />
+                  </View>
                 </Pressable>
               }
             />
@@ -381,8 +400,11 @@ export default function SearchScreen() {
                   showWeather
                   onOpen={() => open(place)}
                   action={
-                    <Pressable hitSlop={12} accessibilityLabel={t.search.remove} onPress={() => removeCity(place.id)}>
-                      <X size={20} strokeWidth={2} color={fg} opacity={0.45} />
+                    /* Isti popravak dodira kao na rezultatima — vidi gore. */
+                    <Pressable hitSlop={8} className="-m-2 p-2" accessibilityLabel={t.search.remove} onPress={() => removeCity(place.id)}>
+                      <View pointerEvents="none">
+                        <X size={20} strokeWidth={2} color={fg} opacity={0.45} />
+                      </View>
                     </Pressable>
                   }
                 />
