@@ -118,6 +118,23 @@ function PlaceRow({
 export default function SearchScreen() {
   const { fg, dark } = useThemeColors();
   const [gpsAsked, setGpsAsked] = useState(false);
+  /*
+   * LISTE SE MONTIRAJU KADAR NAKON EKRANA (popravak 8.8.2026.).
+   *
+   * Dodir na tražilicu je trajao ~pola sekunde do prve slike: ekran nosi
+   * dvadesetak `PlaceRow` redova (moja lokacija + zadnje gledano +
+   * spremljeni + povijest), svaki s ikonom vremena, vjetruljom i četiri
+   * pretplate na store — i SVE se crtalo sinkrono unutar prijelaza.
+   *
+   * Isti obrazac koji početna već ima (`belowFold`): polje za unos i
+   * rezultati dođu odmah, popisi u sljedećem kadru. Prijelaz time kreće
+   * bez čekanja, a liste stignu prije nego ih oko stigne tražiti.
+   */
+  const [listsReady, setListsReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setListsReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Place[]>([]);
   const [searching, setSearching] = useState(false);
@@ -293,6 +310,8 @@ export default function SearchScreen() {
         </View>
       )}
 
+      {/* Sve ispod polja čeka `listsReady` — vidi komentar uz stanje. */}
+      {listsReady && (<>
       {/*
         MOJA LOKACIJA (6.8.2026.) — prva sekcija, iznad "Zadnje gledano":
         u tražilicu se dolazi i da se vrati na "gdje sam", ne samo da se
@@ -394,6 +413,7 @@ export default function SearchScreen() {
           <Text className="font-grotesk-medium text-[14px] text-ink/55 dark:text-paper/55">{t.search.clearHistory}</Text>
         </Pressable>
       )}
+      </>)}
     </ScrollView>
   );
 }

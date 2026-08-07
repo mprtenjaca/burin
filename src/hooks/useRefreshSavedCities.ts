@@ -2,9 +2,10 @@ import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
 import { fetchCurrentBatch } from "@/api/openMeteo";
-import type { CurrentWeather } from "@/api/types";
+import type { CurrentWeather, Place } from "@/api/types";
 import { useCities } from "@/store/cities";
 import { useLastWeather } from "@/store/lastWeather";
+import { useSearchHistory } from "@/store/searchHistory";
 
 /**
  * OSVJEŽAVANJE TEMPERATURA U POPISIMA (8.8.2026.).
@@ -39,6 +40,13 @@ const STALE_MS = 10 * 60 * 1000;
 export function useRefreshSavedCities(): void {
   const saved = useCities((s) => s.saved);
   const selected = useCities((s) => s.selected);
+  /*
+   * I POVIJEST pretrage (dorada 8.8.2026.): tražilica uz svako mjesto iz
+   * povijesti pokazuje istu temperaturu iz keša kao i uz spremljene, pa
+   * bez ovoga povijest ostaje na starim brojkama dok spremljeni žive.
+   * Store je ionako ograničen na 12 unosa — batch ostaje malen.
+   */
+  const history = useSearchHistory((s) => s.entries);
   const refreshCurrent = useLastWeather((s) => s.refreshCurrent);
 
   /*
@@ -53,13 +61,22 @@ export function useRefreshSavedCities(): void {
       if (now - lastRun.current < STALE_MS) return;
 
       /*
-       * Odabrani grad ide u popis i kad nije spremljen — u ladici stoji
-       * na vrhu s temperaturom, pa vrijedi isto pravilo. Duplikati se
-       * miču po `id`-u.
+       * Kandidati: spremljeni + odabrani (u ladici je na vrhu i kad nije
+       * spremljen) + povijest pretrage. Duplikati se miču po `id`-u.
+       *
+       * FILTAR NA KEŠIRANE je bitan za kvotu: svaka koordinata u batchu
+       * troši Open-Meteo poziv, a `refreshCurrent` mjesta BEZ postojećeg
+       * paketa ionako preskače (paket bez prognoze bi offline srušio
+       * ekran). Mjesto koje nikad nije otvoreno ni ne pokazuje
+       * temperaturu u popisu, pa za njega nema što osvježiti.
        */
-      const places = [...saved];
-      if (selected && !places.some((p) => p.id === selected.id)) {
-        places.push(selected);
+      const cached = useLastWeather.getState().byPlaceId;
+      const seen = new Set<string>();
+      const places: Place[] = [];
+      for (const p of [...saved, ...(selected ? [selected] : []), ...history]) {
+        if (seen.has(p.id) || !cached[p.id]) continue;
+        seen.add(p.id);
+        places.push(p);
       }
       if (places.length === 0) return;
 
@@ -90,5 +107,11 @@ export function useRefreshSavedCities(): void {
       if (state === "active") void run();
     });
     return () => sub.remove();
-  }, [saved, selected, refreshCurrent]);
+    /*
+     * `byPlaceId` se namjerno čita kroz `getState()` a NE kroz selektor:
+     * upis koji `refreshCurrent` napravi promijenio bi ovisnost i vrtio
+     * efekt u krug. `history` u ovisnostima je bezopasan — mijenja se na
+     * otvaranje mjesta, a `lastRun` brana ionako guši ponavljanja.
+     */
+  }, [saved, selected, history, refreshCurrent]);
 }

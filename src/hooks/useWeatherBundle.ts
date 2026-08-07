@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
+import { InteractionManager } from "react-native";
 
 import {
   fetchDhmzObservations,
@@ -174,7 +175,25 @@ export function useWeatherBundle(place: Place | null) {
    * mora dobiti nove kad se postavka promijeni.
    */
   useEffect(() => {
-    if (fresh) void pushWidget(fresh, tempUnit, windUnit);
+    if (!fresh) return;
+    /*
+     * Widget se puni TEK IZA PRIJELAZA (popravak 8.8.2026.).
+     *
+     * Svjež dohvat stigne točno u trenutku prebacivanja grada, a
+     * `pushWidget` na tom istom JS threadu radi ozbiljan posao: Android
+     * kroz `requestWidgetUpdate` CRTA oba widgeta (SVG + čitanje
+     * AsyncStoragea), iOS serijalizira 13 unosa crte i po potrebi kopira
+     * ikone u App Group. Sve to se guralo u isti kadar s montiranjem
+     * heroja i pozadine — dio onog "dulje mu treba da prebaci na grad".
+     *
+     * `runAfterInteractions` pusti animaciju prijelaza da završi pa tek
+     * onda gura widget. Widgetu svejedno: njegova točnost se mjeri u
+     * minutama, ne u kadrovima.
+     */
+    const task = InteractionManager.runAfterInteractions(() => {
+      void pushWidget(fresh, tempUnit, windUnit);
+    });
+    return () => task.cancel();
   }, [fresh, tempUnit, windUnit]);
 
   const bundle = fresh ?? cached;

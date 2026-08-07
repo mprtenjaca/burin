@@ -48,7 +48,7 @@ export function WarningBar({ warnings }: { warnings: MeteoWarning[] }) {
       accessibilityRole="button"
       accessibilityLabel={top.event}
       className="mt-2.5 flex-row items-center gap-2 rounded-full px-4 py-2"
-      style={{ backgroundColor: warningColor(top.level), marginBottom: 10 }}
+      style={{ backgroundColor: warningColor(top.level) }}
     >
       <Icon size={16} strokeWidth={2.5} color={fg} />
       <Text className="font-grotesk-bold text-[13.5px]" style={{ color: fg }}>
