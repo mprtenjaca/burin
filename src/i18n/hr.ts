@@ -78,6 +78,12 @@ export const hr = {
     precipNone: "Bez značajnih oborina",
     precipSome: "Očekuju se oborine",
     uvMaxToday: "Danas najviše", // + " N"
+    /**
+     * Opis pokrivenosti neba, indeks = razred naoblake (8.8.2026.).
+     * Kartica naoblake je uz golu brojku bila poluprazna — bilješka je
+     * pretvara u rečenicu, kao rosište kod vlage.
+     */
+    cloudDesc: ["Nebo je vedro", "Uglavnom vedro", "Umjereno oblačno", "Pretežno oblačno", "Nebo je prekriveno"],
   },
 
   /** WHO razredi UV indeksa. */

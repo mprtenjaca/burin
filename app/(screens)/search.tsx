@@ -63,24 +63,33 @@ function PlaceRow({
   const WeatherIcon = showWeather && code !== undefined ? codeToCondition(code, isDay ?? true).Icon : null;
 
   return (
-    <View className="flex-row items-center px-4">
-      {/*
-        Vidljiva potvrda dodira preko VLASTITOG stanja: `style` kao
-        funkcija ovdje ne radi jer ga NativeWind (className → style)
-        prepisuje — isto kao u ladici (6.8.2026.).
-      */}
-      <Pressable
-        className="flex-1 py-4"
-        onPressIn={() => setPressed(true)}
-        onPressOut={() => setPressed(false)}
-        style={pressed ? { opacity: 0.5, transform: [{ scale: 0.97 }] } : undefined}
-        onPress={onOpen}
-      >
+    /*
+      CIJELI RED JE GUMB (popravak 8.8.2026., Markov nalaz: „da mogu
+      označit grad i kad stisnem na stranu gdje su ikone").
+
+      Prije je Pressable bio samo stupac s imenom (`flex-1`), pa je desna
+      polovica reda — vjetrulja, ikona vremena, temperatura — bila mrtva
+      zona: dodir ondje nije radio ništa. Sad je vanjski red Pressable, a
+      akcijski gumb unutra i dalje POBJEĐUJE za svoje područje (RN daje
+      dodir najdubljem hvataču), pa spremanje/brisanje radi kao prije.
+
+      Vidljiva potvrda dodira preko VLASTITOG stanja: `style` kao
+      funkcija ovdje ne radi jer ga NativeWind (className → style)
+      prepisuje — isto kao u ladici (6.8.2026.).
+    */
+    <Pressable
+      className="flex-row items-center px-4"
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      style={pressed ? { opacity: 0.5, transform: [{ scale: 0.97 }] } : undefined}
+      onPress={onOpen}
+    >
+      <View className="flex-1 py-4">
         <Text className={`font-grotesk-medium text-[17px] ${active ? "" : "text-ink dark:text-paper"}`} style={active ? { color: ACCENT_UI } : undefined}>
           {place.name}
         </Text>
         {place.country && <Text className="font-grotesk text-[13.5px] text-ink/65 dark:text-paper/65">{place.country}</Text>}
-      </Pressable>
+      </View>
       {/*
         Vrijeme iz burin:last-weather — bez ijednog novog upita. Značka
         vjetra stoji PRVA (lijevo od ikone vremena) jer je za priobalje
@@ -105,7 +114,7 @@ function PlaceRow({
         </Text>
       )}
       {action}
-    </View>
+    </Pressable>
   );
 }
 

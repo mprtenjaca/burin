@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { ChevronRight, Waves } from "lucide-react-native";
+import { ChevronRight } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Stop, Text as SvgText } from "react-native-svg";
@@ -13,7 +13,7 @@ import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit, WindUnit } from "@/utils/format";
 import { convertTemp, convertWind, tempUnitLabel, windDirLabel, windUnitLabel } from "@/utils/format";
 import type { PollenLevels, PollenSpecies } from "@/utils/weatherLook";
-import { ACCENT_CORAL, ACCENT_STEEL, AQI_COLORS, POLLEN_COLORS, aqiInfo, dewPoint, pollenInfo, uvLabel, visibilityLabel } from "@/utils/weatherLook";
+import { ACCENT_CORAL, AQI_COLORS, POLLEN_COLORS, aqiInfo, dewPoint, pollenInfo, uvLabel, visibilityLabel } from "@/utils/weatherLook";
 
 /** Visina polukartice — sve jednake (odluka s mockupa v4; dizano za čitljivost). */
 const CARD_H = 160;
@@ -66,7 +66,11 @@ function Card({
   fixedHeight = true,
   onPress,
 }: {
-  label: string;
+  /**
+   * Bez naslova = bez zaglavlja (8.8.2026.): kartica osjeta i mora nosi
+   * riječi UZ brojke, pa bi joj naslov iznad bio dupli.
+   */
+  label?: string;
   children: ReactNode;
   caption?: string;
   wide?: boolean;
@@ -79,31 +83,31 @@ function Card({
   const body = (
     <>
       {/* Veličine i kontrasti sitnih tekstova dignuti za starije korisnike. */}
-      <View className="flex-row items-center justify-between">
-        <Text className={`font-grotesk-bold text-[13.5px] ${inverted ? "text-paper/70" : "text-ink/60 dark:text-paper/60"}`}>{label}</Text>
-        {onPress && <ChevronRight size={18} strokeWidth={2.5} color={fg} opacity={0.45} />}
-      </View>
+      {(label !== undefined || onPress) && (
+        <View className="flex-row items-center justify-between">
+          <Text className={`font-grotesk-bold text-[13.5px] ${inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/60 dark:text-paper/60"}`}>{label}</Text>
+          {onPress && <ChevronRight size={18} strokeWidth={2.5} color={fg} opacity={0.45} />}
+        </View>
+      )}
       <View className="flex-1 justify-center">{children}</View>
-      {caption !== undefined && <Text className={`font-grotesk-medium text-[12.5px] ${inverted ? "text-paper/70" : "text-ink/65 dark:text-paper/65"}`}>{caption}</Text>}
+      {caption !== undefined && <Text className={`font-grotesk-medium text-[12.5px] ${inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/65 dark:text-paper/65"}`}>{caption}</Text>}
     </>
   );
 
   /*
-   * `inverted` SE NE OKREĆE U TAMNOJ TEMI (popravak 8.8.2026.).
+   * `inverted` OSTAJE OBRAT, ALI S PRIGUŠENOM BIJELOM (Markov odabir
+   * 8.8.2026., drugi krug).
    *
-   * Bilo je `bg-ink dark:bg-paper`, dakle u tamnoj temi je kartica
-   * postajala BIJELA. Izmjereno prema podlozi stranice (#141414): obična
-   * kartica drži 1.06:1 (suptilno odvojena, kako i treba), a inverted
-   * skače na **17.63:1** — UV i tlak su izgledali kao dvije svjetleće
-   * mrlje među tamnim karticama.
+   * Prvi popravak je u tamnoj temi karticu držao tamnom (#22252B) —
+   * Marko je to vratio: obrat mu se SVIĐA, smetala je samo čista
+   * papirnata (#FAFAF8), koja je prema podlozi stranice skakala na
+   * 17.6:1 i svijetlila kao ekran u mraku.
    *
-   * Sada je istaknutost izvedena kao STUPANJ, ne kao obrat: u svijetloj
-   * temi ostaje tamna kartica (ondje je to radilo i lijepo izgledalo), a
-   * u tamnoj kartica ostaje tamna, samo za nijansu svjetlija od ostalih
-   * (#22252B naspram coala) uz tanki obrub. Razliku dalje nosi akcent
-   * unutar kartice, ne sama ploha.
+   * Zato tamna tema dobiva PRIGUŠENU svijetlu (#D9D9D3, ~12:1): kartica
+   * se i dalje jasno izdvaja kao obrnuta, ali više ne bliješti. Svijetla
+   * tema je netaknuta — tamna kartica na svijetlom je radila od početka.
    */
-  const invertedBg = inverted ? "bg-ink dark:bg-[#22252B] dark:border dark:border-paper/10" : "bg-white dark:bg-coal";
+  const invertedBg = inverted ? "bg-ink dark:bg-[#D9D9D3]" : "bg-white dark:bg-coal";
   const className = `rounded-2xl px-3.5 py-3 ${wide ? "basis-full" : "grow basis-[45%]"} ${invertedBg}`;
   const style = fixedHeight ? { height: CARD_H } : undefined;
 
@@ -118,16 +122,41 @@ function Card({
   );
 }
 
-/** Velika vrijednost u kartici, s opcionalnom malom jedinicom. */
-function Value({ children, unit, inverted = false }: { children: string; unit?: string; inverted?: boolean }) {
-  /* `inverted` je u OBJE teme tamna kartica sa svijetlim tekstom — vidi Card. */
-  const main = inverted ? "text-paper" : "text-ink dark:text-paper";
+/**
+ * Velika vrijednost u kartici, s opcionalnom malom jedinicom.
+ *
+ * ZADANO 40, NE VIŠE 32 (Markov zahtjev 8.8.2026.): kartice s jednim
+ * podatkom (vlaga, naoblaka, vidljivost, oborine, UV, osjet) su uz malu
+ * brojku izgledale poluprazne — brojka JE sadržaj, pa neka ga i nosi.
+ * Kartica vjetra jedina ostaje na 32 (prop `size`): u njoj su DVA reda
+ * brojki + kompas, i na 40 se sudaraju.
+ *
+ * `color` postoji zbog reda mora u kartici osjeta — more je jedini
+ * plavi podatak na ekranu i tu boju zadržava i kao velika brojka.
+ */
+function Value({
+  children,
+  unit,
+  inverted = false,
+  size = 40,
+  color,
+}: {
+  children: string;
+  unit?: string;
+  inverted?: boolean;
+  size?: number;
+  color?: string;
+}) {
+  const main = inverted ? "text-paper dark:text-ink" : "text-ink dark:text-paper";
   return (
     <View className="flex-row items-baseline gap-1">
-      <Text className={`font-grotesk-bold ${main}`} style={{ fontSize: 32, letterSpacing: -1 }}>
+      <Text
+        className={`font-grotesk-bold ${color ? "" : main}`}
+        style={{ fontSize: size, letterSpacing: -1, ...(color ? { color } : null) }}
+      >
         {children}
       </Text>
-      {unit !== undefined && <Text className={`font-grotesk-medium text-[14px] ${inverted ? "text-paper/70" : "text-ink/65 dark:text-paper/65"}`}>{unit}</Text>}
+      {unit !== undefined && <Text className={`font-grotesk-medium text-[14px] ${inverted ? "text-paper/70 dark:text-ink/70" : "text-ink/65 dark:text-paper/65"}`}>{unit}</Text>}
     </View>
   );
 }
@@ -143,14 +172,14 @@ function Value({ children, unit, inverted = false }: { children: string; unit?: 
  * (meteorološki točnije), ali uz kraticu se to čitalo kao greška:
  * "JI" a strelica na sjeverozapad.
  */
-function Compass({ windDir }: { windDir: number }) {
+function Compass({ windDir, size = 128 }: { windDir: number; size?: number }) {
   const { dark } = useThemeColors();
   const faint = dark ? "rgba(250,250,248,.25)" : "rgba(20,20,20,.18)";
   const label = dark ? "rgba(250,250,248,.55)" : "rgba(20,20,20,.55)";
   const center = dark ? colors.coal : "#FFFFFF";
 
   return (
-    <Svg width={128} height={128} viewBox="0 0 104 104">
+    <Svg width={size} height={size} viewBox="0 0 104 104">
       <Defs>
         {/*
           Gradijent duž strelice, od repa (žuta) prema glavi (tamnija
@@ -243,18 +272,15 @@ function PressureGauge({ hpa, size }: { hpa: number; size: number }) {
   const fraction = Math.min(1, Math.max(0, (hpa - PRESSURE_MIN) / (PRESSURE_MAX - PRESSURE_MIN)));
   const lit = Math.round(fraction * GAUGE_TICKS);
   /*
-   * DISK OSTAJE TAMAN I U TAMNOJ TEMI (popravak 8.8.2026.).
-   *
-   * Bio je `dark ? paper : ink`, dakle u tamnoj temi bijeli krug — isti
-   * kvar kao kod UV kartice: dvije svjetleće mrlje među tamnim
-   * karticama. Sada je disk uvijek taman (u tamnoj temi nijansu
-   * svjetliji od podloge, kao i `inverted` kartica), a tekst uvijek
-   * svijetao.
+   * DISK JE OBRAT S PRIGUŠENOM BIJELOM (Markov odabir 8.8.2026., drugi
+   * krug — vraćeno nakon pokušaja s tamnim diskom, koji mu se nije
+   * svidio). Ista prigušena #D9D9D3 kao `inverted` kartica: obrat ostaje,
+   * bliještanje čiste papirnate ne. Svijetla tema netaknuta.
    */
-  const disc = dark ? "#22252B" : colors.ink;
-  const dimTick = "rgba(250,250,248,.32)";
-  const text = colors.paper;
-  const subtext = "rgba(250,250,248,.55)";
+  const disc = dark ? "#D9D9D3" : colors.ink;
+  const dimTick = dark ? "rgba(20,20,20,.3)" : "rgba(250,250,248,.32)";
+  const text = dark ? colors.ink : colors.paper;
+  const subtext = dark ? "rgba(20,20,20,.55)" : "rgba(250,250,248,.55)";
 
   return (
     <Svg width={size} height={size} viewBox="0 0 96 96">
@@ -264,8 +290,9 @@ function PressureGauge({ hpa, size }: { hpa: number; size: number }) {
         const angle = -GAUGE_SWEEP / 2 + (i / (GAUGE_TICKS - 1)) * GAUGE_SWEEP;
         return (
           <G key={i} rotation={angle} origin="48,48">
-            {/* Upaljene crtice nose akcent — koraljna je maknuta 8.8.2026. */}
-            <Line x1="48" y1="5" x2="48" y2="12" stroke={i < lit ? ACCENT_STEEL : dimTick} strokeWidth="1.8" strokeLinecap="round" />
+            {/* Koraljne crtice VRAĆENE (Markov odabir): topla skala na
+                disku mu je bila draža od plave. */}
+            <Line x1="48" y1="5" x2="48" y2="12" stroke={i < lit ? ACCENT_CORAL : dimTick} strokeWidth="1.8" strokeLinecap="round" />
           </G>
         );
       })}
@@ -334,20 +361,28 @@ export function BentoGrid({
         podatak, a kopnena ga uopće nemaju — tada kartica ostaje samo
         osjet, bez praznog mjesta (odluka 6.8.2026.).
       */}
-      <Card label={t.home.feelsLike} caption={seaTemp === undefined ? feelsCaption : undefined}>
-        <Value>{deg(current.feelsLike)}</Value>
-        {seaTemp !== undefined && (
-          <View className="mt-3 flex-row items-center justify-between border-t border-ink/[0.07] pt-2.5 dark:border-paper/10">
-            <View className="flex-row items-center gap-1.5">
-              <Waves size={19} strokeWidth={2} color={SEA_BLUE} />
-              <Text className="font-grotesk-medium text-[15px] text-ink/75 dark:text-paper/75">{t.home.seaTemp}</Text>
-            </View>
-            <Text className="font-grotesk-bold text-[22px]" style={{ color: SEA_BLUE }}>
-              {deg(seaTemp)}
-            </Text>
+      {seaTemp === undefined ? (
+        <Card label={t.home.feelsLike} caption={feelsCaption}>
+          <Value>{deg(current.feelsLike)}</Value>
+        </Card>
+      ) : (
+        /*
+          OSJET I MORE — DVA RAVNOPRAVNA REDA, BEZ NASLOVA KARTICE
+          (Markov zahtjev 8.8.2026., dorađeno po ispravci: „bez ovog
+          naslovića — osjet će prijeći kraj broja i more kraj broja").
+
+          Prije: naslov „Osjet" gore, velika brojka, pa ispod crte sitni
+          red mora s ikonom. Sad: nema zaglavlja, riječ stoji UZ brojku
+          kao jedinica (`unit`), oba reda isti font i veličina; more
+          zadržava svoju plavu, jedinu na ekranu.
+        */
+        <Card caption={undefined}>
+          <View className="gap-2">
+            <Value size={38} unit={t.home.feelsLike}>{deg(current.feelsLike)}</Value>
+            <Value size={38} color={SEA_BLUE} unit={t.home.seaTemp}>{deg(seaTemp)}</Value>
           </View>
-        )}
-      </Card>
+        </Card>
+      )}
 
       <Card label={t.metrics.uv} inverted caption={uvMax !== undefined ? `${t.home.uvMaxToday} ${Math.round(uvMax)}` : undefined}>
         <Value inverted unit={uv !== undefined ? uvLabel(uv) : undefined}>
@@ -378,7 +413,7 @@ export function BentoGrid({
       <Card label={t.metrics.wind} wide>
         <View className="flex-row items-center justify-between">
           <View className="gap-2">
-            <Value unit={`${windUnitLabel(windUnit)} · ${windDirLabel(current.windDir)}`}>{`${Math.round(convertWind(current.windSpeed, windUnit))}`}</Value>
+            <Value size={32} unit={`${windUnitLabel(windUnit)} · ${windDirLabel(current.windDir)}`}>{`${Math.round(convertWind(current.windSpeed, windUnit))}`}</Value>
             {gusts !== undefined && (
               /*
                 Vjetrulja stoji UZ UDARE (6.8.2026.), jer se značka po
@@ -386,15 +421,27 @@ export function BentoGrid({
                 Ispod praga je `WindFlag` prazan, pa red ostaje samo broj.
               */
               <View className="flex-row items-center gap-2">
-                <Value unit={`${windUnitLabel(windUnit)} · ${t.home.gusts.toLowerCase()}`}>{`${Math.round(convertWind(gusts, windUnit))}`}</Value>
+                <Value size={32} unit={`${windUnitLabel(windUnit)} · ${t.home.gusts.toLowerCase()}`}>{`${Math.round(convertWind(gusts, windUnit))}`}</Value>
                 {/* Kartica je bijela/coal — ton kartice, ne bijela na bijelom. */}
                 <WindFlag speedKmh={gusts} size={20} tone={dark ? "dark" : "card"} />
               </View>
             )}
           </View>
-          {/* Negativna margina: kompas koristi punu visinu kartice. */}
-          <View style={{ marginVertical: -13 }}>
-            <Compass windDir={current.windDir} />
+          {/*
+            KOMPAS PREKO CIJELE VISINE, CENTRIRAN NA KARTICU (Markov
+            zahtjev 8.8.2026., dorada: „centriraj bez obzira na lijevu
+            stranu").
+
+            Prva izvedba je krug centrirala unutar sadržajnog pojasa
+            ISPOD naslova, pa je višak visio prema dolje i rub kruga se
+            rezao o dno kartice (viđeno na snimci). Računica za sredinu
+            KARTICE: visina 160, krug 144 → po 8 px ruba gore i dolje.
+            Sadržaj počinje na ~31 od vrha (py-3 = 12 + naslov ~19), pa
+            vrh kruga mora 23 px IZNAD toka (8 − 31), a dolje ostaje 5:
+            144 − 23 − 5 = 116 ≈ visina pojasa, ništa se ne reže.
+          */}
+          <View style={{ marginTop: -23, marginBottom: -5 }}>
+            <Compass windDir={current.windDir} size={144} />
           </View>
         </View>
       </Card>
@@ -408,7 +455,20 @@ export function BentoGrid({
         <Value unit="km">{visibilityKm !== undefined ? `${visibilityKm}` : "–"}</Value>
       </Card>
 
-      <Card label={t.metrics.cloudCover} caption={" "}>
+      {/*
+        Bilješka umjesto praznog retka (8.8.2026.): `caption={" "}` je bio
+        rezervirani prazan prostor da kartica visinom prati susjede —
+        Marko ju je s pravom prozvao polupraznom. Razredi prate pragove
+        naoblake iz WMO mapiranja (vedro do 10 %, prekriveno od 90 %).
+      */}
+      <Card
+        label={t.metrics.cloudCover}
+        caption={
+          t.home.cloudDesc[
+            current.cloudCover <= 10 ? 0 : current.cloudCover <= 35 ? 1 : current.cloudCover <= 65 ? 2 : current.cloudCover < 90 ? 3 : 4
+          ]
+        }
+      >
         <Value>{`${Math.round(current.cloudCover)}%`}</Value>
       </Card>
 

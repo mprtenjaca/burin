@@ -85,6 +85,7 @@ export const en: Dict = {
     precipNone: "No significant precipitation",
     precipSome: "Precipitation expected",
     uvMaxToday: "Peak today", // + " N"
+    cloudDesc: ["Clear sky", "Mostly clear", "Partly cloudy", "Mostly cloudy", "Overcast"],
   },
 
   uvLabels: {
