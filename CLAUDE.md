@@ -94,13 +94,30 @@ Radni tijek: Marko gleda na uređaju, javi što bode, popravlja se odmah.
 `Bundle.main`, ne s Metroa. Android widget handler je običan JS pa izmjene
 rasporeda idu reloadom; ali `clickAction` i config su nativni.
 
-**Vjetar nema korekciju mjerenjem.** Temperatura ide kroz `debiasHourly` +
-`observationDelta`, a `windSpeed`/`windGusts` se prenose iz modela kakvi su.
+**Vjetar nema korekciju mjerenjem — i NE TREBA je** (izmjereno 8.8.2026.).
+Temperatura ide kroz `debiasHourly` + `observationDelta`, a `windSpeed`/
+`windGusts` se prenose iz modela kakvi su. Leave-one-out na 34 postaje:
+bez korekcije **2.056 m/s**, aditivna 2.156, multiplikativna 2.064 — obje
+lošije. Uzrok: vjetar je lokalan na način na koji temperatura nije.
+Prevlaka mjeri 12.9 uz model 1.7, a Rab 2.1 uz model 7.3 — susjedne postaje
+znaju biti suprotne, pa se razlika ne smije prenositi na drugo mjesto.
+Temperatura se u prostoru mijenja glatko, vjetar ovisi o kanalu i brdu.
 
 ## Recent Decisions
 
 | Odluka | Zašto |
 |---|---|
+| **AI sažetak je OBRISAN, ostaju ručne rečenice** (`src/utils/quips.ts`) | Traženi glas je DALMATINSKI i grub ("jebački vruće", ikavica, `ča`, `kuva`) — model to na dva jezika ne pogađa pouzdano, a promašen domaći ton je gori od nikakvog. Uz to: rečenica je sad UVIJEK tu (bez mreže, kvote i čekanja od 2 s), nema ključa ni troška. Zakomentiran 10.8.2026., **obrisan 1.9.2026.** (Markov odabir — mrtav kod koji se dvaput čitao ko „možda se vrati"): otišli `src/api/summary.ts`, `src/hooks/useSummary.ts`, cijeli `worker/` (Cloudflare + Gemini), `EXPO_PUBLIC_SUMMARY_URL` iz `.env.example`, unosi u `.gitignore` i `exclude` u `tsconfig.json`. Ništa od toga nije bilo commitano, pa u povijesti nema što tražit — povratak bi značio pisat iznova |
+| **Rečenica je iza PREKIDAČA u Postavkama, ZADANO UGAŠENA** (`quips`) | Markov odabir 1.9.2026. Tekst psuje, a vrijeme je usluga koju netko otvori pred djetetom ili pokaže kolegi — psovka koju nije tražio je promašaj kakav ostatak aplikacije nigdje ne radi. Ugašeno znači da se `QuipLine` NE RENDERIRA (odabrano između tri varijante; pristojna inačica svake rečenice je odbijena — dvostruko pisanje za glas koji nije bio poanta). Odluka je NA POČETNOJ: `quipBundle={quips ? bundle : undefined}`, jer heroj ne čita postavke ni za što drugo. Naslov u postavkama IZRIČITO spominje psovke — opcija ugašena zbog jezika mora reći što pali, inače je iznenađenje koje prekidač i treba spriječit |
+| Rečenica se bira po EKSTREMU, ne po WMO kodu | 34 °C i 12 °C uz vedro dijele kod 0, a to su dva posve različita dana — kod opisuje NEBO, rečenica mora opisat DAN. Redoslijed: nevrijeme → vrućina/hladnoća → bura → snijeg/kiša → blaži ekstremi → nebo. Zato "36 °C uz grmljavinu" daje grmljavinu, a ne vrućinu |
+| Pragovi vjetra se UVOZE iz `weatherLook`, ne prepisuju | `WIND_STORM_KMH` (61.2 km/h = 8 Bf) je isti broj na kojem značka bure postaje olujna. Da su prepisani, jedan bi se dan pomaknuo bez drugog i rečenica bi govorila "bura" dok značka šuti. Polje `current.windGusts` je u KM/H, ne m/s |
+| Prag najjačih rečenica je 35 °C | Markov odabir 10.8.2026.: na 34 °C je "jebački vruće" pretjerivanje, na 36 nije. Ispod je srednji kat ("vruće ko u vraga") |
+| Rečenica se vrti po SATU, ne nasumično | `Math.random()` bi mijenja tekst na SVAKI render (skrol, promjena teme, povratak u aplikaciju) pa bi treperio prid očima. Sjeme je `dan|sat|mjesto|kategorija`: stabilno unutar sata, vrti se kroz dan. Mjesto je u sjemenu da popis gradova ne pokaže istu rečenicu svugdje |
+| **Rečenica je NA HEROJU (`QuipLine`), ispod osjeta — kartica ispod heroja je UKINUTA** | Markov odabir 10.8.2026.: "box mi se ne sviđa, digni to na hero". Kartica (`SummaryCard`) je OBRISANA, ne zakomentirana — na nebu svaka ploha izgleda ko zakrpa, a heroj nema ni jedne druge: sve na njemu je goli tekst na gradijentu. Stoji baš ispod osjeta jer se sredina heroja centrira KO CJELINA — rečenica podigne cijeli stup, ali velika brojka ostaje optički na sredini; iznad brojke bi razdvojila ime mjesta od temperature. Kurziv, `opacity` 0.8, širina 82 % ekrana (bez ograde se duga rečenica razvuče do rubova i probije usku tipografsku os heroja) |
+| Oznaka ("Sastavljeno iz podataka" / `summaryNote`) je MAKNUTA, ne preimenovana | Bila je ograda uz AI tekst — da se rečenica ne čita s autoritetom izmjerene brojke. Otkad je piše čovjek, ograda nema koga branit: kurziv i navodnici već govore da je komentar. Na nebu bi dodatni redak samo trpao tekst u os heroja. Ključ je izbačen iz OBA rječnika (test parnosti ključeva ih drži u koraku) |
+| **Upozorenje na heroju je ZNAČKA (ikona + strelica), ne pilula s tekstom** | Markov odabir 13.8.2026. između 4 varijante (web pregled sa svim vrstama × razinama). Naziv iz Meteoalarma je dug i birokratski, pa je pilula bila najširi element heroja i tukla se s tipografskom osi — „s tekstom izgleda ko da nije to to". Boja kaže razinu, ikona vrstu, strelica (`ChevronRight`, opacity 0.7) da se klika; „+N" je maknut. Puni naziv OSTAJE u `accessibilityLabel`. `warningIcon` ostaje izvezen — ekran Upozorenja ga koristi |
+| Boja rečenice se PRIMA propom, ne čita iz teme | Heroj je gradijent po vremenu, pa se čitljivost mjeri na njemu (`readableOn(stops[1])`) — isto pravilo ko za sav ostali tekst na heroju. `text-ink dark:text-paper` bi na tamnoplavom nebu u svijetloj temi nestao |
+| `Hero` prima `quipBundle` (neobavezan), iako inače prima gotove vrijednosti | Heroj ništa ne računa sam i to pravilo OSTAJE — ali rečenica bira i po mjestu i po satu dohvata, pa bi pet novih propova samo za nju bilo gore od jednog. Neobavezan je da `/preview` ekran (same pozadine, bez pravih podataka) i dalje radi |
 | TestFlight buildovi su nevidljivi dok se tester ne pozove | Osobni račun = tim si samo ti. Internal grupa (ti) bez reviewa; external po e-mailu uz jednokratni Beta review; **public link nikad** — to je jedino što bi build otvorilo svima |
 | Ikona aplikacije je varijanta 7: tamna pločica + plavi zapuh | Markov odabir 8.8. između 10 prijedloga. Podloga `#141821` (blagi plavi pomak — čista crna uz plavi potez izgleda kao odsutnost boje), bijeli vanjski potezi, `ACCENT_STEEL` srednji. Svijetla i tamna su ISTA pločica: ikona koja mijenja podlogu s temom prestaje biti isti znak, a widget ionako ima jednu verziju |
 | Ikonski gumbi: pravi padding + `pointerEvents="none"` na ikonu | Nađeno na uređaju 8.8.: dodir NA glif nije radio, tek desno od njega. Lucide ikone su SVG (`react-native-svg`), koji na Androidu zna PROGUTATI dodir umjesto da ga pusti Pressableu; a sama ikona 22 px + nevidljivi `hitSlop` je premala meta. Pravilo za svaki ikonski gumb: `p-2` (uz `-m-2` da glif ostane na mjestu) + ikona u omotu bez dodira |
@@ -122,6 +139,7 @@ rasporeda idu reloadom; ali `clickAction` i config su nativni.
 | Temperaturni sloj karte: pločica se crta DVAPUT (`doubleUp`) | OWM `temp_new` ima alfu 76/255 na SVAKOM pikselu — 70 % viđenog je podloga. `raster-opacity` > 1 ne postoji; tamna podloga ne pomaže (kroma ista); zasićenje iznad ~1.0 lomi boje u susjedne razrede. Dva sloja istog izvora: alfa 30 → 51 %, kroma 53 → 89, bez novog dohvaćanja |
 | Smjer strujnica vjetra: TRI izvedbe odbačene — ne pokušavati | (1) `symbol` s „▶": CARTO glifovi su samo osnovni ASCII (dekodiran `.pbf` — raspon prazan); (2) `line-gradient`: spec ga IZRIČITO zabranjuje uz `line-dasharray`; (3) drugi sloj crtica (rep): typecheck čist, a NA UREĐAJU ruši ekran — dva dash sloja nad istim izvorom mijenjana svakih 130 ms native ne podnosi. Preostaje vlastita sličica u stilu karte |
 | Više strujnica SIJANJEM, ne gušćom mrežom; skala bijelo→jantarno | Model je na ~0.1° pa gušće točke vraćaju iste brojeve i troše kvotu; ali `sampleWind` interpolira bilo gdje → dodatni počeci između čvorova besplatno (154 točke → 616 strujnica). Pomaci NESIMETRIČNI da se ne vidi rešetka. Zelena maknuta — na plavoj podlozi se čitala kao vlastita informacija; `LayerLegend` mora pratiti (dva mjesta) |
+| Ekran peludi prima podatke KROZ PARAMETRE navigacije, ne kroz hookove | Popravak 13.8.2026. („po sekunde da se otvori"): ekran je na montiranju vrtio `useWeatherBundle` (cijelo sastavljanje) i `useLocation` — a taj na „Mojoj lokaciji" pri SVAKOM otvaranju iznova traži GPS + reverse geocode PREKO MREŽE. Kartica sad šalje `levels` (JSON, desetak brojki) + `place` u parametrima, ekran je čisti prikaz. Odgoda liste za jedan kadar (8.8.) OSTAJE — crtanje skala unutar prijelaza i dalje košta. Isto pravilo kao `widgetData.ts`: što prima drugi ekran, mora biti gotovo |
 | Skupa montiranja odgoditi za jedan kadar — i SKUPE POSLOVE iza prijelaza | Prošireno 8.8.: uz sadržaj ispod pregiba na početnoj, isti obrazac dobile tražilica (~20 `PlaceRow` redova) i pelud. `pushWidget` ide kroz `InteractionManager.runAfterInteractions` — svjež dohvat slijeće točno u kadar prijelaza, a widget crta oba Android widgeta i serijalizira iOS crtu; njegova točnost se mjeri u minutama |
 | Ambijent widgeta: `frame` na VELIČINU PLOČICE + `clipped`, po `widgetFamily` | Dva kvara istog uzroka: SwiftUI `ZStack` poprimi veličinu najvećeg djeteta. Zrake od 226 px u pločici od 158 → sadržaj gurnut iz kadra (samo na SUNCU — kiša 32 px, oblaci 64 px stanu). Pa onda konstanta 360 px širine → mala pločica (158) rastegnuta, „samo slika bez brojki". Dimenzija se čita iz `environment.widgetFamily`. Sadržaj iOS widgeta uz to treba padding 18, ne 14: `ignoreSafeArea()` na pozadini ukida i sustavne margine sadržaja (Android s istih 14 izgleda prozračnije jer taj sloj nema) |
 | `size` na `@expo/ui` `Image` vrijedi samo za SF Symbole | Ikona iz datoteke se crta u PUNOJ veličini dok se ne doda `resizable()` → `aspectRatio({fit})` → `frame()`, tim redom; sam `frame` preveliku sliku samo OBREŽE (golema odrezana ikona na uređaju) |
@@ -166,7 +184,7 @@ rasporeda idu reloadom; ali `clickAction` i config su nativni.
 ```bash
 npx expo start --dev-client   # dev server; JS izmjene idu reloadom, BEZ rebuilda
 npm run typecheck             # tsc --noEmit
-npm test                      # jest, 280 testova u 26 skupina
+npm test                      # jest, 304 testa u 27 skupina
 node scripts/generate-widget-icons.mjs  # 20 ikona widgeta (traži sharp)
 npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 npx expo run:android          # nativni dev build
@@ -254,7 +272,8 @@ src/api/              openMeteo (+fetchCurrentBatch), dhmz, meteoalarm(+Europe),
                       weather, client, types
 src/store/            settings, cities, lastWeather (+refreshCurrent),
                       searchHistory, mapTimeline
-src/components/       Hero, HeroBackdrop, HourlyStrip, BentoGrid (Card/Value/
+src/components/       Hero, HeroBackdrop, QuipLine (domaća rečenica NA
+                      heroju), HourlyStrip, BentoGrid (Card/Value/
                       Compass/PressureGauge), WarningBar, Wordmark, WindFlag,
                       MapPin, Skeleton, SunCycle, DailyList, DayDetails,
                       DhmzCard, MapTimeline, LayerChips, LayerLegend...
@@ -263,7 +282,9 @@ src/components/backdrop/  RaysLayer, RainLayer, SnowLayer, CloudsLayer,
 src/hooks/            useWeatherBundle, useRefreshSavedCities, useWarnings,
                       useNow, useRadarFrames, useTimelineHours, useWindGrid,
                       useWindStyle, useLocation
-src/utils/            weatherCodes, weatherLook, emmaRegions, format
+src/utils/            weatherCodes, weatherLook, emmaRegions, quips
+                      (domaće rečenice o danu — dalmatinski, zamjena za
+                      zakomentirani AI sažetak), format
                       (+futureHours), geo, dayParts
 src/i18n/hr.ts        SVI UI stringovi (kanonski rječnik = izvor tipa)
 index.js              registrira Android widget zadatak pa diže expo-router

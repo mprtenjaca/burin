@@ -30,6 +30,10 @@ yarn-error.*
 .DS_Store
 *.pem
 
+# editor: osobne postavke, ne tiču se projekta
+.vscode/
+.idea/
+
 # local env files
 .env
 .env*.local
