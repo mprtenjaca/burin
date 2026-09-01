@@ -169,13 +169,45 @@ describe("correctHourly (prijenos korekcije na traku po satima)", () => {
 });
 
 describe("observationDelta s više postaja", () => {
-  it("jedna čudna postaja se ublaži ostalima", () => {
+  /*
+   * Ublažavanje vrijedi kad NEMA vrlo bliske postaje (sve preko 15 km) —
+   * tada je prosjek i dalje bolji od jedne daleke. Vidi
+   * `DOMINANT_STATION_KM`: unutar 15 km najbliža odlučuje sama.
+   */
+  it("jedna čudna DALEKA postaja se ublaži ostalima", () => {
     const m = { ...model, temp: 27 };
-    // Sama Zemunik-tip postaja (5° niža) daje velik pomak...
-    const alone = observationDelta(m, [obs(22, 10)]);
-    // ...ali s dvije normalne postaje u prosjeku je pomak manji.
-    const averaged = observationDelta(m, [obs(22, 10), obs(26.5, 12), obs(27, 15)]);
+    const alone = observationDelta(m, [obs(22, 30)]);
+    const averaged = observationDelta(m, [obs(22, 30), obs(26.5, 33), obs(27, 36)]);
     expect(Math.abs(averaged)).toBeLessThan(Math.abs(alone));
+  });
+
+  /*
+   * Markov nalaz 8.8.2026.: Pridraga je pokazivala 33 °C dok je
+   * Zadar-aerodrom na 18.7 km mjerio 35.1. Prosjek je blisku postaju
+   * preglasao daljinama iz posve drugih mikroklima (planina na 560 m,
+   * Knin u zaleđu); za Zadar je korekcija model čak POGORŠAVALA.
+   *
+   * 18.7 km je i razlog zašto je prag 25, a ne 15 — vidi
+   * `DOMINANT_STATION_KM`.
+   */
+  it("bliska postaja odlučuje sama, daleke je ne razvodnjavaju", () => {
+    const m = { ...model, temp: 31.3 };
+    const stations = [
+      obs(35.1, 18.7), // Zadar-aerodrom: isti mikroklimat, unutar praga
+      obs(27.7, 47.5), // Gospić: planina
+      obs(32.8, 51.2), // Knin: zaleđe
+    ];
+    const d = observationDelta(m, stations);
+    // Prosjek je davao ~2.0; sada ide prema punoj razlici (3.8).
+    expect(d).toBeGreaterThan(3);
+    expect(d).toBeCloseTo(observationDelta(m, [obs(35.1, 18.7)]), 5);
+  });
+
+  it("bez bliske postaje se i dalje uzima prosjek svih", () => {
+    const m = { ...model, temp: 30 };
+    const d = observationDelta(m, [obs(34, 30), obs(28, 35)]);
+    const onlyNearest = observationDelta(m, [obs(34, 30)]);
+    expect(d).not.toBeCloseTo(onlyNearest, 5);
   });
 
   it("kad se sve postaje slažu, pomak ostaje pun", () => {

@@ -135,9 +135,27 @@ function toObservation(
 
 /**
  * Nekoliko najbližih postaja s temperaturom, sortirano po udaljenosti.
- * Aerodromi se preskaču dok postoji dovoljno gradskih postaja — mjereno
- * je da prosjek 3 postaje bez aerodroma daje najtočniju korekciju
- * (leave-one-out na 62 postaje: 1.73 °C vs 1.91 °C za samo najbližu).
+ *
+ * Aerodromi se NE preskaču (popravak 8.8.2026., Markov nalaz: Zadar je
+ * pokazivao 30 °C dok je Zadar-aerodrom na 10.8 km mjerio 35.1).
+ *
+ * Prijašnje pravilo ih je izbacivalo kad ima ≥3 gradske postaje. Ali DHMZ
+ * u Zadru NEMA gradsku postaju — aerodrom je jedini termometar u toj
+ * mikroklimi, pa su ostajali Veli Rat (svjetionik okružen morem, 33 km) i
+ * Gospić (planina 560 m, 49 km). Korekcija je tako model čak POGORŠAVALA:
+ * 33.6 sam model, 32.7 s korekcijom, termometar 35.1.
+ *
+ * Leave-one-out na 35 postaja, protiv termometra: bez korekcije 1.597,
+ * s izbacivanjem 1.322, s kaznom na udaljenost 1.260, **bez izbacivanja
+ * uz `DOMINANT_STATION_KM` 1.188**.
+ *
+ * Dvije izmjene MORAJU ići zajedno: samo pravilo dominacije uz izbacivanje
+ * daje 1.348 — lošije od polazišta, jer kad se aerodrom izbaci, "najbliža"
+ * postane neka daleka i onda dobije svu težinu.
+ *
+ * `findNestStation` i dalje kažnjava aerodrome, ali za DRUGU svrhu — ondje
+ * se bira postaja koja se PRIKAZUJE kao "mjerenja u blizini", a naselje je
+ * za to reprezentativnije od piste.
  */
 export function findNearbyStations(
   lat: number,
@@ -145,18 +163,13 @@ export function findNearbyStations(
   report: DhmzReport,
   count = 3,
 ): DhmzObservation[] {
-  const withDist = report.stations
+  return report.stations
     .filter((s) => s.temp !== undefined)
     .map((s) => ({
       station: s,
       d: haversineKm({ lat, lon }, { lat: s.lat, lon: s.lon }),
     }))
-    .sort((a, b) => a.d - b.d);
-
-  const cityOnly = withDist.filter((x) => !AIRPORT_RE.test(x.station.name));
-  const source = cityOnly.length >= count ? cityOnly : withDist;
-
-  return source
+    .sort((a, b) => a.d - b.d)
     .slice(0, count)
     .map((x) => toObservation(x.station, x.d, report.measuredAt));
 }

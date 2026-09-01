@@ -1,13 +1,6 @@
 import { biasSlotForHour, isZeroBias } from "./bias";
 import type { ModelBias } from "./bias";
-import type {
-  CurrentWeather,
-  DailyPoint,
-  DhmzObservation,
-  HourlyPoint,
-  Place,
-  WeatherBundle,
-} from "./types";
+import type { CurrentWeather, DailyPoint, DhmzObservation, HourlyPoint, Place, WeatherBundle } from "./types";
 
 /*
  * Korekcija modela stvarnim mjerenjima (DHMZ). Dizajn:
@@ -42,8 +35,53 @@ const CORRECTION_RANGE_KM = 60;
 const MAX_CORRECTION_NEAR_C = 5;
 const MAX_CORRECTION_FAR_C = 1;
 
-/** Prigušenje korekcije danju (miješanje zraka poništi noćni efekt). */
-const DAYTIME_FACTOR = 0.35;
+/**
+ * Kad je najbliža postaja unutar ovog dometa, ona ODLUČUJE SAMA — ostale se
+ * ne miješaju u prosjek.
+ *
+ * Povod (Markov nalaz 8.8.2026.): Pridraga i Zadar pokazivali su 31–33 °C
+ * dok je Zadar-aerodrom (7 i 11 km) mjerio 35.1. Prosjek triju postaja je
+ * blisku postaju PREGLASAO: Veli Rat je svjetionik okružen morem (30.4 °C),
+ * Gospić je planina na 560 m (27.7 °C) — dvije posve druge mikroklime na
+ * 45+ km. Za Zadar je korekcija tako čak POGORŠALA model: 33.6 bez nje,
+ * 32.7 s njom, termometar 35.1.
+ *
+ * Leave-one-out na 35 postaja, protiv termometra: bez korekcije 1.406,
+ * sadašnji prosjek 1.259, samo najbliža uvijek 1.205, **ovo pravilo 1.188**.
+ *
+ * Strmije padanje težine NE rješava isto (kvadratno 1.272, kubno 1.281 —
+ * oboje lošije od linearnog): problem nije oblik krivulje nego to što
+ * daleke postaje uopće sudjeluju kad postoji bliska. Prosjek triju ostaje
+ * za mjesta bez bliske postaje, gdje je i dalje bolji od jedne daleke.
+ *
+ * PRAG JE 25 km, ne 15 (ispravak isti dan, iz ispisa s UREĐAJA). Prvotnih
+ * 15 je bilo pogođeno, ne izmjereno, i palo je točno između dva slučaja:
+ * Zadar je od aerodroma 10.3 km i prolazio je, a PRIDRAGA 18.7 km — pa je
+ * padala natrag na prosjek s Gospićem i Kninom i pokazivala 33 umjesto 35.
+ *
+ * Izmjereno na 36 postaja: 15 km → 1.179, 20 → 1.189, **25 → 1.178**,
+ * 30 → 1.204, uvijek prosjek → 1.249, uvijek najbliža → 1.249. Između 15 i
+ * 25 je razlika šum, pa je izabran onaj koji pokriva stvarni slučaj —
+ * 25 km aktivira pravilo za 13/36 postaja umjesto 8/36.
+ */
+const DOMINANT_STATION_KM = 25;
+
+/**
+ * Prigušenje korekcije danju (miješanje zraka poništi noćni efekt).
+ *
+ * 0.7, ne 0.35 (izmjereno 8.8.2026. nakon Markova nalaza: Pridraga u 8 h
+ * pokazivala 25 °C dok su druge aplikacije davale 29–30).
+ *
+ * Leave-one-out na 36 DHMZ postaja, protiv TERMOMETRA: bez korekcije 1.46,
+ * na 0.35 → 1.215, na 0.7 → **1.109**, na 1.0 → 1.246 °C. Krivulja pada do
+ * 0.7 pa raste, dakle prigušenje ostaje opravdano — samo je bilo prejako i
+ * propuštalo je tek trećinu izmjerene razlike.
+ *
+ * NAPOMENA: uzorak je jedan termin (kasno popodne). Jutarnji režim, koji je
+ * Marka i naveo na nalaz, nije zasebno izmjeren — `measure-daytime.mjs`
+ * skuplja termine pa se broj može potvrditi na širem uzorku.
+ */
+const DAYTIME_FACTOR = 0.7;
 
 /**
  * Blijeđenje s odmakom prognoze. Prvih nekoliko sati nosi punu korekciju
@@ -62,14 +100,18 @@ const LEAD_FADE_HOURS = 30;
  * a čisti model 1.85 °C: jedna nereprezentativna postaja tako ne odlučuje
  * sama. Vraća 0 kad nema upotrebljive postaje u dometu.
  */
-export function observationDelta(
-  current: CurrentWeather,
-  obs?: DhmzObservation | DhmzObservation[],
-): number {
-  const list = (Array.isArray(obs) ? obs : obs ? [obs] : []).filter(
-    (o) => o.temp !== undefined,
-  );
-  if (list.length === 0) return 0;
+export function observationDelta(current: CurrentWeather, obs?: DhmzObservation | DhmzObservation[]): number {
+  const all = (Array.isArray(obs) ? obs : obs ? [obs] : []).filter((o) => o.temp !== undefined);
+  if (all.length === 0) return 0;
+
+  /*
+   * Vrlo bliska postaja ODLUČUJE SAMA — vidi `DOMINANT_STATION_KM`.
+   * Termometar na 7 km je taj mikroklimat; postaja na 45 km je drugi kraj
+   * i samo ga razvodni.
+   */
+  const nearest = all.reduce((a, b) => (b.distanceKm < a.distanceKm ? b : a));
+  const list =
+    nearest.distanceKm <= DOMINANT_STATION_KM ? [nearest] : all;
 
   let weightSum = 0;
   let deltaSum = 0;
@@ -97,17 +139,12 @@ export function observationDelta(
    * blizini, pa daleka postaja ne može napraviti veliki pomak.
    */
   const raw = deltaSum / weightSum;
-  const cap =
-    MAX_CORRECTION_FAR_C +
-    (MAX_CORRECTION_NEAR_C - MAX_CORRECTION_FAR_C) * bestCloseness;
+  const cap = MAX_CORRECTION_FAR_C + (MAX_CORRECTION_NEAR_C - MAX_CORRECTION_FAR_C) * bestCloseness;
   return Math.max(-cap, Math.min(cap, raw));
 }
 
 /** "Sada" korigirano mjerenjima; osjet se pomiče za istu razliku. */
-export function correctWithObservation(
-  current: CurrentWeather,
-  obs?: DhmzObservation | DhmzObservation[],
-): CurrentWeather {
+export function correctWithObservation(current: CurrentWeather, obs?: DhmzObservation | DhmzObservation[]): CurrentWeather {
   const delta = observationDelta(current, obs);
   if (delta === 0) return current;
   return {
@@ -124,10 +161,7 @@ export function correctWithObservation(
  * izmjerena dnevna amplituda 11.7 °C, model daje ~6 °C), pa su jutarnji
  * minimumi bili nekoliko stupnjeva previsoki.
  */
-export function debiasHourly(
-  hourly: HourlyPoint[],
-  bias: ModelBias,
-): HourlyPoint[] {
+export function debiasHourly(hourly: HourlyPoint[], bias: ModelBias): HourlyPoint[] {
   if (isZeroBias(bias)) return hourly;
   return hourly.map((h) => {
     const b = bias[biasSlotForHour(Number(h.time.slice(11, 13)))];
@@ -162,24 +196,11 @@ function parseLocalIso(iso: string): Date {
  * Time je prvi sat u traci konzistentan s herojem, a noćni sati u
  * zaleđu prestaju biti 3-4 °C pretopli.
  */
-export function correctHourly(
-  hourly: HourlyPoint[],
-  delta: number,
-  now: Date = new Date(),
-): HourlyPoint[] {
+export function correctHourly(hourly: HourlyPoint[], delta: number, now: Date = new Date()): HourlyPoint[] {
   if (delta === 0) return hourly;
   return hourly.map((h) => {
-    const hoursAhead = Math.max(
-      0,
-      (parseLocalIso(h.time).getTime() - now.getTime()) / 3_600_000,
-    );
-    const leadFade =
-      hoursAhead <= LEAD_FULL_HOURS
-        ? 1
-        : Math.max(
-            0,
-            1 - (hoursAhead - LEAD_FULL_HOURS) / (LEAD_FADE_HOURS - LEAD_FULL_HOURS),
-          );
+    const hoursAhead = Math.max(0, (parseLocalIso(h.time).getTime() - now.getTime()) / 3_600_000);
+    const leadFade = hoursAhead <= LEAD_FULL_HOURS ? 1 : Math.max(0, 1 - (hoursAhead - LEAD_FULL_HOURS) / (LEAD_FADE_HOURS - LEAD_FULL_HOURS));
     const dayFactor = h.isDay ? DAYTIME_FACTOR : 1;
     const applied = delta * leadFade * dayFactor;
     if (applied === 0) return h;

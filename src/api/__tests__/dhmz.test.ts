@@ -101,7 +101,16 @@ describe("findNearestStation", () => {
     expect(list[1]!.distanceKm).toBeLessThan(list[2]!.distanceKm);
   });
 
-  it("findNearbyStations preskače aerodrome kad ima dovoljno gradskih", () => {
+  /*
+   * Aerodromi OSTAJU u popisu za korekciju (8.8.2026.).
+   *
+   * Prije su se izbacivali kad ima ≥3 gradske postaje, ali DHMZ u Zadru
+   * nema gradsku postaju — aerodrom je jedini termometar u toj mikroklimi.
+   * Bez njega je Zadar padao na Veli Rat (svjetionik na moru) i Gospić
+   * (planina), pa je korekcija pogoršavala model. Izmjereno: 1.322 s
+   * izbacivanjem, 1.188 bez njega (uz pravilo dominacije).
+   */
+  it("findNearbyStations zadržava aerodrome — oni su najbliži termometar", () => {
     const report = {
       measuredAt: "04.08.2026. 23:00",
       stations: [
@@ -112,8 +121,10 @@ describe("findNearestStation", () => {
       ],
     };
     const list = findNearbyStations(43.95, 15.72, report);
-    expect(list.map((o) => o.stationName)).not.toContain("Zadar-aerodrom");
     expect(list).toHaveLength(3);
+    // Popis je čisto po udaljenosti, bez preskakanja.
+    expect(list[0]!.distanceKm).toBeLessThan(list[1]!.distanceKm);
+    expect(list[1]!.distanceKm).toBeLessThan(list[2]!.distanceKm);
   });
 
   it("findNearbyStations koristi aerodrom kad nema dovoljno gradskih", () => {
