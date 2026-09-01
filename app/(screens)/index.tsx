@@ -1,15 +1,7 @@
 import { router, useNavigation } from "expo-router";
 import { Menu, Search, type LucideIcon } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Animated, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BentoGrid } from "@/components/BentoGrid";
@@ -54,11 +46,11 @@ export default function HomeScreen() {
   const gps = useLocation(selected === null);
   const place = selected ?? (gps.status === "granted" ? gps.place : null);
 
-  const { bundle, isLoading, isError, isStale, isRefreshing, refetch } =
-    useWeatherBundle(place);
+  const { bundle, isLoading, isError, isStale, isRefreshing, refetch } = useWeatherBundle(place);
   const warnings = useWarnings(place);
   const tempUnit = useSettings((s) => s.tempUnit);
   const windUnit = useSettings((s) => s.windUnit);
+  const quips = useSettings((s) => s.quips);
 
   /*
    * Visina prvog ekrana = IZMJERENA visina ScrollView viewporta, ne
@@ -147,9 +139,7 @@ export default function HomeScreen() {
     return (
       <View className="flex-1 bg-mist dark:bg-night">
         <HomeSkeleton />
-        <Text className="px-8 pb-10 text-center text-xs text-ink/40 dark:text-paper/40">
-          {t.location.rationale}
-        </Text>
+        <Text className="px-8 pb-10 text-center text-xs text-ink/40 dark:text-paper/40">{t.location.rationale}</Text>
       </View>
     );
   }
@@ -170,16 +160,11 @@ export default function HomeScreen() {
   // "Noću" iz korigirane satne krivulje (noćni sati u sljedeća 24 h), da
   // se poklapa s trakom; daily minimum je nekorigiran i zna biti pretopao.
   const nightHours = bundle.hourly.filter((h) => !h.isDay);
-  const nightMin = nightHours.length
-    ? Math.min(...nightHours.map((h) => h.temp))
-    : today?.tMin;
+  const nightMin = nightHours.length ? Math.min(...nightHours.map((h) => h.temp)) : today?.tMin;
   const uvNow = bundle.hourly[0]?.uv;
   const gusts = bundle.hourly[0]?.windGusts;
-  const visibilityKm = bundle.hourly[0]
-    ? Math.round(bundle.hourly[0].visibility / 1000)
-    : undefined;
-  const precipNext24 =
-    Math.round(bundle.hourly.reduce((sum, h) => sum + h.precip, 0) * 10) / 10;
+  const visibilityKm = bundle.hourly[0] ? Math.round(bundle.hourly[0].visibility / 1000) : undefined;
+  const precipNext24 = Math.round(bundle.hourly.reduce((sum, h) => sum + h.precip, 0) * 10) / 10;
 
   const stops = weatherGradient(bundle.current.code, bundle.current.isDay, dark);
   const pageBg = dark ? colors.night : colors.mist;
@@ -243,7 +228,7 @@ export default function HomeScreen() {
              * Ostaje otvoreno; vidjeti crta li iOS spinner IZA `style`
              * podloge na ScrollViewu.
              */
-            progressViewOffset={insets.top + 48}
+            progressViewOffset={insets.top + 8}
           />
         }
       >
@@ -276,6 +261,10 @@ export default function HomeScreen() {
           stops={stops}
           pageBg={pageBg}
           scrollY={scrollY}
+          // Rečenica ide na heroj SAMO kad je prekidač upaljen (zadano ne,
+          // 1.9.2026.); bez bundlea je `Hero` i ne renderira. Odluka stoji
+          // ovdje jer heroj ne čita postavke.
+          quipBundle={quips ? bundle : undefined}
         />
 
         {/*
@@ -294,6 +283,7 @@ export default function HomeScreen() {
                 precip24={precipNext24}
                 aqi={bundle.aqi}
                 pollen={bundle.pollen}
+                placeName={bundle.place.name}
                 seaTemp={bundle.seaTemp}
                 sunrise={today?.sunrise}
                 sunset={today?.sunset}
@@ -302,22 +292,11 @@ export default function HomeScreen() {
               />
 
               <Section title={t.home.daily}>
-                <DailyList
-                  days={bundle.daily.slice(0, 14)}
-                  hourly={bundle.hourlyAll}
-                  tempUnit={tempUnit}
-                  windUnit={windUnit}
-                />
+                <DailyList days={bundle.daily.slice(0, 14)} hourly={bundle.hourlyAll} tempUnit={tempUnit} windUnit={windUnit} />
               </Section>
 
               <Section title={t.home.mapSection}>
-                <RadarPreviewCard
-                  lat={bundle.place.lat}
-                  lon={bundle.place.lon}
-                  temp={bundle.current.temp}
-                  code={bundle.current.code}
-                  isDay={bundle.current.isDay}
-                />
+                <RadarPreviewCard lat={bundle.place.lat} lon={bundle.place.lon} temp={bundle.current.temp} code={bundle.current.code} isDay={bundle.current.isDay} />
               </Section>
 
               {bundle.dhmz && (
@@ -339,18 +318,8 @@ export default function HomeScreen() {
         gradijentu (i bez podloge se vide), a niže na bijelim karticama
         gdje bi se bez nje izgubile.
       */}
-      <View
-        className="absolute left-0 right-0 flex-row items-center justify-between px-5"
-        style={{ top: insets.top + 10 }}
-        pointerEvents="box-none"
-      >
-        <TopButton
-          onPress={() => router.navigate("/search")}
-          label={t.search.placeholder}
-          bgOpacity={buttonBg}
-          dark={dark}
-          Icon={Search}
-        />
+      <View className="absolute left-0 right-0 flex-row items-center justify-between px-5" style={{ top: insets.top + 10 }} pointerEvents="box-none">
+        <TopButton onPress={() => router.navigate("/search")} label={t.search.placeholder} bgOpacity={buttonBg} dark={dark} Icon={Search} />
         {/*
           Wordmark se pojavljuje između gumba tek sa skrolom (isti tempo
           kao njihove podloge) i namjerno NE do pune neprozirnosti — na
@@ -365,13 +334,7 @@ export default function HomeScreen() {
           */}
           <Wordmark color={dark ? colors.paper : colors.ink} accent={ACCENT_UI} textSize={16} />
         </Animated.View>
-        <TopButton
-          onPress={() => navigation.openDrawer()}
-          label={t.drawer.cities}
-          bgOpacity={buttonBg}
-          dark={dark}
-          Icon={Menu}
-        />
+        <TopButton onPress={() => navigation.openDrawer()} label={t.drawer.cities} bgOpacity={buttonBg} dark={dark} Icon={Menu} />
       </View>
     </View>
   );
@@ -381,28 +344,10 @@ export default function HomeScreen() {
  * Gumb u fiksnoj traci početne. Bijela (coal) podloga mu se utapa
  * postupno kako se skrola — nagli preklop je izgledao kao greška.
  */
-function TopButton({
-  onPress,
-  label,
-  bgOpacity,
-  dark,
-  Icon,
-}: {
-  onPress: () => void;
-  label: string;
-  bgOpacity: Animated.AnimatedInterpolation<number>;
-  dark: boolean;
-  Icon: LucideIcon;
-}) {
+function TopButton({ onPress, label, bgOpacity, dark, Icon }: { onPress: () => void; label: string; bgOpacity: Animated.AnimatedInterpolation<number>; dark: boolean; Icon: LucideIcon }) {
   const { fg } = useThemeColors();
   return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={12}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      className="h-10 w-10 items-center justify-center rounded-full"
-    >
+    <Pressable onPress={onPress} hitSlop={12} accessibilityRole="button" accessibilityLabel={label} className="h-10 w-10 items-center justify-center rounded-full">
       <Animated.View
         className="absolute inset-0 rounded-full"
         style={{

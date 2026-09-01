@@ -211,6 +211,9 @@ export const en: Dict = {
     languageSystem: "System",
     languageHr: "Hrvatski",
     languageEn: "English",
+    quips: "Weather remark",
+    quipsLabel: "Local one-liner on the hero",
+    quipsNote: "Blunt language, swearing included. Turn it off to keep the hero to the numbers.",
   },
 
   sources: {

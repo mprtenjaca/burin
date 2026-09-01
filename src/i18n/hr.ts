@@ -216,6 +216,15 @@ export const hr = {
      */
     languageHr: "Hrvatski",
     languageEn: "English",
+    /*
+     * Prekidač za domaću rečenicu na heroju (1.9.2026.). Naslov je
+     * IZRIČIT o psovkama, a ne uljepšan ("Komentar dana"): opcija je
+     * zadano isključena baš zato što tekst psuje, pa mora reći što pali —
+     * inače je iznenađenje, a to je točno ono što se prekidačem izbjegava.
+     */
+    quips: "Komentar o vremenu",
+    quipsLabel: "Domaća rečenica na heroju",
+    quipsNote: "Slobodan jezik, s psovkama. Ugasi da heroj ostane samo s brojkama.",
   },
 
   sources: {

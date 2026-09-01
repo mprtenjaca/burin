@@ -22,10 +22,12 @@ type SettingsState = {
   language: LanguageSetting;
   tempUnit: TempUnit;
   windUnit: WindUnit;
+  quips: boolean;
   setTheme: (theme: ThemeSetting) => void;
   setLanguage: (language: LanguageSetting) => void;
   setTempUnit: (unit: TempUnit) => void;
   setWindUnit: (unit: WindUnit) => void;
+  setQuips: (on: boolean) => void;
 };
 
 export const useSettings = create<SettingsState>()(
@@ -49,10 +51,27 @@ export const useSettings = create<SettingsState>()(
        * u Postavkama.
        */
       windUnit: "ms",
+      /*
+       * Domaća rečenica na heroju je ISKLJUČENA dok je korisnik sam ne
+       * upali (Markov odabir 1.9.2026.).
+       *
+       * Zašto zadano ne: tekst je namjerno grub i psuje (`quips.ts`), a
+       * to je jedino mjesto gdje aplikacija ne izvještava nego govori.
+       * Vrijeme je usluga koju netko otvori pred djetetom ili pokaže
+       * kolegi — psovka koju nije tražio je promašaj kakav ostatak
+       * aplikacije nigdje ne radi. Tko je želi, nađe je u Postavkama;
+       * tko ne, nikad ne sazna da postoji.
+       *
+       * Praktična posljedica: zadana instalacija ima heroj kakav je bio
+       * prije 10.8.2026. — rečenica se ne renderira uopće, ne zamjenjuje
+       * se pristojnom inačicom.
+       */
+      quips: false,
       setTheme: (theme) => set({ theme }),
       setLanguage: (language) => set({ language }),
       setTempUnit: (tempUnit) => set({ tempUnit }),
       setWindUnit: (windUnit) => set({ windUnit }),
+      setQuips: (quips) => set({ quips }),
     }),
     {
       name: "burin:settings",

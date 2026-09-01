@@ -3,9 +3,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line } from "react-native-svg";
 
 import type { MeteoWarning } from "@/api/meteoalarm";
-import type { CurrentWeather, HourlyPoint } from "@/api/types";
+import type { CurrentWeather, HourlyPoint, WeatherBundle } from "@/api/types";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { HourlyStrip } from "@/components/HourlyStrip";
+import { QuipLine } from "@/components/QuipLine";
 import { WarningBar } from "@/components/WarningBar";
 import { WindFlag } from "@/components/WindFlag";
 import { useNow } from "@/hooks/useNow";
@@ -65,6 +66,7 @@ export function Hero({
   stops,
   pageBg,
   scrollY,
+  quipBundle,
 }: {
   height: number;
   width: number;
@@ -84,6 +86,20 @@ export function Hero({
   pageBg: string;
   /** Pomak skrola — pruge pozadine klize (paralaksa). */
   scrollY?: Animated.Value;
+  /**
+   * Bundle SAMO za domaću rečenicu (`QuipLine`).
+   *
+   * Heroj inače prima gotove vrijednosti (`current`, `tMax`, `hours`) i
+   * ništa ne računa sam — to pravilo ostaje. Rečenica traži cijeli
+   * bundle jer bira i po mjestu i po satu dohvata, a prosljeđivanje pet
+   * novih propova samo za nju bi bilo gore od jednog.
+   *
+   * Neobavezan je, i to sada nosi DVA značenja: `/preview` ekran crta
+   * same pozadine bez pravih podataka, a početna ga izostavlja i kad je
+   * prekidač `quips` ugašen (zadano, 1.9.2026.). Odluka se donosi TAMO,
+   * ne ovdje — heroj ne čita postavke, kao ni sve ostalo.
+   */
+  quipBundle?: WeatherBundle;
 }) {
   const insets = useSafeAreaInsets();
   const { dark } = useThemeColors();
@@ -259,6 +275,21 @@ export function Hero({
         <Text className="mt-0.5 font-grotesk-medium text-[15px]" style={heroFg75}>
           {t.home.feelsLike} {deg(current.feelsLike)}°
         </Text>
+
+        {/*
+          Domaća rečenica o danu (10.8.2026.) — dignuta s kartice ispod
+          heroja OVDJE, na Markov zahtjev ("box mi se ne sviđa").
+
+          Stoji baš TU jer se sredina heroja centrira ko cjelina: rečenica
+          gura blok za svoju visinu, ali ga ne razbija — velika brojka
+          ostaje optički na sredini, samo se cijeli stup podigne. Iznad
+          brojke (uz ime mjesta) bi razdvojila mjesto od temperature, a
+          ispod noćnog minimuma bi visjela odvojeno od svega.
+
+          Širina je 82 % ekrana: bez ograde bi se duža rečenica razvukla
+          do rubova i probila tipografsku os heroja, koja je uska.
+        */}
+        {quipBundle && <QuipLine bundle={quipBundle} color={heroFg} maxWidth={width * 0.82} />}
 
         {nightMin !== undefined && (
           <>

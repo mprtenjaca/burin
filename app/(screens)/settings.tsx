@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { Check, ChevronRight } from "lucide-react-native";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 
 import { Hairline, Section } from "@/components/Section";
 import { t } from "@/i18n";
@@ -79,10 +79,12 @@ export default function SettingsScreen() {
   const language = useSettings((s) => s.language);
   const tempUnit = useSettings((s) => s.tempUnit);
   const windUnit = useSettings((s) => s.windUnit);
+  const quips = useSettings((s) => s.quips);
   const setTheme = useSettings((s) => s.setTheme);
   const setLanguage = useSettings((s) => s.setLanguage);
   const setTempUnit = useSettings((s) => s.setTempUnit);
   const setWindUnit = useSettings((s) => s.setWindUnit);
+  const setQuips = useSettings((s) => s.setQuips);
 
   const themes: { value: ThemeSetting; label: string }[] = [
     { value: "light", label: t.settings.themeLight },
@@ -166,6 +168,49 @@ export default function SettingsScreen() {
             />
           </View>
         </View>
+      </Section>
+
+      {/*
+        Domaća rečenica na heroju — ZADANO ISKLJUČENA (`quips: false`).
+
+        Cijeli redak je Pressable, ne samo prekidač: meta od 51 px je
+        prevelika da bi je se preskočilo, a isti potez već radi red
+        tražilice. `Switch` uz to hvata VLASTITI dodir, pa se oba načina
+        gase istim pozivateljem.
+
+        Napomena ispod naslova nije ukras — opcija je zadano ugašena baš
+        zbog jezika, pa mora reći što se pali prije nego se pali.
+      */}
+      <Section title={t.settings.quips}>
+        <Pressable
+          onPress={() => setQuips(!quips)}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: quips }}
+          accessibilityLabel={t.settings.quipsLabel}
+          accessibilityHint={t.settings.quipsNote}
+          className="flex-row items-center justify-between gap-4 rounded-2xl bg-white px-4 py-4 dark:bg-coal"
+        >
+          <View className="flex-1 gap-1">
+            <Text className="font-grotesk-medium text-[16px] text-ink dark:text-paper">
+              {t.settings.quipsLabel}
+            </Text>
+            <Text className="font-grotesk-medium text-[13px] leading-[18px] text-ink/60 dark:text-paper/60">
+              {t.settings.quipsNote}
+            </Text>
+          </View>
+          {/*
+            Prekidač je izvan dosega čitača ekrana (`none`) — redak ga
+            iznad već objavljuje kao `switch` sa stanjem, pa bi ga inače
+            izgovorio dvaput.
+          */}
+          <Switch
+            value={quips}
+            onValueChange={setQuips}
+            trackColor={{ true: ACCENT_UI, false: undefined }}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+        </Pressable>
       </Section>
 
       <Pressable
