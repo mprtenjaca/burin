@@ -322,6 +322,7 @@ export function BentoGrid({
   precip24,
   aqi,
   pollen,
+  placeName,
   seaTemp,
   sunrise,
   sunset,
@@ -337,6 +338,8 @@ export function BentoGrid({
   aqi?: number;
   /** Pelud (CAMS); kad su sve vrste na nuli, kartica se ne prikazuje. */
   pollen?: PollenLevels;
+  /** Ime mjesta — putuje na ekran peludi kroz parametre navigacije. */
+  placeName?: string;
   /** Samo za obalna mjesta; drugdje Marine API ne vraća ništa. */
   seaTemp?: number;
   sunrise?: string;
@@ -487,8 +490,23 @@ export function BentoGrid({
           label={t.pollen.title}
           wide
           fixedHeight={false}
-          // Dodir otvara punu listu svih vrsta (dorada 6.8.2026.).
-          onPress={() => router.navigate("/pollen")}
+          /*
+            Dodir otvara punu listu svih vrsta (dorada 6.8.2026.).
+
+            PODACI PUTUJU KROZ PARAMETRE (popravak 13.8.2026.): ekran
+            peludi je na "Mojoj lokaciji" pri svakom otvaranju iznova
+            tražio GPS + reverse geocode preko mreže (`useLocation`) i
+            sastavljao cijeli bundle (`useWeatherBundle`) — pola sekunde
+            zadrške za šačicu brojki koje OVA kartica već drži u ruci.
+            Isto pravilo kao widget: što god prima drugi ekran, mora
+            biti gotovo.
+          */
+          onPress={() =>
+            router.navigate({
+              pathname: "/pollen",
+              params: { levels: JSON.stringify(pollen), place: placeName ?? "" },
+            })
+          }
         >
           <View className="gap-3 py-1">
             <View className="flex-row items-baseline justify-between">

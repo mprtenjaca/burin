@@ -535,18 +535,6 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
       <Spacer />
 
       <VStack alignment="trailing" spacing={0}>
-        <Text
-          modifiers={[
-            font({ size: 13, weight: "medium" }),
-            foregroundStyle(props.fg),
-            opacity(MUTED),
-          ]}
-        >
-          {`${props.tMax}${props.unit} / ${props.tMin}${props.unit}`}
-        </Text>
-
-        <Spacer />
-
         {/*
           Udari se prikazuju SAMO iznad praga (10 m/s) — značka koja stoji
           uvijek prestane nositi informaciju; isto pravilo kao `WindFlag`
@@ -567,14 +555,24 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
           </HStack>
         )}
 
+        <Spacer />
+
+        {/*
+          Min/max je SIŠAO u donji desni kut (Markov odabir 8.8.2026.), na
+          mjesto gdje je prije stajao sat dohvata — taj je maknut jer je
+          govorio o aplikaciji, a ne o vremenu vani.
+
+          Uz to je pojačan: `semibold` umjesto `medium`, 15 px umjesto 13,
+          i BEZ `opacity(MUTED)`. Prigušen je bio jer je dijelio stupac s
+          jačim udarima; sam u kutu mora se moći pročitati u prolazu.
+        */}
         <Text
           modifiers={[
-            font({ size: 11, weight: "medium" }),
+            font({ size: 15, weight: "semibold" }),
             foregroundStyle(props.fg),
-            opacity(MUTED),
           ]}
         >
-          {props.fetchedAt}
+          {`${props.tMax}${props.unit} / ${props.tMin}${props.unit}`}
         </Text>
       </VStack>
     </HStack>
@@ -590,8 +588,29 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
    * bi se borila sa sustavskim tonom.
    */
   function AccessoryLayout(props: WidgetProps) {
+  /*
+   * `frame` s `maxWidth: Infinity` + `alignment: "leading"` (popravak
+   * 8.8.2026., Markov nalaz na uređaju: sadržaj je stajao na SREDINI
+   * pločice umjesto uz lijevi rub).
+   *
+   * `alignment="leading"` na `VStack`u poravnava djecu MEĐUSOBNO, ali sam
+   * stack se skupi na širinu najšireg djeteta i onda ga iOS centrira u
+   * pločici. Tek raztegnut okvir daje stacku punu širinu, pa "leading"
+   * postane rub pločice.
+   *
+   * Širina je KONAČAN broj, ne `Infinity` (koliko god SwiftUI to inače
+   * očekuje): `createModifier` prosljeđuje parametre bez pretvorbe, a
+   * `Infinity` u serijalizaciji postane `null` — isti kvar koji je već
+   * jednom srušio propove widgeta (`hasGusts` umjesto `gusts === null`).
+   * 400 px je šire od svake pločice zaključanog zaslona, pa `maxWidth`
+   * ionako pada na stvarnu širinu.
+   */
   return (
-    <VStack alignment="leading" spacing={1}>
+    <VStack
+      alignment="leading"
+      spacing={1}
+      modifiers={[frame({ maxWidth: 400, alignment: "leading" })]}
+    >
       {/*
         Ikona je PUNA (`iconFill`): `vibrant` način svede sve na jedan ton
         i masku, pa bi obrisna ikona ostala gotovo prazna. Isti razlog
@@ -626,19 +645,26 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
    * Ovdje također NEMA boje: `vibrant` način svede sve na jedan ton.
    */
   function CircularLayout(props: WidgetProps) {
+  /*
+   * `maximumValueLabel` je namjerno `props.tMax`, a `min` iz `gaugeMin` —
+   * raspon luka je dnevni min/max, a trenutna temperatura je položaj na
+   * njemu.
+   *
+   * Popravak 8.8.2026. (Markov nalaz na uređaju): brojke se NISU vidjele,
+   * ostajao je samo goli luk. `min`/`max` oznake u `circular` stilu iOS
+   * crta na krajevima luka, gdje u pločici te veličine nema mjesta — pa ih
+   * jednostavno izostavi. Ostaje SAMO središnji broj (`label`), koji je
+   * ionako jedini koji se na toj veličini može pročitati.
+   */
   return (
     <Gauge
       value={props.temp}
       min={props.gaugeMin}
       max={props.gaugeMax}
       currentValueLabel={
-        <Text modifiers={[font({ size: 15, weight: "semibold" })]}>{`${props.temp}`}</Text>
-      }
-      minimumValueLabel={
-        <Text modifiers={[font({ size: 10, weight: "medium" })]}>{`${props.gaugeMin}`}</Text>
-      }
-      maximumValueLabel={
-        <Text modifiers={[font({ size: 10, weight: "medium" })]}>{`${props.tMax}`}</Text>
+        <Text modifiers={[font({ size: 16, weight: "semibold" })]}>
+          {`${props.temp}`}
+        </Text>
       }
       modifiers={[gaugeStyle("circular")]}
     />

@@ -1,6 +1,6 @@
 import { router } from "expo-router";
-import { CloudFog, CloudRain, Flame, Mountain, Snowflake, Sun, ThermometerSnowflake, TriangleAlert, Waves, Wind, Zap, type LucideIcon } from "lucide-react-native";
-import { Pressable, Text } from "react-native";
+import { ChevronRight, CloudFog, CloudRain, Flame, Mountain, Snowflake, Sun, ThermometerSnowflake, TriangleAlert, Waves, Wind, Zap, type LucideIcon } from "lucide-react-native";
+import { Pressable, View } from "react-native";
 
 import type { MeteoWarning } from "@/api/meteoalarm";
 import { warningColor, warningFg } from "@/utils/weatherLook";
@@ -29,10 +29,18 @@ export function warningIcon(type: number): LucideIcon {
 }
 
 /**
- * Traka upozorenja u heroju (dizajn 6.8.2026.): između imena mjesta i
- * velike brojke, u boji razine, prikazuje NAJTEŽE upozorenje; "+N" kaže
- * da ih ima još. Dodir vodi na ekran Upozorenja. Bez upozorenja se ne
- * renderira — heroj tada izgleda kao prije.
+ * Značka upozorenja u heroju: između imena mjesta i velike brojke, u
+ * boji razine, ikona NAJTEŽEG upozorenja + strelica. Dodir vodi na
+ * ekran Upozorenja. Bez upozorenja se ne renderira — heroj tada
+ * izgleda kao prije.
+ *
+ * Bila je pilula s imenom događaja i "+N" (do 13.8.2026.) — Marko na
+ * uređaju: s tekstom "izgleda ko da nije to to". Naziv iz Meteoalarma
+ * zna biti dug i birokratski ("Upozorenje na grmljavinsko nevrijeme"),
+ * pa je pilula bila najširi element heroja i tukla se s tipografskom
+ * osi. Sad boja kaže razinu, ikona vrstu, a strelica da se klika —
+ * detalji su jedan dodir dalje. Puni naziv ostaje u
+ * `accessibilityLabel`, čitači ekrana ga i dalje izgovaraju.
  */
 export function WarningBar({ warnings }: { warnings: MeteoWarning[] }) {
   const top = warnings[0];
@@ -40,21 +48,21 @@ export function WarningBar({ warnings }: { warnings: MeteoWarning[] }) {
 
   const fg = warningFg(top.level);
   const Icon = warningIcon(top.type);
-  const extra = warnings.length - 1;
 
   return (
     <Pressable
       onPress={() => router.navigate("/warnings")}
       accessibilityRole="button"
       accessibilityLabel={top.event}
-      className="mt-2.5 flex-row items-center gap-2 rounded-full px-4 py-2"
+      className="mt-2.5 flex-row items-center gap-1 rounded-full py-2 pl-3.5 pr-2"
       style={{ backgroundColor: warningColor(top.level) }}
     >
-      <Icon size={16} strokeWidth={2.5} color={fg} />
-      <Text className="font-grotesk-bold text-[13.5px]" style={{ color: fg }}>
-        {top.event}
-        {extra > 0 ? `  +${extra}` : ""}
-      </Text>
+      {/* Ikona bez dodira — SVG na Androidu zna progutat dodir Pressableu. */}
+      <View pointerEvents="none" className="flex-row items-center gap-1">
+        <Icon size={16} strokeWidth={2.5} color={fg} />
+        {/* Strelica malo prigušena: pokazuje smjer, ne nosi informaciju. */}
+        <ChevronRight size={14} strokeWidth={2.5} color={fg} opacity={0.7} />
+      </View>
     </Pressable>
   );
 }

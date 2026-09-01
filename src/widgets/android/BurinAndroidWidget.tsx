@@ -267,12 +267,16 @@ export function AndroidMedium({ props, width }: { props: AndroidProps; width: nu
 
         <FlexWidget style={{ flex: 1 }} />
 
+        {/*
+          Isti raspored kao iOS (8.8.2026.): udari gore, min/max DOLJE u
+          kutu na mjesto gdje je stajao sat dohvata. Sat je maknut — govorio
+          je o aplikaciji, ne o vremenu vani. Min/max je pojačan na 15 px i
+          `600`, jer sam u kutu mora biti čitljiv u prolazu.
+
+          Dvije platforme se drže istog rasporeda namjerno; razilaženje bi
+          značilo da isti podatak izgleda kao dvije različite stvari.
+        */}
         <FlexWidget style={{ flexDirection: "column", height: "match_parent", alignItems: "flex-end" }}>
-          <TextWidget
-            text={`${props.tMax}${props.unit} / ${props.tMin}${props.unit}`}
-            style={{ fontSize: 13, color: props.fg }}
-          />
-          <FlexWidget style={{ flex: 1 }} />
           {props.hasGusts && (
             <FlexWidget style={{ flexDirection: "row" }}>
               {props.windIcon !== null && <ImageWidget image={props.windIcon} imageWidth={16} imageHeight={16} />}
@@ -282,7 +286,11 @@ export function AndroidMedium({ props, width }: { props: AndroidProps; width: nu
               />
             </FlexWidget>
           )}
-          <TextWidget text={props.fetchedAt} style={{ fontSize: 11, color: props.fg }} />
+          <FlexWidget style={{ flex: 1 }} />
+          <TextWidget
+            text={`${props.tMax}${props.unit} / ${props.tMin}${props.unit}`}
+            style={{ fontSize: 15, color: props.fg, fontWeight: "600" }}
+          />
         </FlexWidget>
       </FlexWidget>
     </OverlapWidget>
