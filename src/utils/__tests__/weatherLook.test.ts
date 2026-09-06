@@ -516,6 +516,29 @@ describe("pollenInfo", () => {
     expect(info.species[0]!.key).toBe("ragweed");
   });
 
+  /*
+   * AMBROZIJA MORA RADITI NA OBALI I U KONTINENTU (6.9.2026.).
+   *
+   * Baždarenje na jednom gradu nije bilo dovoljno: pragovi namješteni na
+   * Zadar su Zagrebu davali "vrlo visoko" tamo gdje je mjereno "visoko".
+   * Uzrok je da CAMS i peludomjer NE stoje u stalnom omjeru — Zagreb je bio
+   * 7–11× iznad mjerenja, Zadar 0.7–4× — pa se razlika ne da skratiti
+   * množenjem, nego samo širokim razredom "visoke".
+   *
+   * Ovi brojevi su STVARNI dnevni prosjeci iz CAMS-a za 6.–8.9.2026., kad
+   * su Pliva i Štampar za oba grada javljali VISOKU.
+   */
+  it("ista 'visoka' i u Zagrebu i u Zadru, iako se brojke razlikuju 10×", () => {
+    // Zagreb — kontinent, model daje red veličine više.
+    for (const v of [67.0, 88.8, 57.4]) {
+      expect(pollenInfo({ ragweed: v }).grade).toBe(3);
+    }
+    // Zadar — obala, iste izmjerene razine uz mnogo manje modelske brojke.
+    for (const v of [17.2, 26.2]) {
+      expect(pollenInfo({ ragweed: v }).grade).toBe(3);
+    }
+  });
+
   it("ukupna ocjena je najviši razred; ambrozija je alergenija od breze", () => {
     // 30 grains/m³ breze je tek niska; ista koncentracija ambrozije visoka.
     const birch = pollenInfo({ birch: 30 });

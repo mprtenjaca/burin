@@ -555,6 +555,25 @@ export type PollenGrade = 0 | 1 | 2 | 3 | 4;
  * Tko ikad promijeni agregaciju, mora promijeniti i ove brojke — s
  * maksimumom je isti dan izlazio razred više.
  *
+ * AMBROZIJA JE PREBAŽDARENA NA DVA GRADA (6.9.2026., Markov nalaz da je
+ * Zagreb pokazivao "vrlo visoko" uz izmjerenu "visoku").
+ *
+ * Ključno je da se CAMS i mjerenje NE RAZLIKUJU ZA STALAN FAKTOR:
+ *
+ *   grad    CAMS prosjek   mjereno   omjer
+ *   Zagreb   67 / 89 / 57     8.0     7–11×
+ *   Zadar    17 / 26 / 4.9    6.6     0.7–4×
+ *
+ * Zato se ne da popraviti množenjem — model u kontinentu daje red veličine
+ * veće brojke nego na obali, a mjerenja su svugdje slična. Popravlja se
+ * jedino ŠIROKIM razredom "visoke": 6–90 pokriva i Zadar i Zagreb.
+ *
+ * Izmjereno na svih 6 dana (Pliva javlja VISOKA za sve):
+ *   [2, 10, 30] → 2/6 pogodaka (Zagreb sva tri dana "vrlo visoko")
+ *   [2,  5, 90] → 5/6 pogodaka  ← ovo
+ * Promašen je jedino zadnji zadarski dan, gdje model predviđa 4.9 a Pliva
+ * prognozira visoku — razlika MODELA i MJERENJA, ne pragova.
+ *
  * Poklapanje razreda je ČESTO, ali nije zajamčeno: kad model podcijeni
  * koncentraciju, podcijenit će i razred. Mjerenje ostaje mjerenje.
  */
@@ -564,7 +583,7 @@ const POLLEN_THRESHOLDS: Record<PollenSpecies, [number, number, number]> = {
   grass: [3, 15, 50],
   mugwort: [3, 12, 40],
   olive: [10, 50, 150],
-  ragweed: [2, 10, 30],
+  ragweed: [2, 5, 90],
 };
 
 /** Boje razreda peludi: ista ljestvica kao UV (zeleno→ljubičasto bez ekstrema). */
