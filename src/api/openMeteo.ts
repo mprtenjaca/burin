@@ -389,10 +389,13 @@ const POLLEN_FIELDS = [
   ["ragweed", "ragweed_pollen"],
 ] as const;
 
+/** Ključ vrste u `PollenLevels` — izveden iz popisa gore, da se ne razidu. */
+type PollenSpeciesKey = (typeof POLLEN_FIELDS)[number][0];
+
 /**
- * Satni niz → DNEVNI MAKSIMUM po vrsti i danu.
+ * Satni niz → DNEVNI PROSJEK po vrsti i danu.
  *
- * Zašto maksimum, a ne tekući sat (popravak 6.9.2026., Markov nalaz —
+ * Zašto po danu, a ne tekući sat (popravak 6.9.2026., Markov nalaz —
  * "na dane je točna, na dane nije"): pelud kroz dan varira DESETEROSTRUKO.
  * Zadar 6.9.2026., ambrozija: 1.4 u ponoć, 27.1 u 9 h, 12.5 u 16 h, 48.7 u
  * 23 h — trideset i pet puta raspon unutar istog dana. Kartica je dotad
@@ -400,37 +403,65 @@ const POLLEN_FIELDS = [
  * istom danu javljala i "niska" i "vrlo visoka" ovisno o tome kad je
  * korisnik pogledao.
  *
- * Alergičar ne pita koliko je peludi u ovoj minuti nego kakav je DAN —
- * tegobe pravi ono što je udahnuo ujutro i navečer. Isti razlog zbog kojeg
- * Pliva i županijski zavodi objavljuju jednu dnevnu vrijednost.
+ * PROSJEK, NE MAKSIMUM — ispravak istog dana, nekoliko sati kasnije.
+ * Prva izvedba je uzimala maksimum uz obrazloženje da bi prosjek
+ * "razvodnio vršak satima mirne noći". Zvuči logično, ali je pogrešno:
+ * mjerenje protiv kojeg se uspoređujemo radi TOČNO TO.
  *
- * Maksimum, ne prosjek: prosjek bi vršak od 48.7 razvodnio satima mirne
- * noći i dan bi ispao blaži nego što ga alergičar proživi.
+ * Hirstov peludomjer nije trenutni mjerač — traka se vrti 24 sata, pa se
+ * zrnca prebroje pod mikroskopom i podijele s protokom zraka. Plivina
+ * brojka JEST dnevni prosjek. Uspoređivati naš vršak s njihovim prosjekom
+ * znači uspoređivati dvije različite mjere, i zato je aplikacija javljala
+ * razred više: 6.9.2026. je pisala "vrlo visoka" (max 48.7) dok je ZZJZ
+ * mjerio "visoka".
+ *
+ * Izmjereno na tri dana u Zadru (Pliva: visoka / visoka / visoka):
+ *   maksimum → VRLO VISOKA, VRLO VISOKA, VISOKA   (0 od 3 pogođeno)
+ *   prosjek  → VISOKA,      VISOKA,      UMJERENA (2 od 3)
+ *
+ * Treći dan (prosjek 4.9) ostaje niži jer model za taj dan predviđa slabu
+ * ambroziju, a Pliva prognozira visoku — to je razlika MODELA i MJERENJA
+ * koju agregacija ne može popraviti.
  */
 export function pollenDaysFromHourly(hourly: OmPollenHourly | undefined, days = 3): PollenDay[] {
   const times = hourly?.time;
   if (!times?.length) return [];
 
-  const byDate = new Map<string, PollenLevels>();
+  /** Zbroj i broj sati po danu i vrsti — prosjek se računa na kraju. */
+  const byDate = new Map<string, Partial<Record<PollenSpeciesKey, { sum: number; n: number }>>>();
   for (let i = 0; i < times.length; i += 1) {
     const date = times[i]!.slice(0, 10);
-    let levels = byDate.get(date);
-    if (!levels) {
-      levels = {};
-      byDate.set(date, levels);
+    let acc = byDate.get(date);
+    if (!acc) {
+      acc = {};
+      byDate.set(date, acc);
     }
     for (const [key, field] of POLLEN_FIELDS) {
       const v = pollenNum(hourly?.[field]?.[i]);
       if (v === undefined) continue;
-      const seen = levels[key];
-      if (seen === undefined || v > seen) levels[key] = v;
+      const seen = acc[key];
+      if (seen) {
+        seen.sum += v;
+        seen.n += 1;
+      } else {
+        acc[key] = { sum: v, n: 1 };
+      }
     }
   }
 
   return [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(0, days)
-    .map(([date, levels]) => ({ date, levels }));
+    .map(([date, acc]) => {
+      const levels: PollenLevels = {};
+      for (const [key] of POLLEN_FIELDS) {
+        const a = acc[key];
+        if (!a || a.n === 0) continue;
+        // Na jednu decimalu — kao što objavljuju peludomjeri.
+        levels[key] = Math.round((a.sum / a.n) * 10) / 10;
+      }
+      return { date, levels };
+    });
 }
 
 /**

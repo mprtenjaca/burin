@@ -95,7 +95,7 @@ describe("Open-Meteo mapperi", () => {
  * aplikacija na istom danu govorila i "niska" i "vrlo visoka", ovisno o
  * tome kad je korisnik pogledao.
  */
-describe("pelud: dnevni maksimum iz satnog niza", () => {
+describe("pelud: dnevni prosjek iz satnog niza", () => {
   // Skraćeni stvarni niz iz Zadra 6.9.2026. (CAMS preko Open-Metea).
   const hourly = {
     time: [
@@ -111,15 +111,32 @@ describe("pelud: dnevni maksimum iz satnog niza", () => {
     grass_pollen: [0.2, 1.9, 1.9, 0.4, 1.1, 2.0, 0.3],
   };
 
-  it("uzima MAKSIMUM dana, ne tekući sat ni prosjek", () => {
+  /*
+   * PROSJEK, NE MAKSIMUM (ispravak 6.9.2026.).
+   *
+   * Peludomjer je 24-satni uređaj: traka se vrti cijeli dan, zrnca se
+   * prebroje i podijele s protokom zraka — dakle njihova brojka JE dnevni
+   * prosjek. Naš maksimum je davao razred VIŠE od mjerenja ("vrlo visoka"
+   * naspram "visoka" za Zadar 6.9.), jer je uspoređivao vršak s prosjekom.
+   */
+  it("uzima PROSJEK dana, ne tekući sat ni maksimum", () => {
     const days = pollenDaysFromHourly(hourly);
     expect(days).toHaveLength(3);
     expect(days[0]!.date).toBe("2026-09-06");
-    // 48.7 je vršak dana; 12.5 je bio sat u kojem je Marko gledao.
-    expect(days[0]!.levels.ragweed).toBe(48.7);
-    expect(days[1]!.levels.ragweed).toBe(60.6);
+    // (1.4 + 27.1 + 12.5 + 48.7) / 4 = 22.4 — ne 48.7 (vršak) ni 12.5 (sat).
+    expect(days[0]!.levels.ragweed).toBe(22.4);
+    expect(days[1]!.levels.ragweed).toBe(56.2);
     expect(days[2]!.levels.ragweed).toBe(9.1);
-    expect(days[0]!.levels.grass).toBe(1.9);
+    expect(days[0]!.levels.grass).toBe(1.1);
+  });
+
+  it("zaokružuje na jednu decimalu, kao peludomjeri", () => {
+    const days = pollenDaysFromHourly({
+      time: ["2026-09-06T00:00", "2026-09-06T01:00", "2026-09-06T02:00"],
+      ragweed_pollen: [1, 2, 2],
+    });
+    // 5/3 = 1.666… → 1.7, a ne 1.6666666666666667 na ekranu.
+    expect(days[0]!.levels.ragweed).toBe(1.7);
   });
 
   it("dani su poredani i odrezani na traženi broj", () => {

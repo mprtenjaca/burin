@@ -547,9 +547,13 @@ export type PollenGrade = 0 | 1 | 2 | 3 | 4;
  * zavodi, jer je RAZRED ono što alergičar čita ("visoka — sve će alergične
  * osobe imati tegobe"). BROJKE se NE smiju uspoređivati s njihovima: naše su
  * grains/m³ iz CAMS modela, njihov je indeks 0–12+ izveden iz mjerenja
- * peludomjerom, pa je isti dan kod nas 12.5, a kod njih 6.6. Zato se od
+ * peludomjerom, pa je isti dan kod nas 17.2, a kod njih 6.6. Zato se od
  * 6.9.2026. prikazuje SAMO razred (Markov odabir) — dvije mjere iste stvari
  * jedna uz drugu izgledaju kao da netko griješi.
+ *
+ * Pragovi vrijede uz DNEVNI PROSJEK (`pollenDaysFromHourly`), ne uz vršak.
+ * Tko ikad promijeni agregaciju, mora promijeniti i ove brojke — s
+ * maksimumom je isti dan izlazio razred više.
  *
  * Poklapanje razreda je ČESTO, ali nije zajamčeno: kad model podcijeni
  * koncentraciju, podcijenit će i razred. Mjerenje ostaje mjerenje.
