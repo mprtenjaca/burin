@@ -266,6 +266,8 @@ export const en: Dict = {
     today: "today",
     modelNote:
       "Values are computed by the CAMS model (Copernicus), not read from a pollen trap — treat them as indicative. For measured values see your regional public health institute's pollen forecast",
+    measuredNote:
+      "Measured by pollen trap — NZJZ \"Dr. Andrija Stampar\" (today measured, following days their forecast). Development source, not shipped in the published app",
     species: {
       alder: "Alder",
       birch: "Birch",
@@ -273,6 +275,10 @@ export const en: Dict = {
       mugwort: "Mugwort",
       olive: "Olive",
       ragweed: "Ragweed",
+      nettle: "Nettle",
+      plantain: "Plantain",
+      pellitory: "Pellitory",
+      goosefoot: "Goosefoot",
     },
   },
 

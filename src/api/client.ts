@@ -10,11 +10,15 @@ export class FetchError extends Error {
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
-async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs: number,
+  headers?: Record<string, string>,
+): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { signal: controller.signal });
+    return await fetch(url, { signal: controller.signal, headers });
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       throw new FetchError(`Timeout (${timeoutMs} ms): ${url}`);
@@ -36,9 +40,9 @@ export async function fetchJson<T>(
 
 export async function fetchText(
   url: string,
-  opts: { timeoutMs?: number } = {},
+  opts: { timeoutMs?: number; headers?: Record<string, string> } = {},
 ): Promise<string> {
-  const res = await fetchWithTimeout(url, opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const res = await fetchWithTimeout(url, opts.timeoutMs ?? DEFAULT_TIMEOUT_MS, opts.headers);
   if (!res.ok) throw new FetchError(`HTTP ${res.status}: ${url}`, res.status);
   return res.text();
 }

@@ -78,11 +78,11 @@ export default function PollenScreen() {
    * Redoslijed vrsta drži DANAŠNJI dan — najjača gore. Da svaki dan slaže
    * po sebi, vrste bi skakale po stupcima i tablica se ne bi mogla čitati.
    */
-  const species = pollen ? pollenSpecies(pollen) : [];
+  const species = pollen ? pollenSpecies(pollen, pollenDays[0]?.graded) : [];
 
   /** Razred jedne vrste na jedan dan; dan bez podataka daje razred 0. */
   const gradeOn = (day: PollenDay, key: PollenSpecies) =>
-    pollenSpecies(day.levels).find((s) => s.key === key)?.grade ?? 0;
+    pollenSpecies(day.levels, day.graded).find((s) => s.key === key)?.grade ?? 0;
 
   return (
     <ScrollView className="flex-1 bg-mist dark:bg-night" contentContainerClassName="gap-3 px-4 py-4">
@@ -171,7 +171,12 @@ export default function PollenScreen() {
       )}
 
       <Text className="px-1 pt-1 font-grotesk text-[11.5px] leading-4 text-ink/45 dark:text-paper/45">
-        {t.pollen.modelNote}
+        {/*
+          Napomena prati IZVOR: peludomjer kaže da je izmjereno (i da je
+          razvojni izvor), model kaže da je računato. Korisnik uvijek zna
+          što gleda — kod peludi to je zdravstvena informacija, ne kozmetika.
+        */}
+        {pollenDays[0]?.source === "stampar" ? t.pollen.measuredNote : t.pollen.modelNote}
       </Text>
     </ScrollView>
   );

@@ -1,4 +1,4 @@
-import type { PollenLevels } from "@/utils/weatherLook";
+import type { PollenGraded, PollenLevels } from "@/utils/weatherLook";
 
 import { fetchJson } from "./client";
 import type { CurrentWeather, DailyPoint, HourlyPoint, Place } from "./types";
@@ -358,10 +358,21 @@ export async function geocode(query: string): Promise<Place[]> {
   );
 }
 
-/** Jedan dan peludi: datum `YYYY-MM-DD` + DNEVNI MAKSIMUM po vrsti. */
+/** Odakle su brojke peludi — model ili peludomjer. Bira napomenu na ekranu. */
+export type PollenSource = "cams" | "stampar";
+
+/**
+ * Jedan dan peludi: datum `YYYY-MM-DD` + vrijednosti po vrsti.
+ *
+ * `levels` je DNEVNI PROSJEK grains/m³ iz CAMS-a, iz kojeg se razred
+ * računa pragovima. `graded` je GOTOV razred iz peludomjera (Štampar,
+ * razvojni izvor) i kad postoji pobjeđuje — vidi `pollenSpecies`.
+ */
 export type PollenDay = {
   date: string;
   levels: PollenLevels;
+  graded?: PollenGraded;
+  source: PollenSource;
 };
 
 export type AirQuality = {
@@ -460,7 +471,7 @@ export function pollenDaysFromHourly(hourly: OmPollenHourly | undefined, days = 
         // Na jednu decimalu — kao što objavljuju peludomjeri.
         levels[key] = Math.round((a.sum / a.n) * 10) / 10;
       }
-      return { date, levels };
+      return { date, levels, source: "cams" as const };
     });
 }
 

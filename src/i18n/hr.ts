@@ -298,6 +298,13 @@ export const hr = {
      */
     modelNote:
       "Vrijednosti računa CAMS model (Copernicus), nisu s peludomjera — orijentacijske su. Za izmjerene vrijednosti vidi peludnu prognozu svog županijskog zavoda za javno zdravstvo",
+    /*
+     * Napomena kad je izvor Štamparov peludomjer (razvojni izvor od
+     * 6.9.2026., ide SAMO u razvojnu gradnju — `__DEV__`). Prvi dan je
+     * izmjeren, sljedeći su njihova prognoza; kaže se otvoreno.
+     */
+    measuredNote:
+      "Izmjereno peludomjerom — NZJZ „Dr. Andrija Štampar” (danas mjerenje, sljedeći dani njihova prognoza). Razvojni izvor, ne ide u objavljenu aplikaciju",
     species: {
       alder: "Joha",
       birch: "Breza",
@@ -305,6 +312,14 @@ export const hr = {
       mugwort: "Pelin",
       olive: "Maslina",
       ragweed: "Ambrozija",
+      /*
+       * Štamparove vrste (6.9.2026.) — CAMS ih ne daje; vidljive samo kad
+       * je izvor peludomjer. Imena kako ih Štampar objavljuje.
+       */
+      nettle: "Koprive",
+      plantain: "Trputac",
+      pellitory: "Crkvina",
+      goosefoot: "Loboda",
     },
   },
 

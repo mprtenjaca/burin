@@ -358,7 +358,8 @@ export function BentoGrid({
   const dew = dewPoint(current.temp, current.humidity);
   const air = aqi !== undefined ? aqiInfo(aqi) : undefined;
   const pollenGradeLabels = [t.pollen.none, t.pollen.low, t.pollen.moderate, t.pollen.high, t.pollen.veryHigh] as const;
-  const dust = pollen !== undefined ? pollenInfo(pollen) : undefined;
+  // Gotov razred (peludomjer) putuje uz dan; kad ga nema, računa se iz CAMS-a.
+  const dust = pollen !== undefined ? pollenInfo(pollen, pollenDays?.[0]?.graded) : undefined;
   const speciesLabel = (key: PollenSpecies) => t.pollen.species[key];
 
   return (

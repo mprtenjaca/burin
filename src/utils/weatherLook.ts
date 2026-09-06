@@ -523,13 +523,40 @@ export function visibilityLabel(km: number): string {
 
 // ---- pelud ----
 
-/** Vrste koje Open-Meteo (CAMS) daje za Europu, grains/m³. */
-export type PollenSpecies = "alder" | "birch" | "grass" | "mugwort" | "olive" | "ragweed";
+/**
+ * Vrste peludi koje aplikacija poznaje.
+ *
+ * Prvih šest daje Open-Meteo (CAMS) za Europu, u grains/m³. Zadnje četiri
+ * (koprive, trputac, crkvina, loboda) CAMS NE modelira — dolaze SAMO iz
+ * Štamparovog peludomjera (`api/stampar.ts`, razvojni izvor od 6.9.2026.)
+ * i u CAMS putu ostaju `undefined`, pa se ne prikazuju. Dodane su da se
+ * mjerenje prikaže VJERNO: test protiv Štampara ne vrijedi ako aplikacija
+ * prešuti vrstu koju on javlja.
+ */
+export type PollenSpecies =
+  | "alder"
+  | "birch"
+  | "grass"
+  | "mugwort"
+  | "olive"
+  | "ragweed"
+  | "nettle"
+  | "plantain"
+  | "pellitory"
+  | "goosefoot";
 
 export type PollenLevels = Partial<Record<PollenSpecies, number>>;
 
 /** 0 = nema, 1 niska ... 4 vrlo visoka. */
 export type PollenGrade = 0 | 1 | 2 | 3 | 4;
+
+/**
+ * GOTOV razred po vrsti, s položajem markera — za izvore koji razred DAJU,
+ * umjesto da se računa iz grains/m³ (Štamparov peludomjer objavljuje
+ * "visoka", ne koncentraciju). Kad postoji, pobjeđuje nad `PollenLevels`
+ * u `pollenSpecies` — mjerenje se ne smije provlačiti kroz modelske pragove.
+ */
+export type PollenGraded = Partial<Record<PollenSpecies, { grade: PollenGrade; fraction: number }>>;
 
 /**
  * Pragovi grains/m³ za [nisku, umjerenu, visoku] granicu — iznad zadnje
@@ -584,6 +611,18 @@ const POLLEN_THRESHOLDS: Record<PollenSpecies, [number, number, number]> = {
   mugwort: [3, 12, 40],
   olive: [10, 50, 150],
   ragweed: [2, 5, 90],
+  /*
+   * Štamparove vrste — CAMS ih ne daje, pa ovi pragovi u praksi NE RADE
+   * NIŠTA: te vrste dolaze samo kroz `PollenGraded` s gotovim razredom.
+   * Stoje radi potpunosti tipa (`Record` traži svaki ključ) i da se ništa
+   * ne sruši ako netko jednom ipak upiše brojku. Vrijednosti su
+   * orijentacijske, po Štamparovoj skali alergenosti: koprive i loboda su
+   * niske, trputac i crkvina umjerene do visoke.
+   */
+  nettle: [10, 50, 150],
+  plantain: [5, 25, 80],
+  pellitory: [5, 25, 80],
+  goosefoot: [10, 50, 150],
 };
 
 /** Boje razreda peludi: ista ljestvica kao UV (zeleno→ljubičasto bez ekstrema). */
@@ -649,9 +688,16 @@ function gradeFraction(species: PollenSpecies, value: number, grade: PollenGrade
  * vrste na nuli. Podstranica peluda prikazuje kompletnu listu (i "Nema"),
  * dok kartica na početnoj kroz `pollenInfo` uzima samo aktivne.
  */
-export function pollenSpecies(levels: PollenLevels): PollenSpeciesInfo[] {
+export function pollenSpecies(levels: PollenLevels, graded?: PollenGraded): PollenSpeciesInfo[] {
   return (Object.keys(POLLEN_THRESHOLDS) as PollenSpecies[])
     .map((key) => {
+      /*
+       * Gotov razred (mjerenje) POBJEĐUJE nad računom iz koncentracije:
+       * peludomjer kaže "visoka" i to je istina, a pragovi gore su
+       * kalibrirani za CAMS-ove brojke i na mjerenje se ne smiju primijeniti.
+       */
+      const ready = graded?.[key];
+      if (ready) return { key, grade: ready.grade, fraction: ready.fraction };
       const value = levels[key];
       const grade = value === undefined ? (0 as PollenGrade) : pollenGrade(key, value);
       return { key, grade, fraction: gradeFraction(key, value ?? 0, grade) };
@@ -664,8 +710,8 @@ export function pollenSpecies(levels: PollenLevels): PollenSpeciesInfo[] {
  * izostavljaju; kad su sve na nuli, `grade` je 0 i kartica se uopće ne
  * prikazuje (zimi nema prazne kartice).
  */
-export function pollenInfo(levels: PollenLevels): PollenInfo {
-  const species = pollenSpecies(levels).filter((s) => s.grade > 0);
+export function pollenInfo(levels: PollenLevels, graded?: PollenGraded): PollenInfo {
+  const species = pollenSpecies(levels, graded).filter((s) => s.grade > 0);
   const grade = species.reduce<PollenGrade>(
     (max, s) => (s.grade > max ? s.grade : max),
     0,

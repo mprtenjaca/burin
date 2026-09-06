@@ -98,8 +98,8 @@ export type WeatherBundle = {
   daily: DailyPoint[]; // 16 dana, UI prikazuje 14
   dhmz?: DhmzObservation; // samo ako je najbliža postaja <= 50 km
   aqi?: number; // european_aqi
-  pollen?: import("@/utils/weatherLook").PollenLevels; // CAMS, DNEVNI MAKSIMUM za danas
-  pollenDays?: import("@/api/openMeteo").PollenDay[]; // danas + 2 dana, za podstranicu
+  pollen?: import("@/utils/weatherLook").PollenLevels; // današnje vrijednosti (= pollenDays[0].levels)
+  pollenDays?: import("@/api/openMeteo").PollenDay[]; // danas + 2 dana; svaki nosi izvor (CAMS / Štampar u razvoju) i gotov razred kad ga ima
   seaTemp?: number; // temperatura mora, samo za obalna mjesta
   fetchedAt: number; // epoch ms — "Podaci od HH:mm"
 };

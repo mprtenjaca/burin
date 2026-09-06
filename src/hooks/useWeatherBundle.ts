@@ -13,6 +13,7 @@ import {
   fetchForecast,
   fetchSeaTemperature,
 } from "@/api/openMeteo";
+import { fetchStamparPollen, nearestStamparCity } from "@/api/stampar";
 import type { Place, WeatherBundle } from "@/api/types";
 import { NO_BIAS, biasSlotForHour, learnModelBias } from "@/api/bias";
 import {
@@ -57,6 +58,40 @@ export function useWeatherBundle(place: Place | null) {
     enabled: !!place,
     staleTime: 30 * MIN,
     retry: 1,
+  });
+
+  /*
+   * PELUD S PELUDOMJERA — SAMO U RAZVOJU (6.9.2026.).
+   *
+   * `__DEV__` je u produkcijskoj gradnji `false`, pa se ovaj upit ondje
+   * NIKAD ne pokrene i CAMS ostaje jedini izvor. To je cijela zaštita, i
+   * namjerno je u kodu a ne u konfiguraciji: nema prekidača koji bi netko
+   * slučajno ostavio upaljen. Razlog je pravni — vidi `api/stampar.ts`.
+   *
+   * Radi samo za mjesta do 40 km od jednog od 25 Štamparovih gradova;
+   * ostatak Hrvatske i sve izvan nje ostaje na CAMS-u (Markov zahtjev).
+   *
+   * KEŠ I TEMPO (Markov zahtjev: "nemoj agresivno pollati stranicu"):
+   *  - ključ po GRADU, ne po mjestu — Zadar, Polača i Bibinje dijele jedan
+   *    dohvat;
+   *  - `staleTime` 6 h: Štampar objavljuje jednom dnevno, pa i to je više
+   *    nego što treba, ali ulovi popodnevnu objavu bez restarta;
+   *  - `gcTime` 24 h da keš preživi zatvaranje ekrana;
+   *  - bez osvježavanja na fokus i povratak u aplikaciju;
+   *  - jedan pokušaj ponovno, uz 30 s razmaka — pad se ne "lupa".
+   * Jedan developer × jedan grad × najviše 4 puta dnevno.
+   */
+  const stamparCity = place ? nearestStamparCity(place.lat, place.lon) : undefined;
+  const stampar = useQuery({
+    queryKey: ["stampar-pollen", stamparCity?.id],
+    queryFn: () => fetchStamparPollen(stamparCity!.id),
+    enabled: __DEV__ && !!stamparCity,
+    staleTime: 6 * 60 * MIN,
+    gcTime: 24 * 60 * MIN,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 30_000,
   });
 
   // Temperatura mora — undefined za kopnena mjesta, tada se ne prikazuje.
@@ -121,6 +156,13 @@ export function useWeatherBundle(place: Place | null) {
     };
     const delta = observationDelta(debiasedCurrent, nearby);
 
+    /*
+     * Izvor peludi: peludomjer ako je stigao i nije prazan, inače CAMS.
+     * `stampar.data` je `undefined` u produkciji (upit onemogućen) i `[]`
+     * kad stranica ne da ništa upotrebljivo — oboje pada na CAMS.
+     */
+    const pollenDays = stampar.data?.length ? stampar.data : aqi.data?.pollenDays;
+
     return buildBundle({
       place,
       // Isti `delta` kao za satnu krivulju — hero i prva ura moraju se
@@ -135,8 +177,13 @@ export function useWeatherBundle(place: Place | null) {
       daily: debiasDaily(forecast.data.daily, modelBias),
       dhmz: dhmzObs,
       aqi: aqi.data?.aqi,
-      pollen: aqi.data?.pollen,
-      pollenDays: aqi.data?.pollenDays,
+      /*
+       * Peludomjer POBJEĐUJE nad modelom kad ga ima (samo u razvoju, samo
+       * blizu pokrivenog grada). Prazan odgovor (stranica u kvaru, nepoznat
+       * oblik) pada na CAMS — korisnik nikad ne vidi rupu.
+       */
+      pollen: pollenDays?.[0]?.levels,
+      pollenDays,
       // Upit vraća null za kopnena mjesta (react-query brani undefined);
       // WeatherBundle očekuje undefined kad mora nema.
       seaTemp: seaTemp.data ?? undefined,
@@ -147,6 +194,7 @@ export function useWeatherBundle(place: Place | null) {
     current.data,
     forecast.data,
     aqi.data,
+    stampar.data,
     dhmz.data,
     seaTemp.data,
     bias.data,
