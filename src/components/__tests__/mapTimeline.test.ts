@@ -256,6 +256,29 @@ describe("dayJumps", () => {
     }
   });
 
+  /*
+   * MARKOV NALAZ 6.9.2026.: na uređaju je za sutra pisao DATUM umjesto
+   * "Sutra".
+   *
+   * Uzrok: `isNow` traži TOČNO poklapanje niza s tekućim satom. Kad se ne
+   * poklopi — niz počne na pola sata, uređaj i `timezone=auto` u različitim
+   * zonama, ili upit prestoji puni sat — `nowIdx` je -1 i "danas" je bio
+   * nepoznat, pa su SVI dani ispali kao datum.
+   *
+   * Sada je datum uređaja rezerva, pa oznake rade i bez `isNow`.
+   */
+  it("bez isNow oznake i dalje zna što je sutra (datum uređaja kao rezerva)", () => {
+    const hrs = [
+      { time: "2026-09-05T12:00", isNow: false },
+      { time: "2026-09-06T12:00", isNow: false },
+      { time: "2026-09-07T12:00", isNow: false },
+      { time: "2026-09-08T12:00", isNow: false },
+    ];
+    // nowIdx = -1: nijedan sat se nije poklopio.
+    const j = dayJumps(hrs, -1, new Date(2026, 8, 6, 14, 0));
+    expect(j.map((d) => d.label)).toEqual(["-24 h", "Sada", "Sutra", "8.9."]);
+  });
+
   it("prazan niz ne ruši ništa", () => {
     expect(dayJumps([], -1)).toEqual([]);
   });

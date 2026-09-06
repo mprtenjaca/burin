@@ -118,7 +118,7 @@ export type DayJump = {
  *
  * Izvezeno radi testova.
  */
-export function dayJumps(hours: TimelineHour[], nowIdx: number): DayJump[] {
+export function dayJumps(hours: TimelineHour[], nowIdx: number, now: Date = new Date()): DayJump[] {
   if (hours.length === 0) return [];
 
   const byDate = new Map<string, number[]>();
@@ -129,7 +129,22 @@ export function dayJumps(hours: TimelineHour[], nowIdx: number): DayJump[] {
     else byDate.set(date, [i]);
   });
 
-  const todayDate = nowIdx >= 0 ? hours[nowIdx]?.time.slice(0, 10) : undefined;
+  /*
+   * "Danas" se određuje iz SATA UREĐAJA, a ne samo iz `isNow` zastavice
+   * (popravak 6.9.2026., Markov nalaz: "za sutra da stoji Sutra, a ne
+   * datum").
+   *
+   * `isNow` traži TOČNO poklapanje niza ("2026-09-07T14:00") s tekućim
+   * satom. Kad se ne poklopi — a ne poklopi se čim niz počne na pola sata,
+   * kad uređaj i `timezone=auto` nisu u istoj zoni, ili naprosto dok upit
+   * stoji preko punog sata — `nowIdx` je -1, "danas" je nepoznat i SVI
+   * dani ispadnu kao datum, uključujući sutra.
+   *
+   * Zato je datum uređaja rezerva: oznake tada i dalje rade, a `isNow`
+   * ostaje za sidro na skali (ono stvarno treba točan sat).
+   */
+  const todayDate =
+    (nowIdx >= 0 ? hours[nowIdx]?.time.slice(0, 10) : undefined) ?? localDateKey(now);
 
   return [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -151,6 +166,12 @@ export function dayJumps(hours: TimelineHour[], nowIdx: number): DayJump[] {
         to,
       };
     });
+}
+
+/** "2026-09-07" iz `Date`, u LOKALNOJ zoni (`toISOString` bi dao UTC). */
+function localDateKey(at: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${at.getFullYear()}-${p(at.getMonth() + 1)}-${p(at.getDate())}`;
 }
 
 /** Razlika u DANIMA između dva `YYYY-MM-DD` (pozitivno = u budućnosti). */
