@@ -2,6 +2,7 @@ import { ExternalLink } from "lucide-react-native";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 
 import { Hairline } from "@/components/Section";
+import { useBottomInset } from "@/hooks/useBottomInset";
 import { t } from "@/i18n";
 import { useThemeColors } from "@/theme/useThemeColors";
 
@@ -33,10 +34,14 @@ const SOURCES = [
 export default function SourcesScreen() {
   const { fg } = useThemeColors();
 
+  // Androidova navigacijska traka leži preko dna (edge-to-edge) — vidi hook.
+  const bottomInset = useBottomInset();
+
   return (
     <ScrollView
       className="flex-1 bg-mist dark:bg-night"
-      contentContainerClassName="px-4 py-4"
+      contentContainerClassName="px-4 pt-4"
+      contentContainerStyle={{ paddingBottom: 16 + bottomInset }}
     >
       <View className="rounded-2xl bg-white py-0.5 dark:bg-coal">
         {SOURCES.map((source, i) => (

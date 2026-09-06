@@ -4,6 +4,7 @@ import { ScrollView, Text, View } from "react-native";
 import type { MeteoWarning } from "@/api/meteoalarm";
 import { Hairline } from "@/components/Section";
 import { warningIcon } from "@/components/WarningBar";
+import { useBottomInset } from "@/hooks/useBottomInset";
 import { useLocation } from "@/hooks/useLocation";
 import { useWarnings } from "@/hooks/useWarnings";
 import { t } from "@/i18n";
@@ -70,10 +71,14 @@ export default function WarningsScreen() {
       hasMeteoalarmFeed(place.countryCode)
     : false;
 
+  // Androidova navigacijska traka leži preko dna (edge-to-edge) — vidi hook.
+  const bottomInset = useBottomInset();
+
   return (
     <ScrollView
       className="flex-1 bg-mist dark:bg-night"
-      contentContainerClassName="gap-3 px-4 py-4"
+      contentContainerClassName="gap-3 px-4 pt-4"
+      contentContainerStyle={{ paddingBottom: 16 + bottomInset }}
     >
       {place && (
         <Text className="px-1 font-grotesk-bold text-[13.5px] text-ink/55 dark:text-paper/55">

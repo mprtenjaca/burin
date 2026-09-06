@@ -10,6 +10,7 @@ import Svg, { Defs, Line, LinearGradient, Rect, Stop } from "react-native-svg";
 import type { MapLayerId } from "@/api/mapLayers";
 import { MAP_LAYERS, isLayerAvailable, mapLayerById } from "@/api/mapLayers";
 import type { Place, WeatherBundle } from "@/api/types";
+import { useBottomInset } from "@/hooks/useBottomInset";
 import { t } from "@/i18n";
 import { useCities } from "@/store/cities";
 import { useLastWeather } from "@/store/lastWeather";
@@ -289,6 +290,8 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
  * novog upita), slojevi karte s izravnim ulazom, pa aplikacija.
  */
 export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
+  // Androidova navigacijska traka leži preko dna (edge-to-edge) — vidi hook.
+  const bottomInset = useBottomInset();
   const pathname = usePathname();
   const { fg, dark } = useThemeColors();
   const saved = useCities((s) => s.saved);
@@ -404,7 +407,7 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
   return (
     <ScrollView
       className="flex-1 bg-mist dark:bg-night"
-      contentContainerStyle={{ paddingBottom: 24 }}
+      contentContainerStyle={{ paddingBottom: 24 + bottomInset }}
       /*
        * Ladica se NE smije povlačiti iznad vrha (dorada 6.8.2026.): iznad
        * gradijentnog zaglavlja provirivala je bijela/mist podloga i lomila

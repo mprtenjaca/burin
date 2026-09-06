@@ -3,6 +3,7 @@ import { Check, ChevronRight } from "lucide-react-native";
 import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 
 import { Hairline, Section } from "@/components/Section";
+import { useBottomInset } from "@/hooks/useBottomInset";
 import { t } from "@/i18n";
 import type { LanguageSetting, ThemeSetting } from "@/store/settings";
 import { useSettings } from "@/store/settings";
@@ -103,10 +104,14 @@ export default function SettingsScreen() {
     { value: "en", label: t.settings.languageEn },
   ];
 
+  // Androidova navigacijska traka leži preko dna (edge-to-edge) — vidi hook.
+  const bottomInset = useBottomInset();
+
   return (
     <ScrollView
       className="flex-1 bg-mist dark:bg-night"
-      contentContainerClassName="gap-6 px-4 py-4"
+      contentContainerClassName="gap-6 px-4 pt-4"
+      contentContainerStyle={{ paddingBottom: 16 + bottomInset }}
     >
       <Section title={t.settings.theme}>
         <View className="rounded-2xl bg-white py-0.5 dark:bg-coal">

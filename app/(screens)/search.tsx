@@ -8,6 +8,7 @@ import type { Place } from "@/api/types";
 import { ErrorView } from "@/components/ErrorView";
 import { Hairline } from "@/components/Section";
 import { WindFlag } from "@/components/WindFlag";
+import { useBottomInset } from "@/hooks/useBottomInset";
 import { useLocation } from "@/hooks/useLocation";
 import { t } from "@/i18n";
 import { useCities } from "@/store/cities";
@@ -246,8 +247,16 @@ export default function SearchScreen() {
     router.navigate("/");
   };
 
+  // Androidova navigacijska traka leži preko dna (edge-to-edge) — vidi hook.
+  const bottomInset = useBottomInset();
+
   return (
-    <ScrollView className="flex-1 bg-mist dark:bg-night" contentContainerClassName="gap-5 px-4 py-4" keyboardShouldPersistTaps="handled">
+    <ScrollView
+      className="flex-1 bg-mist dark:bg-night"
+      contentContainerClassName="gap-5 px-4 pt-4"
+      contentContainerStyle={{ paddingBottom: 16 + bottomInset }}
+      keyboardShouldPersistTaps="handled"
+    >
       <View className="flex-row items-center rounded-2xl bg-white pr-2 dark:bg-coal">
         <TextInput
           value={query}

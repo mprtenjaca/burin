@@ -13,6 +13,7 @@ import { RadarPreviewCard } from "@/components/RadarPreviewCard";
 import { Section } from "@/components/Section";
 import { HomeSkeleton } from "@/components/Skeleton";
 import { Wordmark } from "@/components/Wordmark";
+import { useBottomInset } from "@/hooks/useBottomInset";
 import { useLocation } from "@/hooks/useLocation";
 import { useWarnings } from "@/hooks/useWarnings";
 import { useWeatherBundle } from "@/hooks/useWeatherBundle";
@@ -42,6 +43,8 @@ export default function HomeScreen() {
   const { dark } = useThemeColors();
   const window = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  // Androidova navigacijska traka leži preko dna (edge-to-edge) — vidi hook.
+  const bottomInset = useBottomInset();
   const selected = useCities((s) => s.selected);
   const gps = useLocation(selected === null);
   const place = selected ?? (gps.status === "granted" ? gps.place : null);
@@ -139,7 +142,12 @@ export default function HomeScreen() {
     return (
       <View className="flex-1 bg-mist dark:bg-night">
         <HomeSkeleton />
-        <Text className="px-8 pb-10 text-center text-xs text-ink/40 dark:text-paper/40">{t.location.rationale}</Text>
+        <Text
+          className="px-8 text-center text-xs text-ink/40 dark:text-paper/40"
+          style={{ paddingBottom: 40 + bottomInset }}
+        >
+          {t.location.rationale}
+        </Text>
       </View>
     );
   }
@@ -271,7 +279,7 @@ export default function HomeScreen() {
           Ispod pregiba: bento kartice pa sekcije. Montira se tek u
           sljedećem kadru (`belowFold`) — vidi objašnjenje uz stanje.
         */}
-        <View className="gap-6 px-4 pb-12 pt-1">
+        <View className="gap-6 px-4 pt-1" style={{ paddingBottom: 48 + bottomInset }}>
           {belowFold && (
             <>
               <BentoGrid

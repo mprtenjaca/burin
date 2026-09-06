@@ -5,6 +5,7 @@ import { ScrollView, Text, View } from "react-native";
 import type { PollenDay } from "@/api/openMeteo";
 import { ScaleMarker } from "@/components/BentoGrid";
 import { Hairline } from "@/components/Section";
+import { useBottomInset } from "@/hooks/useBottomInset";
 import { t } from "@/i18n";
 import { formatDayShort } from "@/utils/format";
 import { POLLEN_COLORS, pollenSpecies, type PollenLevels, type PollenSpecies } from "@/utils/weatherLook";
@@ -102,8 +103,15 @@ export default function PollenScreen() {
   const gradeOn = (day: PollenDay, key: PollenSpecies) =>
     pollenSpecies(day.levels, day.graded).find((s) => s.key === key)?.grade ?? 0;
 
+  // Androidova navigacijska traka leži preko dna (edge-to-edge) — vidi hook.
+  const bottomInset = useBottomInset();
+
   return (
-    <ScrollView className="flex-1 bg-mist dark:bg-night" contentContainerClassName="gap-3 px-4 py-4">
+    <ScrollView
+      className="flex-1 bg-mist dark:bg-night"
+      contentContainerClassName="gap-3 px-4 pt-4"
+      contentContainerStyle={{ paddingBottom: 16 + bottomInset }}
+    >
       {!!place && (
         <Text className="px-1 font-grotesk-bold text-[13.5px] text-ink/55 dark:text-paper/55">
           {place}

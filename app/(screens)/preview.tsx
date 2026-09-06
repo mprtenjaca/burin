@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 
 import { HeroBackdrop } from "@/components/HeroBackdrop";
+import { useBottomInset } from "@/hooks/useBottomInset";
 import { t } from "@/i18n";
 import { colors } from "@/theme/colors";
 import {
@@ -67,10 +68,14 @@ export default function PreviewScreen() {
   const condition = codeToCondition(sample.code, sample.isDay);
   const previewH = Math.round(window.height * 0.46);
 
+  // Androidova navigacijska traka leži preko dna (edge-to-edge) — vidi hook.
+  const bottomInset = useBottomInset();
+
   return (
     <ScrollView
       className="flex-1 bg-mist dark:bg-night"
-      contentContainerClassName="gap-4 pb-8"
+      contentContainerClassName="gap-4"
+      contentContainerStyle={{ paddingBottom: 32 + bottomInset }}
     >
       {/*
         Pravi HeroBackdrop, ne kopija — pregled mora pokazati ono što se
