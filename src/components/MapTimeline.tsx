@@ -237,8 +237,31 @@ export function MapTimeline({
    * unatrag, pa ondje nema dana za preskakanje.
    */
   const jumps = layer.timeline === "hours" ? dayJumps(hours, nowIdx) : [];
-  const lastIdx = Math.max(1, steps.length - 1);
-  const nowPct = nowIdx >= 0 ? (nowIdx / lastIdx) * 100 : undefined;
+
+  /**
+   * KLIZAČ POKRIVA SAMO ODABRANI DAN (Markov odabir 6.9.2026.: "želim da
+   * svaki dan ima novu ovu liniju vremena, ne da sva 4 dana budu na toj
+   * jednoj liniji").
+   *
+   * Prije je jedna šina nosila svih 120 sati, pa je jedan dan bio petina
+   * širine ekrana — pomak od jednog piksela preskakao je nekoliko sati i
+   * fino biranje sata je bilo nemoguće. Sada dan bira dugme, a klizač daje
+   * punu širinu TOM danu: 24 koraka preko cijele šine.
+   *
+   * Bez dana (radar) raspon je cijela crta, kao i prije.
+   */
+  const activeDay = jumps.find((d) => index >= d.from && index <= d.to);
+  const range = activeDay ?? { from: 0, to: Math.max(0, steps.length - 1) };
+
+  /*
+   * Sidro "Sada" se crta samo kad pada U VIDLJIVI raspon — inače bi na
+   * sutrašnjem danu stajala crtica koja ne označava ništa.
+   */
+  const span = Math.max(1, range.to - range.from);
+  const nowPct =
+    nowIdx >= range.from && nowIdx <= range.to
+      ? ((nowIdx - range.from) / span) * 100
+      : undefined;
   const isFuture = nowIdx >= 0 && index > nowIdx;
 
   return (
@@ -262,7 +285,7 @@ export function MapTimeline({
         tamnoj traci (`ACCENT_UI` ondje pada na 2.55:1 — vidi odluku o
         akcentima).
       */}
-      {jumps.length > 1 && (
+      {jumps.length > 0 && (
         <View className="flex-row gap-1.5">
           {jumps.map((d) => {
             const active = index >= d.from && index <= d.to;
@@ -344,8 +367,9 @@ export function MapTimeline({
             )}
             <Slider
               style={{ width: "100%", height: 26 }}
-              minimumValue={0}
-              maximumValue={Math.max(0, steps.length - 1)}
+              // Raspon je ODABRANI DAN, ne cijela crta — vidi `range`.
+              minimumValue={range.from}
+              maximumValue={range.to}
               step={1}
               value={index}
               disabled={disabled}

@@ -220,6 +220,42 @@ describe("dayJumps", () => {
     expect(j[1]!.label).toBe("9.9.");
   });
 
+  /*
+   * RASPONI SU CJELOVITI I NE PREKLAPAJU SE (6.9.2026.).
+   *
+   * Klizač od tada pokriva SAMO odabrani dan (`minimumValue`/`maximumValue`
+   * iz `from`/`to`), pa rupa ili preklop među danima znači sate do kojih se
+   * ne može doći ili koji se pojave dvaput.
+   */
+  it("rasponi dana pokrivaju cijeli niz, bez rupa i preklapanja", () => {
+    const hrs: { time: string; isNow: boolean }[] = [];
+    for (const d of ["05", "06", "07", "08"]) {
+      for (let h = 0; h < 24; h += 1) {
+        hrs.push({
+          time: `2026-09-${d}T${String(h).padStart(2, "0")}:00`,
+          isNow: d === "06" && h === 14,
+        });
+      }
+    }
+    const j = dayJumps(hrs, 38);
+
+    expect(j).toHaveLength(4);
+    // Prvi počinje na 0, zadnji završava na kraju niza.
+    expect(j[0]!.from).toBe(0);
+    expect(j[j.length - 1]!.to).toBe(hrs.length - 1);
+    // Svaki dan nosi svojih 24 sata i nastavlja se na prethodni.
+    for (let i = 0; i < j.length; i += 1) {
+      expect(j[i]!.to - j[i]!.from + 1).toBe(24);
+      if (i > 0) expect(j[i]!.from).toBe(j[i - 1]!.to + 1);
+    }
+    // Skok svakog dugmeta pada UNUTAR svog raspona — inače bi klizač
+    // dobio vrijednost izvan svojih granica.
+    for (const d of j) {
+      expect(d.index).toBeGreaterThanOrEqual(d.from);
+      expect(d.index).toBeLessThanOrEqual(d.to);
+    }
+  });
+
   it("prazan niz ne ruši ništa", () => {
     expect(dayJumps([], -1)).toEqual([]);
   });
