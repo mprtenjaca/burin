@@ -1,6 +1,5 @@
 import {
   Circle,
-  Gauge,
   HStack,
   Image,
   Rectangle,
@@ -16,13 +15,13 @@ import {
   font,
   foregroundStyle,
   frame,
-  gaugeStyle,
   ignoreSafeArea,
   offset,
   opacity,
   padding,
   resizable,
   rotationEffect,
+  strokeBorder,
 } from "@expo/ui/swift-ui/modifiers";
 import { createWidget, type WidgetEnvironment } from "expo-widgets";
 
@@ -635,39 +634,108 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
   }
 
   /**
-   * KRUŽNI ZASLON (`accessoryCircular`) — LUK s trenutnom temperaturom na
-   * dnevnom rasponu (Markov odabir 7.8.2026., po Appleovom widgetu).
+   * KRUŽNI ZASLON (`accessoryCircular`) — PRSTEN s trenutnom temperaturom
+   * na dnevnom rasponu (Markov odabir 7.8.2026., po Appleovom widgetu).
    *
-   * `Gauge` u stilu `circular` daje točno taj oblik: vrijednost kao položaj
-   * na luku, minimum i maksimum na krajevima. Time jedan mali krug nosi TRI
-   * broja — trenutno, min i max — i odmah se vidi gdje je dan.
+   * `Gauge` JE OVDJE NEUPOTREBLJIV — ne pokušavati ponovno (dokazano
+   * 6.9.2026., nakon dva promašena popravka 8.8. i Markove prijave da
+   * pločica "još ne radi, ne pokazuje ništa").
    *
-   * Ovdje također NEMA boje: `vibrant` način svede sve na jedan ton.
+   * Uzrok je u `node_modules`, ne u našem rasporedu. `Gauge` iz
+   * `@expo/ui/swift-ui` svoje oznake ne prima kao obične propove nego ih
+   * omata u `<Slot name="currentValue">` (vidi `src/swift-ui/Gauge/
+   * index.tsx`), a nativna strana ih čita s `props.children?.slot(...)`
+   * (`ios/GaugeView.swift`). Taj `SlotView` NIJE REGISTRIRAN u widget
+   * rendereru: `expo-widgets/ios/Widgets/DynamicView.swift` ima `case
+   * "GaugeView"`, ali u cijelom `switch`u nema `SlotView` — a `children`
+   * slaže kao OBIČAN NIZ pogleda, bez imena. Zato `slot("currentValue")`
+   * u widget procesu uvijek vrati `nil`: luk se nacrta, a sve oznake
+   * ispadnu. Prazan krug koji je Marko vidio.
+   *
+   * Popravak 8.8. ("iOS ne crta min/max na toj veličini") liječio je
+   * simptom: izbacio je `minimumValueLabel`/`maximumValueLabel`, a
+   * `currentValueLabel` je ostao — i on ide kroz isti slot, pa je pločica
+   * ostala prazna. Zato je bug preživio.
+   *
+   * Prsten se zato crta RUKOM, od primitiva koji U REGISTRU POSTOJE
+   * (`ZStack`, `Circle`, `Text`). Isti trik kao crtice vjetra na karti:
+   * `dash` po opsegu kružnice — obojeni dio je odrađeni luk, praznina
+   * ostatak. `strokeBorder` crta UNUTAR ruba, pa se debljina ne prelije
+   * izvan pločice.
+   *
+   * Ovdje NEMA boje: `vibrant` način svede sve na jedan ton.
    */
   function CircularLayout(props: WidgetProps) {
   /*
-   * `maximumValueLabel` je namjerno `props.tMax`, a `min` iz `gaugeMin` —
-   * raspon luka je dnevni min/max, a trenutna temperatura je položaj na
-   * njemu.
-   *
-   * Popravak 8.8.2026. (Markov nalaz na uređaju): brojke se NISU vidjele,
-   * ostajao je samo goli luk. `min`/`max` oznake u `circular` stilu iOS
-   * crta na krajevima luka, gdje u pločici te veličine nema mjesta — pa ih
-   * jednostavno izostavi. Ostaje SAMO središnji broj (`label`), koji je
-   * ionako jedini koji se na toj veličini može pročitati.
+   * Pločica `accessoryCircular` je ~58 px. Prsten se crta unutar 54 da
+   * ostane zraka za sustavnu masku, a broj stoji u sredini.
    */
+  const size = 54;
+  const lineWidth = 5;
+  // `strokeBorder` crta prema unutra, pa je promjer srednjice manji za
+  // punu debljinu — opseg mora pratiti NJU, inače se luk razilazi s
+  // vrijednošću (najviše na krajevima).
+  const circumference = Math.PI * (size - lineWidth);
+
+  /*
+   * Položaj temperature na dnevnom rasponu, stegnut na 0–1.
+   *
+   * `gaugeMax > gaugeMin` je zajamčen u `widgetData.ts`, ali dijeljenje
+   * se ipak brani: widget koji podijeli s nulom ne baci grešku nego
+   * nacrta prazninu, a to je točno kvar koji popravljamo.
+   */
+  const span = props.gaugeMax - props.gaugeMin;
+  const ratio = span > 0 ? (props.temp - props.gaugeMin) / span : 0;
+  const clamped = ratio < 0 ? 0 : ratio > 1 ? 1 : ratio;
+
+  /*
+   * Prsten kreće na VRHU (12 sati), pa se rotira za -90°: `dash` inače
+   * počinje desno (3 sata) i dan bi izgledao pomaknut za četvrtinu.
+   *
+   * Puni krug, ne 3/4 luk kakav crta `gaugeStyle("circular")`: bez
+   * `Path`a se prekid luka ne može nacrtati čisto, a puni prsten na ovoj
+   * veličini čita jednako dobro.
+   */
+  const filled = circumference * clamped;
+
   return (
-    <Gauge
-      value={props.temp}
-      min={props.gaugeMin}
-      max={props.gaugeMax}
-      currentValueLabel={
-        <Text modifiers={[font({ size: 16, weight: "semibold" })]}>
-          {`${props.temp}`}
-        </Text>
-      }
-      modifiers={[gaugeStyle("circular")]}
-    />
+    <ZStack>
+      {/* Trag prstena — cijeli krug, prigušen; daje mjeru "koliko fali". */}
+      {Circle({
+        modifiers: [
+          strokeBorder({ style: { lineWidth, lineCap: "round" } }),
+          opacity(0.25),
+          frame({ width: size, height: size }),
+        ],
+      })}
+      {/*
+        Odrađeni dio dana. `dash: [odrađeno, ostatak]` ostavi obojenim
+        točno prvi dio opsega; `rotationEffect(-90)` mu pomakne početak na
+        vrh. Ostatak niza mora biti PUN preostali opseg (ne 0), inače
+        SwiftUI uzorak ponovi i prsten se popuni do kraja.
+      */}
+      {Circle({
+        modifiers: [
+          strokeBorder({
+            style: {
+              lineWidth,
+              lineCap: "round",
+              dash: [filled, circumference - filled],
+            },
+          }),
+          rotationEffect(-90),
+          frame({ width: size, height: size }),
+        ],
+      })}
+      {/*
+        Sredina: samo trenutna temperatura. Min i max su na ovoj veličini
+        nečitljivi (zato ih je i Apple izostavio), a prsten ionako govori
+        gdje je dan.
+      */}
+      <Text modifiers={[font({ size: 17, weight: "semibold" })]}>
+        {`${props.temp}`}
+      </Text>
+    </ZStack>
   );
   }
 
