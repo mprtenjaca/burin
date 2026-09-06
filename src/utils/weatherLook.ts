@@ -535,16 +535,32 @@ export type PollenGrade = 0 | 1 | 2 | 3 | 4;
  * Pragovi grains/m³ za [nisku, umjerenu, visoku] granicu — iznad zadnje
  * je "vrlo visoka". PO VRSTI, jer alergena snaga nije ista: ambrozija i
  * pelin izazivaju simptome na deseterostruko manjim koncentracijama od
- * breze. Vrijednosti su orijentacijske (CAMS je model, ne mjerenje —
- * napomena stoji u Izvorima); poredak razreda je ono što se testira.
+ * breze.
+ *
+ * SPUŠTENI 6.9.2026. prema hrvatskoj aerobiološkoj praksi (Markov nalaz na
+ * uređaju): Pliva/ZZJZ su za Zadar javljali VISOKU ambroziju dok je naša
+ * kartica pisala umjerenu. Stari pragovi za ambroziju (8/25/60) su bili
+ * preblagi — ambrozija je najjači korovski alergen kod nas i radi simptome
+ * na jednoznamenkastim koncentracijama, a ne tek iznad 25.
+ *
+ * Razredi su namjerno poravnati s onima koje objavljuju Pliva i županijski
+ * zavodi, jer je RAZRED ono što alergičar čita ("visoka — sve će alergične
+ * osobe imati tegobe"). BROJKE se NE smiju uspoređivati s njihovima: naše su
+ * grains/m³ iz CAMS modela, njihov je indeks 0–12+ izveden iz mjerenja
+ * peludomjerom, pa je isti dan kod nas 12.5, a kod njih 6.6. Zato se od
+ * 6.9.2026. prikazuje SAMO razred (Markov odabir) — dvije mjere iste stvari
+ * jedna uz drugu izgledaju kao da netko griješi.
+ *
+ * Poklapanje razreda je ČESTO, ali nije zajamčeno: kad model podcijeni
+ * koncentraciju, podcijenit će i razred. Mjerenje ostaje mjerenje.
  */
 const POLLEN_THRESHOLDS: Record<PollenSpecies, [number, number, number]> = {
   alder: [10, 50, 150],
   birch: [10, 50, 150],
-  grass: [5, 25, 80],
-  mugwort: [10, 30, 80],
+  grass: [3, 15, 50],
+  mugwort: [3, 12, 40],
   olive: [10, 50, 150],
-  ragweed: [8, 25, 60],
+  ragweed: [2, 10, 30],
 };
 
 /** Boje razreda peludi: ista ljestvica kao UV (zeleno→ljubičasto bez ekstrema). */
@@ -574,6 +590,38 @@ export type PollenSpeciesInfo = {
 };
 
 /**
+ * Položaj markera na skali (0–1) — RAČUNA SE IZ RAZREDA, ne iz omjera
+ * prema gornjoj granici.
+ *
+ * POPRAVAK 6.9.2026. (Markov nalaz na uređaju: "piše visoko, a točkica
+ * stoji na umjereno"). Skala je nacrtana kao ČETIRI JEDNAKA polja, a
+ * razredi nisu jednako široki — pa je stari `vrijednost / high` slao
+ * marker u pogrešno polje. Sa starim pragovima je ambrozija od 26
+ * grains/m³ pisala "visoka" (prag 25 prijeđen), a marker padao na
+ * 26/60 = 43 %, dakle u DRUGO polje ("umjereno"). Isto u oba smjera:
+ * 12.5 je pisalo "umjerena" uz marker na "niskoj", 55 "visoka" uz
+ * marker na "vrlo visokoj".
+ *
+ * Sada marker uvijek sjedne U POLJE svog razreda: unutar polja se još
+ * pomiče razmjerno položaju u razredu, pa se vidi je li vrsta na dnu ili
+ * pri vrhu "visoke" — ali granicu polja ne prelazi. Tekst i točkica
+ * odsad NE MOGU reći dvije različite stvari.
+ */
+function gradeFraction(species: PollenSpecies, value: number, grade: PollenGrade): number {
+  if (grade === 0) return 0;
+  const [low, moderate, high] = POLLEN_THRESHOLDS[species];
+  // Donja i gornja granica polja u kojem marker smije stajati.
+  const band = 0.25;
+  const start = (grade - 1) * band;
+  // Koliko je vrsta duboko u SVOM razredu (0–1). "Vrlo visoka" nema gornju
+  // granicu, pa se puni prema dvostrukoj granici visoke i tu staje.
+  const [from, to] =
+    grade === 1 ? [0, low] : grade === 2 ? [low, moderate] : grade === 3 ? [moderate, high] : [high, high * 2];
+  const within = to > from ? Math.min(1, Math.max(0, (value - from) / (to - from))) : 1;
+  return start + within * band;
+}
+
+/**
  * SVE vrste s razredom i udjelom 0–1 za skalu — aktivne najjače prve, pa
  * vrste na nuli. Podstranica peluda prikazuje kompletnu listu (i "Nema"),
  * dok kartica na početnoj kroz `pollenInfo` uzima samo aktivne.
@@ -583,13 +631,7 @@ export function pollenSpecies(levels: PollenLevels): PollenSpeciesInfo[] {
     .map((key) => {
       const value = levels[key];
       const grade = value === undefined ? (0 as PollenGrade) : pollenGrade(key, value);
-      const [, , high] = POLLEN_THRESHOLDS[key];
-      return {
-        key,
-        grade,
-        // Skala se puni prema granici "vrlo visoke" te vrste.
-        fraction: Math.min(1, (value ?? 0) / high),
-      };
+      return { key, grade, fraction: gradeFraction(key, value ?? 0, grade) };
     })
     .sort((a, b) => b.fraction - a.fraction);
 }

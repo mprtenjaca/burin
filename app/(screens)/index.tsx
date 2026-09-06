@@ -283,6 +283,7 @@ export default function HomeScreen() {
                 precip24={precipNext24}
                 aqi={bundle.aqi}
                 pollen={bundle.pollen}
+                pollenDays={bundle.pollenDays}
                 placeName={bundle.place.name}
                 seaTemp={bundle.seaTemp}
                 sunrise={today?.sunrise}

@@ -1,4 +1,4 @@
-import { mapCurrent, mapDaily, mapHourly } from "../openMeteo";
+import { mapCurrent, mapDaily, mapHourly, pollenDaysFromHourly } from "../openMeteo";
 
 const rawCurrent = {
   time: "2026-08-04T14:00",
@@ -83,5 +83,66 @@ describe("Open-Meteo mapperi", () => {
     expect(days[1]!.code).toBe(61);
     expect(days[1]!.precipProbMax).toBe(85);
     expect(days[1]!.sunrise).toBe("2026-08-05T05:48");
+  });
+});
+
+/*
+ * PELUD SE MJERI PO DANU, NE PO SATU (popravak 6.9.2026.).
+ *
+ * Marko: "na dane je točna, na dane nije". Uzrok: kartica je pokazivala
+ * `current`, dakle JEDAN SAT. Stvarni Zadar 6.9.2026. je kroz isti dan
+ * imao ambroziju od 1.4 do 48.7 — trideset i pet puta raspon — pa je ista
+ * aplikacija na istom danu govorila i "niska" i "vrlo visoka", ovisno o
+ * tome kad je korisnik pogledao.
+ */
+describe("pelud: dnevni maksimum iz satnog niza", () => {
+  // Skraćeni stvarni niz iz Zadra 6.9.2026. (CAMS preko Open-Metea).
+  const hourly = {
+    time: [
+      "2026-09-06T00:00",
+      "2026-09-06T09:00",
+      "2026-09-06T16:00",
+      "2026-09-06T23:00",
+      "2026-09-07T13:00",
+      "2026-09-07T17:00",
+      "2026-09-08T10:00",
+    ],
+    ragweed_pollen: [1.4, 27.1, 12.5, 48.7, 51.8, 60.6, 9.1],
+    grass_pollen: [0.2, 1.9, 1.9, 0.4, 1.1, 2.0, 0.3],
+  };
+
+  it("uzima MAKSIMUM dana, ne tekući sat ni prosjek", () => {
+    const days = pollenDaysFromHourly(hourly);
+    expect(days).toHaveLength(3);
+    expect(days[0]!.date).toBe("2026-09-06");
+    // 48.7 je vršak dana; 12.5 je bio sat u kojem je Marko gledao.
+    expect(days[0]!.levels.ragweed).toBe(48.7);
+    expect(days[1]!.levels.ragweed).toBe(60.6);
+    expect(days[2]!.levels.ragweed).toBe(9.1);
+    expect(days[0]!.levels.grass).toBe(1.9);
+  });
+
+  it("dani su poredani i odrezani na traženi broj", () => {
+    expect(pollenDaysFromHourly(hourly, 2).map((d) => d.date)).toEqual(["2026-09-06", "2026-09-07"]);
+  });
+
+  /*
+   * CAMS zna vratiti `null` za vrstu koju za to područje ne modelira.
+   * Takva vrsta NE SMIJE postati 0 — nula znači "izmjereno nema peludi",
+   * a `undefined` znači "ne znamo"; kartica ih prikazuje različito.
+   */
+  it("null se preskače, ne pretvara u nulu", () => {
+    const days = pollenDaysFromHourly({
+      time: ["2026-09-06T00:00", "2026-09-06T12:00"],
+      olive_pollen: [null, null],
+      birch_pollen: [null, 4.2],
+    });
+    expect(days[0]!.levels.olive).toBeUndefined();
+    expect(days[0]!.levels.birch).toBe(4.2);
+  });
+
+  it("prazan ili izostao niz ne ruši ekran", () => {
+    expect(pollenDaysFromHourly(undefined)).toEqual([]);
+    expect(pollenDaysFromHourly({ time: [] })).toEqual([]);
   });
 });

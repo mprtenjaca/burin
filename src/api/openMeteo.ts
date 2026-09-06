@@ -98,16 +98,19 @@ type OmGeoResult = {
 };
 type OmGeoResponse = { results?: OmGeoResult[] };
 
+type OmPollenHourly = {
+  time?: string[];
+  alder_pollen?: (number | null)[];
+  birch_pollen?: (number | null)[];
+  grass_pollen?: (number | null)[];
+  mugwort_pollen?: (number | null)[];
+  olive_pollen?: (number | null)[];
+  ragweed_pollen?: (number | null)[];
+};
+
 type OmAirQualityResponse = {
-  current?: {
-    european_aqi?: number;
-    alder_pollen?: number | null;
-    birch_pollen?: number | null;
-    grass_pollen?: number | null;
-    mugwort_pollen?: number | null;
-    olive_pollen?: number | null;
-    ragweed_pollen?: number | null;
-  };
+  current?: { european_aqi?: number };
+  hourly?: OmPollenHourly;
 };
 
 type OmMarineResponse = {
@@ -355,10 +358,21 @@ export async function geocode(query: string): Promise<Place[]> {
   );
 }
 
+/** Jedan dan peludi: datum `YYYY-MM-DD` + DNEVNI MAKSIMUM po vrsti. */
+export type PollenDay = {
+  date: string;
+  levels: PollenLevels;
+};
+
 export type AirQuality = {
   aqi?: number;
-  /** grains/m³ po vrsti; CAMS model (Europa), ne mjerenje. */
+  /**
+   * DANAŠNJE vrijednosti (dnevni maksimum) — ono što kartica pokazuje.
+   * grains/m³ po vrsti; CAMS model (Europa), ne mjerenje.
+   */
   pollen: PollenLevels;
+  /** Danas + sljedeća dva dana, za podstranicu peludi. */
+  pollenDays: PollenDay[];
 };
 
 /** Vrijednost peludi: broj ili izostanak (CAMS zna vratiti null). */
@@ -366,28 +380,79 @@ function pollenNum(v: number | null | undefined): number | undefined {
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
 
+const POLLEN_FIELDS = [
+  ["alder", "alder_pollen"],
+  ["birch", "birch_pollen"],
+  ["grass", "grass_pollen"],
+  ["mugwort", "mugwort_pollen"],
+  ["olive", "olive_pollen"],
+  ["ragweed", "ragweed_pollen"],
+] as const;
+
+/**
+ * Satni niz → DNEVNI MAKSIMUM po vrsti i danu.
+ *
+ * Zašto maksimum, a ne tekući sat (popravak 6.9.2026., Markov nalaz —
+ * "na dane je točna, na dane nije"): pelud kroz dan varira DESETEROSTRUKO.
+ * Zadar 6.9.2026., ambrozija: 1.4 u ponoć, 27.1 u 9 h, 12.5 u 16 h, 48.7 u
+ * 23 h — trideset i pet puta raspon unutar istog dana. Kartica je dotad
+ * pokazivala `current`, dakle jedan jedini sat, pa je ista aplikacija na
+ * istom danu javljala i "niska" i "vrlo visoka" ovisno o tome kad je
+ * korisnik pogledao.
+ *
+ * Alergičar ne pita koliko je peludi u ovoj minuti nego kakav je DAN —
+ * tegobe pravi ono što je udahnuo ujutro i navečer. Isti razlog zbog kojeg
+ * Pliva i županijski zavodi objavljuju jednu dnevnu vrijednost.
+ *
+ * Maksimum, ne prosjek: prosjek bi vršak od 48.7 razvodnio satima mirne
+ * noći i dan bi ispao blaži nego što ga alergičar proživi.
+ */
+export function pollenDaysFromHourly(hourly: OmPollenHourly | undefined, days = 3): PollenDay[] {
+  const times = hourly?.time;
+  if (!times?.length) return [];
+
+  const byDate = new Map<string, PollenLevels>();
+  for (let i = 0; i < times.length; i += 1) {
+    const date = times[i]!.slice(0, 10);
+    let levels = byDate.get(date);
+    if (!levels) {
+      levels = {};
+      byDate.set(date, levels);
+    }
+    for (const [key, field] of POLLEN_FIELDS) {
+      const v = pollenNum(hourly?.[field]?.[i]);
+      if (v === undefined) continue;
+      const seen = levels[key];
+      if (seen === undefined || v > seen) levels[key] = v;
+    }
+  }
+
+  return [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(0, days)
+    .map(([date, levels]) => ({ date, levels }));
+}
+
 /**
  * Kvaliteta zraka + pelud iz ISTOG upita (isti endpoint, samo više
- * parametara) — pelud ne košta nijedan dodatni poziv. Vraća objekt,
- * nikad `undefined` (react-query pravilo).
+ * parametara) — pelud ne košta nijedan dodatni poziv, pa ni satni niz za
+ * tri dana ne troši dodatnu kvotu.
+ *
+ * Vraća objekt, nikad `undefined` (react-query pravilo).
  */
 export async function fetchAirQuality(lat: number, lon: number): Promise<AirQuality> {
   const url =
     `${AIR_QUALITY_BASE}?latitude=${lat}&longitude=${lon}` +
-    `&current=european_aqi,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen` +
-    `&timezone=auto`;
+    `&current=european_aqi` +
+    `&hourly=alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen` +
+    `&forecast_days=3&timezone=auto`;
   const res = await fetchJson<OmAirQualityResponse>(url);
-  const c = res.current;
+  const pollenDays = pollenDaysFromHourly(res.hourly);
   return {
-    aqi: c?.european_aqi,
-    pollen: {
-      alder: pollenNum(c?.alder_pollen),
-      birch: pollenNum(c?.birch_pollen),
-      grass: pollenNum(c?.grass_pollen),
-      mugwort: pollenNum(c?.mugwort_pollen),
-      olive: pollenNum(c?.olive_pollen),
-      ragweed: pollenNum(c?.ragweed_pollen),
-    },
+    aqi: res.current?.european_aqi,
+    // Kartica na početnoj govori o DANAŠNJEM danu.
+    pollen: pollenDays[0]?.levels ?? {},
+    pollenDays,
   };
 }
 

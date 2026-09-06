@@ -12,6 +12,7 @@ import { colors } from "@/theme/colors";
 import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit, WindUnit } from "@/utils/format";
 import { convertTemp, convertWind, tempUnitLabel, windDirLabel, windUnitLabel } from "@/utils/format";
+import type { PollenDay } from "@/api/openMeteo";
 import type { PollenLevels, PollenSpecies } from "@/utils/weatherLook";
 import { ACCENT_CORAL, AQI_COLORS, POLLEN_COLORS, aqiInfo, dewPoint, pollenInfo, uvLabel, visibilityLabel } from "@/utils/weatherLook";
 
@@ -322,6 +323,7 @@ export function BentoGrid({
   precip24,
   aqi,
   pollen,
+  pollenDays,
   placeName,
   seaTemp,
   sunrise,
@@ -336,8 +338,10 @@ export function BentoGrid({
   visibilityKm?: number;
   precip24: number;
   aqi?: number;
-  /** Pelud (CAMS); kad su sve vrste na nuli, kartica se ne prikazuje. */
+  /** Pelud (CAMS), DNEVNI MAKSIMUM za danas; sve na nuli = kartice nema. */
   pollen?: PollenLevels;
+  /** Danas + 2 dana — putuje na podstranicu kroz parametre navigacije. */
+  pollenDays?: PollenDay[];
   /** Ime mjesta — putuje na ekran peludi kroz parametre navigacije. */
   placeName?: string;
   /** Samo za obalna mjesta; drugdje Marine API ne vraća ništa. */
@@ -504,7 +508,11 @@ export function BentoGrid({
           onPress={() =>
             router.navigate({
               pathname: "/pollen",
-              params: { levels: JSON.stringify(pollen), place: placeName ?? "" },
+              params: {
+                levels: JSON.stringify(pollen),
+                days: JSON.stringify(pollenDays ?? []),
+                place: placeName ?? "",
+              },
             })
           }
         >

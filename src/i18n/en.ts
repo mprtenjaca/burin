@@ -261,8 +261,9 @@ export const en: Dict = {
     moderate: "Moderate",
     high: "High",
     veryHigh: "Very high",
+    today: "today",
     modelNote:
-      "Values come from the CAMS model (Copernicus), not measuring stations — they are indicative",
+      "Values are computed by the CAMS model (Copernicus), not read from a pollen trap — treat them as indicative. For measured values see your regional public health institute's pollen forecast",
     species: {
       alder: "Alder",
       birch: "Birch",

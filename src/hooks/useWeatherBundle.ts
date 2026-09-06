@@ -136,6 +136,7 @@ export function useWeatherBundle(place: Place | null) {
       dhmz: dhmzObs,
       aqi: aqi.data?.aqi,
       pollen: aqi.data?.pollen,
+      pollenDays: aqi.data?.pollenDays,
       // Upit vraća null za kopnena mjesta (react-query brani undefined);
       // WeatherBundle očekuje undefined kad mora nema.
       seaTemp: seaTemp.data ?? undefined,

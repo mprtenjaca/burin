@@ -274,8 +274,19 @@ export const hr = {
     moderate: "Umjerena",
     high: "Visoka",
     veryHigh: "Vrlo visoka",
+    /** Naslov stupca s današnjim danom u tablici triju dana. */
+    today: "danas",
+    /*
+     * Napomena je od 6.9.2026. IZRIČITIJA i upućuje na mjerenja.
+     *
+     * Pelud nije kozmetika nego zdravstvena informacija: alergičar koji
+     * planira dan po ovom broju ima pravo znati da gleda SIMULACIJU, a ne
+     * peludomjer. CAMS zna podcijeniti lokalni izvor — izmjereno 6.9.2026.
+     * na Zadru, gdje je model davao najniže vrijednosti u Hrvatskoj, a
+     * mjerenje županijskog zavoda visoku ambroziju.
+     */
     modelNote:
-      "Vrijednosti su iz CAMS modela (Copernicus), ne s mjernih postaja — orijentacijske su",
+      "Vrijednosti računa CAMS model (Copernicus), nisu s peludomjera — orijentacijske su. Za izmjerene vrijednosti vidi peludnu prognozu svog županijskog zavoda za javno zdravstvo",
     species: {
       alder: "Joha",
       birch: "Breza",

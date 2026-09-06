@@ -218,6 +218,7 @@ export function buildBundle(args: {
   dhmz?: DhmzObservation;
   aqi?: number;
   pollen?: WeatherBundle["pollen"];
+  pollenDays?: WeatherBundle["pollenDays"];
   seaTemp?: number;
 }): WeatherBundle {
   return {
@@ -229,6 +230,7 @@ export function buildBundle(args: {
     dhmz: args.dhmz,
     aqi: args.aqi,
     pollen: args.pollen,
+    pollenDays: args.pollenDays,
     seaTemp: args.seaTemp,
     fetchedAt: Date.now(),
   };

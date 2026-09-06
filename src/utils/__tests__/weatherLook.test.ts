@@ -8,6 +8,7 @@ import {
   moonPhase,
   moonShadowOffset,
   pollenInfo,
+  pollenSpecies,
   precipIntensity,
   readableOn,
   stripAccent,
@@ -500,10 +501,19 @@ describe("pollenInfo", () => {
     expect(info.color).toBeUndefined();
   });
 
-  it("današnji Zadar (ambrozija 5.3, trava 2.5): niska, ambrozija prva", () => {
-    const info = pollenInfo({ grass: 2.5, ragweed: 5.3, alder: 0, birch: 0 });
-    expect(info.grade).toBe(1);
-    expect(info.species.map((s) => s.key)).toEqual(["ragweed", "grass"]);
+  it("Zadar 6.9.2026. (ambrozija 12.5): VISOKA, kao mjerenje ZZJZ-a", () => {
+    /*
+     * Stvarni nalaz koji je pokrenuo spuštanje pragova: CAMS je za Zadar
+     * dao 12.5 grains/m³ ambrozije, a Pliva/ZZJZ su isti dan mjerenjem
+     * javili VISOKU. Sa starim pragovima (8/25/60) naša je kartica pisala
+     * "umjerena" — dva razreda niže nego što je čovjek osjetio.
+     *
+     * Brojke se ne mogu izravno uspoređivati (njihova je 6.6 na indeksu
+     * 0–12+), ali RAZRED mora sjesti.
+     */
+    const info = pollenInfo({ ragweed: 12.5, grass: 1.9, mugwort: 0.1 });
+    expect(info.grade).toBe(3);
+    expect(info.species[0]!.key).toBe("ragweed");
   });
 
   it("ukupna ocjena je najviši razred; ambrozija je alergenija od breze", () => {
@@ -522,9 +532,52 @@ describe("pollenInfo", () => {
     expect(info.species[0]!.fraction).toBe(1);
     expect(info.grade).toBe(4);
 
-    expect(pollenInfo({ grass: 3 }).grade).toBe(1);
-    expect(pollenInfo({ grass: 15 }).grade).toBe(2);
-    expect(pollenInfo({ grass: 50 }).grade).toBe(3);
+    expect(pollenInfo({ grass: 2 }).grade).toBe(1);
+    expect(pollenInfo({ grass: 10 }).grade).toBe(2);
+    expect(pollenInfo({ grass: 30 }).grade).toBe(3);
+    expect(pollenInfo({ grass: 60 }).grade).toBe(4);
+  });
+
+  /*
+   * MARKER MORA STAJATI U POLJU SVOG RAZREDA (popravak 6.9.2026.).
+   *
+   * Marko na uređaju: "piše visoko, a točkica stoji na umjereno". Skala je
+   * ČETIRI JEDNAKA polja, a razredi nisu jednako široki — stari
+   * `vrijednost / high` je slao marker u pogrešno polje: ambrozija 26 je
+   * pisala "visoka" (prag 25 prijeđen) uz marker na 26/60 = 43 %, dakle u
+   * drugom polju ("umjereno").
+   *
+   * Ovo je test PARNOSTI teksta i točkice — jedini način da se raziđu je
+   * da netko opet izvede `fraction` mimo razreda.
+   */
+  it("marker uvijek pada u polje svog razreda — tekst i točkica se ne mogu razići", () => {
+    const species = ["alder", "birch", "grass", "mugwort", "olive", "ragweed"] as const;
+    const values = [0, 0.4, 1, 2, 3, 5, 10, 12.5, 20, 26, 30, 48, 55, 70, 200, 10_000];
+
+    for (const key of species) {
+      for (const value of values) {
+        const info = pollenSpecies({ [key]: value })!.find((s) => s.key === key)!;
+        if (info.grade === 0) {
+          expect(info.fraction).toBe(0);
+          continue;
+        }
+        // Polje razreda g je [(g-1)/4, g/4].
+        const from = (info.grade - 1) / 4;
+        const to = info.grade / 4;
+        expect(info.fraction).toBeGreaterThanOrEqual(from);
+        expect(info.fraction).toBeLessThanOrEqual(to);
+      }
+    }
+  });
+
+  it("unutar razreda se marker ipak pomiče — dno i vrh 'visoke' nisu ista slika", () => {
+    // Ambrozija: visoka je 10–30, pa 11 mora biti bliže lijevom rubu polja
+    // nego 29. Bez toga bi cijeli razred bio jedna te ista točka.
+    const low = pollenSpecies({ ragweed: 11 })!.find((s) => s.key === "ragweed")!;
+    const high = pollenSpecies({ ragweed: 29 })!.find((s) => s.key === "ragweed")!;
+    expect(low.grade).toBe(3);
+    expect(high.grade).toBe(3);
+    expect(high.fraction).toBeGreaterThan(low.fraction);
   });
 });
 
