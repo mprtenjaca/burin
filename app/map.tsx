@@ -74,6 +74,24 @@ const FALLBACK_LAT = 45.1;
 const FALLBACK_LON = 16.4;
 
 /**
+ * Sjena ispod atribucije — zamjena za podlogu koja je maknuta 6.9.2026.
+ *
+ * Natpis stoji IZRAVNO na karti, a karta ispod njega mijenja svjetlinu:
+ * more je tamnoplavo, snijeg i oblaci na temperaturnom sloju gotovo bijeli.
+ * Jedna boja teksta ne prolazi obje — bijeli tekst nestane na naoblaci,
+ * tamni na moru.
+ *
+ * Sjena rješava oboje jer ne boji tekst nego ga ODVAJA od podloge: na
+ * svijetlom se vidi sjena, na tamnom sam tekst. Isti postupak kao natpisi
+ * imena mjesta na samoj karti.
+ */
+const ATTRIBUTION_SHADOW = {
+  textShadowColor: "rgba(0,0,0,0.85)",
+  textShadowOffset: { width: 0, height: 0 },
+  textShadowRadius: 3,
+} as const;
+
+/**
  * Jedna vremenska pločica na karti: aktivni korak je vidljiv, susjedni su
  * montirani s prozirnošću 0 da se predučitaju — GL inačica starog trika s
  * UrlTile na 0.01. `key`/`id` je stabilan po (sloj, vrijeme), pa React pri
@@ -491,6 +509,49 @@ export default function MapScreen() {
         />
       </View>
 
+      {/*
+        ATRIBUCIJA JE USPRAVNA, UZ LIJEVI RUB (Markov odabir 6.9.2026.).
+        Prije je bila vodoravna pilula iznad legende, pa je zauzimala red
+        na dnu — najvrjednijem mjestu, gdje stoje legenda i vremenska crta.
+
+        Uspravno uz rub ne oduzima nijedan red karti: tekst se rotira za
+        -90°, pa cijeli natpis stane u ~14 px širine. `rotate` je na
+        SADRŽAJU, a ne na omotu — omot mora ostati nezarotiran da mu
+        `absolute` pozicija ostane u koordinatama ekrana.
+
+        Podloga je MAKNUTA (isti odabir): pilula je na tamnoj karti bila
+        vidljiva kao mrlja. Bez nje se natpis stapa s podlogom, a čitljivost
+        se čuva sjenom teksta — radi i na svijetloj i na tamnoj podlozi
+        karte, dok bi jedna boja podloge uvijek negdje bila kriva.
+
+        Obveza ostaje ispunjena: OSM je pod ODbL, a CARTO/RainViewer/
+        Open-Meteo atribuciju traže u uvjetima. Natpis se vidi, dodir i
+        dalje otvara izvor, `hitSlop` ostaje 10.
+      */}
+      <View
+        className="absolute left-0 items-center justify-center"
+        pointerEvents="box-none"
+        style={{ bottom: insets.bottom + 12, top: insets.top + 12, width: 18 }}
+      >
+        <View style={{ transform: [{ rotate: "-90deg" }] }}>
+          <View className="flex-row items-center gap-1.5">
+            <Pressable hitSlop={10} onPress={() => Linking.openURL(layer.attribution.url)}>
+              <Text className="text-[9px] text-paper/50" style={ATTRIBUTION_SHADOW}>
+                {layer.attribution.label}
+              </Text>
+            </Pressable>
+            <Text className="text-[9px] text-paper/30" style={ATTRIBUTION_SHADOW}>
+              ·
+            </Text>
+            <Pressable hitSlop={10} onPress={() => Linking.openURL(MAP_BASE_ATTRIBUTION.url)}>
+              <Text className="text-[9px] text-paper/50" style={ATTRIBUTION_SHADOW}>
+                {MAP_BASE_ATTRIBUTION.label}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+
       <View
         className="absolute left-4 right-4 gap-2"
         style={{ bottom: insets.bottom + 12 }}
@@ -510,17 +571,6 @@ export default function MapScreen() {
           izvor — ali više ne otima pogled karti. Dodirna meta se NE
           smanjuje (`hitSlop` ostaje 10), pa je i dalje lako pogoditi.
         */}
-        <View className="flex-row items-center gap-1.5 self-start rounded-full bg-ink/40 px-2.5 py-1">
-          <Pressable hitSlop={10} onPress={() => Linking.openURL(layer.attribution.url)}>
-            <Text className="text-[9px] text-paper/[0.42]">{layer.attribution.label}</Text>
-          </Pressable>
-          <Text className="text-[9px] text-paper/25">·</Text>
-          <Pressable hitSlop={10} onPress={() => Linking.openURL(MAP_BASE_ATTRIBUTION.url)}>
-            <Text className="text-[9px] text-paper/[0.42]">
-              {MAP_BASE_ATTRIBUTION.label}
-            </Text>
-          </Pressable>
-        </View>
 
         {/*
           Kad izvor sati padne (najčešće satna kvota Open-Metea), crta se ne
