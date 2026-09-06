@@ -285,8 +285,15 @@ export const hr = {
     moderate: "Umjerena",
     high: "Visoka",
     veryHigh: "Vrlo visoka",
-    /** Naslov stupca s današnjim danom u tablici triju dana. */
+    /**
+     * Oznake dana u retku triju dana: danas, sutra, pa DATUM (Markov
+     * zahtjev 6.9.2026., treći put — prva dva popravka su otišla na kartu
+     * umjesto ovamo). Sutra ima riječ jer je najčešće pitanje alergičara;
+     * prekosutra i dalje datum, jer ime dana pri kraju tjedna više ne
+     * govori ništa.
+     */
     today: "danas",
+    tomorrow: "sutra",
     /*
      * Napomena je od 6.9.2026. IZRIČITIJA i upućuje na mjerenja.
      *

@@ -264,6 +264,7 @@ export const en: Dict = {
     high: "High",
     veryHigh: "Very high",
     today: "today",
+    tomorrow: "tomorrow",
     modelNote:
       "Values are computed by the CAMS model (Copernicus), not read from a pollen trap — treat them as indicative. For measured values see your regional public health institute's pollen forecast",
     measuredNote:

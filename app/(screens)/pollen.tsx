@@ -42,6 +42,24 @@ import { POLLEN_COLORS, pollenSpecies, type PollenLevels, type PollenSpecies } f
  * pokazao i zimi.
  */
 
+/**
+ * Oznaka dana u retku triju dana: "danas", "sutra", pa datum ("8.9.").
+ *
+ * Računa se iz DATUMA prema satu uređaja, a ne iz položaja u nizu: prvi
+ * dan niza je danas i za CAMS i za Štampar, ali to je slučajnost izvora, a
+ * ne ugovor — peludomjer bi jednom mogao objaviti jučerašnje mjerenje kao
+ * prvi dan i "danas" bi tada lagalo. Isti postupak kao dugmad na karti.
+ */
+function relativeDayLabel(date: string, now: Date = new Date()): string {
+  const at = (y: number, m: number, d: number) => new Date(y, m - 1, d).getTime();
+  const [y = 1970, m = 1, d = 1] = date.split("-").map(Number);
+  const todayMs = at(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  const offset = Math.round((at(y, m, d) - todayMs) / 86_400_000);
+  if (offset === 0) return t.pollen.today;
+  if (offset === 1) return t.pollen.tomorrow;
+  return formatDayShort(`${date}T00:00`);
+}
+
 /** JSON iz parametara navigacije; neispravan zapis ne smije srušiti ekran. */
 function parseParam<T>(raw: string | undefined): T | undefined {
   if (!raw) return undefined;
@@ -136,18 +154,17 @@ export default function PollenScreen() {
 
                 {/*
                   Sljedeći dani ispod skale, u retku: "danas VISOKA ·
-                  ned 7.9. VISOKA · pon 8.9. UMJERENA". Prvi dan je uvijek
-                  današnji, pa nosi riječ umjesto datuma — "danas" se čita
-                  brže nego datum koji korisnik uspoređuje s kalendarom.
+                  sutra VISOKA · pon 8.9. UMJERENA". Danas i sutra su
+                  riječi, od prekosutra datum — vidi `relativeDayLabel`.
                 */}
                 {pollenDays.length > 1 && (
                   <View className="flex-row flex-wrap gap-x-3 gap-y-1 pt-0.5">
-                    {pollenDays.map((day, di) => {
+                    {pollenDays.map((day) => {
                       const grade = gradeOn(day, s.key);
                       return (
                         <View key={day.date} className="flex-row items-baseline gap-1.5">
                           <Text className="font-grotesk text-[11.5px] text-ink/45 dark:text-paper/45">
-                            {di === 0 ? t.pollen.today : formatDayShort(`${day.date}T00:00`)}
+                            {relativeDayLabel(day.date)}
                           </Text>
                           <Text
                             className="font-grotesk-medium text-[11.5px]"
