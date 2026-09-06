@@ -73,23 +73,6 @@ const COUNTRY_ZOOM = 6.4;
 const FALLBACK_LAT = 45.1;
 const FALLBACK_LON = 16.4;
 
-/**
- * Sjena ispod atribucije — zamjena za podlogu koja je maknuta 6.9.2026.
- *
- * Natpis stoji IZRAVNO na karti, a karta ispod njega mijenja svjetlinu:
- * more je tamnoplavo, snijeg i oblaci na temperaturnom sloju gotovo bijeli.
- * Jedna boja teksta ne prolazi obje — bijeli tekst nestane na naoblaci,
- * tamni na moru.
- *
- * Sjena rješava oboje jer ne boji tekst nego ga ODVAJA od podloge: na
- * svijetlom se vidi sjena, na tamnom sam tekst. Isti postupak kao natpisi
- * imena mjesta na samoj karti.
- */
-const ATTRIBUTION_SHADOW = {
-  textShadowColor: "rgba(0,0,0,0.85)",
-  textShadowOffset: { width: 0, height: 0 },
-  textShadowRadius: 3,
-} as const;
 
 /**
  * Jedna vremenska pločica na karti: aktivni korak je vidljiv, susjedni su
@@ -192,9 +175,12 @@ export default function MapScreen() {
   }, [layer.timeline, frames, hours]);
 
   /**
-   * "Sada" na skali — odatle kreće play (dorada 6.8.2026.). Isto što i
-   * `defaultStep`, ali izračunato posebno jer `defaultStep` služi i kao
-   * rezerva kad koraka nema.
+   * "Sada" na skali — sidro crte i početak animacije NA DANAŠNJEM danu.
+   * Isto što i `defaultStep`, ali izračunato posebno jer `defaultStep`
+   * služi i kao rezerva kad koraka nema.
+   *
+   * Od 6.9.2026. play više ne kreće uvijek odavde nego s početka ODABRANOG
+   * dana — vidi `playRange`. Na današnjem danu to je i dalje "sada".
    */
   const nowStep = useMemo(() => {
     if (layer.timeline === "frames") return frames.map((f) => f.isNowcast).lastIndexOf(false);
@@ -217,24 +203,48 @@ export default function MapScreen() {
    *
    * Klizanje rukom uvijek ide po CIJELOJ crti, u oba smjera.
    */
-  const hasFuture = nowStep >= 0 && nowStep < stepCount - 1;
+
+  /**
+   * Raspon koji play vrti — DAN NA KOJEM KLIZAČ STOJI (Markov odabir
+   * 6.9.2026.: "kad stisnem play ide od tog sada pa nadalje za taj dan,
+   * nebitno jel od jučer, danas, sutra ili sljedeće dane").
+   *
+   * Prije se animacija UVIJEK vraćala na "sada" i išla do kraja crte, pa je
+   * odabir dana bio besmislen: pritisneš play na prekosutra i crta odskoči
+   * na danas. Sada dan koji si odabrao je i dan koji se vrti.
+   *
+   * Na današnjem danu petlja kreće od "sada", ne od ponoći — prošli sati
+   * današnjeg dana nikoga ne zanimaju.
+   *
+   * Radar nema dane (dva sata okvira), pa ondje ostaje cijela crta.
+   */
+  const playRange = useMemo(() => {
+    if (layer.timeline !== "hours" || hours.length === 0) {
+      return { from: 0, to: Math.max(0, stepCount - 1) };
+    }
+    const date = hours[index]?.time.slice(0, 10);
+    if (!date) return { from: 0, to: Math.max(0, stepCount - 1) };
+    let from = hours.findIndex((h) => h.time.slice(0, 10) === date);
+    let to = from;
+    for (let i = from; i < hours.length && hours[i]!.time.slice(0, 10) === date; i += 1) to = i;
+    // Današnji dan kreće od "sada" — prošli sati danas nikoga ne zanimaju.
+    if (nowStep >= from && nowStep <= to) from = nowStep;
+    return { from, to };
+  }, [layer.timeline, hours, index, nowStep, stepCount]);
 
   useEffect(() => {
     if (!playing || stepCount < 2) return;
     const ms = layer.timeline === "frames" ? FRAME_INTERVAL_MS : HOUR_INTERVAL_MS;
     const timer = setInterval(() => {
+      const { from, to } = playRange;
+      if (to <= from) return;
       const next = index + 1;
-      if (hasFuture) {
-        // Naprijed od "sada" do kraja, pa natrag na "sada".
-        setStep(next >= stepCount || next < nowStep ? nowStep : next);
-        return;
-      }
-      // Bez budućnosti: petlja kroz cijelu (prošlu) crtu.
-      setStep(next >= stepCount ? 0 : next);
+      // Petlja unutar raspona: izvan njega (ili na kraju) natrag na početak.
+      setStep(next > to || next < from ? from : next);
     }, ms);
     return () => clearInterval(timer);
     // `index` je namjerno u ovisnostima: interval se resetira po koraku.
-  }, [playing, stepCount, index, nowStep, hasFuture, layer.timeline, setStep]);
+  }, [playing, stepCount, index, playRange, layer.timeline, setStep]);
 
   // Promjena odabranog mjesta (drugi grad u ladici) pomiče kartu.
   useEffect(() => {
@@ -509,68 +519,48 @@ export default function MapScreen() {
         />
       </View>
 
-      {/*
-        ATRIBUCIJA JE USPRAVNA, UZ LIJEVI RUB (Markov odabir 6.9.2026.).
-        Prije je bila vodoravna pilula iznad legende, pa je zauzimala red
-        na dnu — najvrjednijem mjestu, gdje stoje legenda i vremenska crta.
-
-        Uspravno uz rub ne oduzima nijedan red karti: tekst se rotira za
-        -90°, pa cijeli natpis stane u ~14 px širine. `rotate` je na
-        SADRŽAJU, a ne na omotu — omot mora ostati nezarotiran da mu
-        `absolute` pozicija ostane u koordinatama ekrana.
-
-        Podloga je MAKNUTA (isti odabir): pilula je na tamnoj karti bila
-        vidljiva kao mrlja. Bez nje se natpis stapa s podlogom, a čitljivost
-        se čuva sjenom teksta — radi i na svijetloj i na tamnoj podlozi
-        karte, dok bi jedna boja podloge uvijek negdje bila kriva.
-
-        Obveza ostaje ispunjena: OSM je pod ODbL, a CARTO/RainViewer/
-        Open-Meteo atribuciju traže u uvjetima. Natpis se vidi, dodir i
-        dalje otvara izvor, `hitSlop` ostaje 10.
-      */}
-      <View
-        className="absolute left-0 items-center justify-center"
-        pointerEvents="box-none"
-        style={{ bottom: insets.bottom + 12, top: insets.top + 12, width: 18 }}
-      >
-        <View style={{ transform: [{ rotate: "-90deg" }] }}>
-          <View className="flex-row items-center gap-1.5">
-            <Pressable hitSlop={10} onPress={() => Linking.openURL(layer.attribution.url)}>
-              <Text className="text-[9px] text-paper/50" style={ATTRIBUTION_SHADOW}>
-                {layer.attribution.label}
-              </Text>
-            </Pressable>
-            <Text className="text-[9px] text-paper/30" style={ATTRIBUTION_SHADOW}>
-              ·
-            </Text>
-            <Pressable hitSlop={10} onPress={() => Linking.openURL(MAP_BASE_ATTRIBUTION.url)}>
-              <Text className="text-[9px] text-paper/50" style={ATTRIBUTION_SHADOW}>
-                {MAP_BASE_ATTRIBUTION.label}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-
       <View
         className="absolute left-4 right-4 gap-2"
         style={{ bottom: insets.bottom + 12 }}
       >
-        <LayerLegend layer={layer.id} />
-
         {/*
           Atribucija je UVJET besplatnog korištenja (OSM je pod ODbL, a
           CARTO/RainViewer/Open-Meteo je traže u uvjetima) — zato se ne
           uklanja. Svedena je na jedan tanak red bez pozadinskih "pillova"
           da ne odvlači pogled s karte; dodir i dalje otvara izvor.
+
+          IZNAD LEGENDE, VODORAVNO (Markov odabir 6.9.2026.). Uspravna
+          inačica uz lijevi rub je ODBAČENA — probana istog dana i vraćena:
+          omot je bio širok 18 px, pa se red PRELOMIO na dva prije nego se
+          zarotirao i natpisi su izašli jedan ispod drugoga. Da bi rotacija
+          radila, omot mora biti širok koliko je natpis DUG, a to je onda
+          okvir preko pola visine ekrana koji guta dodire — više štete nego
+          koristi za jedan red od 9 px.
+
+          PODLOGA JE MAKNUTA (isti odabir): pilula je na tamnoj karti bila
+          vidljiva kao mrlja.
+
+          SJENA ISPOD TEKSTA JE TAKOĐER ODBAČENA — probana kao zamjena za
+          podlogu i vraćena isti dan (Markov nalaz: "slova su mutna").
+          `textShadow` na 9 px slovima ne obrubljuje nego RAZLIJE: sjena je
+          šira od poteza slova, pa tekst gubi oštrinu umjesto da dobije
+          kontrast. Ostaje goli tekst na 42 %, kako je i bio.
+
+          Dodirna meta se NE smanjuje (`hitSlop` 10).
         */}
-        {/*
-          Prigušeno na najmanju mjeru koja je još čitljiva (Markov odabir
-          8.8.2026.): podloga s 70 % na 40 %, tekst sa 60 % na 42 %.
-          Obveza ostaje ispunjena — natpis se vidi i dodir i dalje otvara
-          izvor — ali više ne otima pogled karti. Dodirna meta se NE
-          smanjuje (`hitSlop` ostaje 10), pa je i dalje lako pogoditi.
-        */}
+        <View className="flex-row items-center gap-1.5 self-start">
+          <Pressable hitSlop={10} onPress={() => Linking.openURL(layer.attribution.url)}>
+            <Text className="text-[9px] text-paper/[0.42]">{layer.attribution.label}</Text>
+          </Pressable>
+          <Text className="text-[9px] text-paper/25">·</Text>
+          <Pressable hitSlop={10} onPress={() => Linking.openURL(MAP_BASE_ATTRIBUTION.url)}>
+            <Text className="text-[9px] text-paper/[0.42]">
+              {MAP_BASE_ATTRIBUTION.label}
+            </Text>
+          </Pressable>
+        </View>
+
+        <LayerLegend layer={layer.id} />
 
         {/*
           Kad izvor sati padne (najčešće satna kvota Open-Metea), crta se ne

@@ -2,7 +2,7 @@ import { mapLayerById } from "@/api/mapLayers";
 import type { RadarFrame } from "@/api/types";
 import type { TimelineHour } from "@/hooks/useTimelineHours";
 
-import { nowStepIndex, timelineSteps } from "../MapTimeline";
+import { dayJumps, nowStepIndex, timelineSteps } from "../MapTimeline";
 
 const frames: RadarFrame[] = [
   { time: 1785882000, path: "/p1", isNowcast: false },
@@ -134,5 +134,100 @@ describe("nowStepIndex", () => {
     const noNow: TimelineHour[] = hours.map((h) => ({ ...h, isNow: false }));
     expect(nowStepIndex(timelineSteps(mapLayerById("temp_new"), [], noNow))).toBe(-1);
     expect(nowStepIndex([])).toBe(-1);
+  });
+});
+
+/*
+ * DUGMAD DANA (6.9.2026.) — krupna meta za "pokaži mi sutra".
+ *
+ * Klizač preko 96 sati traži pogađanje; dugmad daju izravan skok, a klizač
+ * ostaje za fino štimanje.
+ */
+describe("dayJumps", () => {
+  /** Satni niz kroz tri dana; "sada" je 6.9. u 14 h. */
+  const hours = [
+    { time: "2026-09-06T00:00", isNow: false },
+    { time: "2026-09-06T12:00", isNow: false },
+    { time: "2026-09-06T14:00", isNow: true },
+    { time: "2026-09-07T00:00", isNow: false },
+    { time: "2026-09-07T12:00", isNow: false },
+    { time: "2026-09-08T12:00", isNow: false },
+    { time: "2026-09-08T23:00", isNow: false },
+  ];
+
+  it("jedan unos po danu, poredani", () => {
+    const j = dayJumps(hours, 2);
+    expect(j).toHaveLength(3);
+    expect(j.map((d) => d.from)).toEqual([0, 3, 5]);
+    expect(j.map((d) => d.to)).toEqual([2, 4, 6]);
+  });
+
+  it("današnje dugme skače na SADA, ostala na podne", () => {
+    const j = dayJumps(hours, 2);
+    // Današnje: tamo gdje je korisnik i inače krenuo.
+    expect(j[0]!.index).toBe(2);
+    // Sutra i prekosutra: podne, jer se po njemu dan prepoznaje.
+    expect(j[1]!.index).toBe(4);
+    expect(j[2]!.index).toBe(5);
+  });
+
+  /*
+   * Podne se TRAŽI među koracima dana, ne računa kao `from + 12`: prvi dan
+   * crte zna biti odrezan, pa bi računica pala u sljedeći dan.
+   */
+  it("dan bez podneva pada na svoj prvi korak, ne u susjedni dan", () => {
+    const j = dayJumps(
+      [
+        { time: "2026-09-06T20:00", isNow: true },
+        { time: "2026-09-06T21:00", isNow: false },
+        { time: "2026-09-07T09:00", isNow: false },
+      ],
+      0,
+    );
+    expect(j[1]!.index).toBe(2);
+    expect(j[1]!.index).toBeGreaterThanOrEqual(j[1]!.from);
+    expect(j[1]!.index).toBeLessThanOrEqual(j[1]!.to);
+  });
+
+  /*
+   * OZNAKE SU RELATIVNE NA DANAS (Markov odabir 6.9.2026.).
+   *
+   * Ime dana u prošlosti se pomiješa s istim danom sljedećeg tjedna, pa
+   * jučer nosi "-24 h". Sutra ima svoju riječ jer je najčešća meta, a dalji
+   * dani datum — "pon"/"uto" se pri kraju tjedna ne razlikuju od prošlih.
+   */
+  it("jučer je -24 h, sutra je riječ, dalji dani datum", () => {
+    const j = dayJumps(
+      [
+        { time: "2026-09-05T12:00", isNow: false },
+        { time: "2026-09-06T12:00", isNow: true },
+        { time: "2026-09-07T12:00", isNow: false },
+        { time: "2026-09-08T12:00", isNow: false },
+      ],
+      1,
+    );
+    expect(j.map((d) => d.label)).toEqual(["-24 h", "Sada", "Sutra", "8.9."]);
+  });
+
+  it("datum je bez vodećih nula", () => {
+    const j = dayJumps(
+      [
+        { time: "2026-09-06T12:00", isNow: true },
+        { time: "2026-09-09T12:00", isNow: false },
+      ],
+      0,
+    );
+    expect(j[1]!.label).toBe("9.9.");
+  });
+
+  it("prazan niz ne ruši ništa", () => {
+    expect(dayJumps([], -1)).toEqual([]);
+  });
+
+  it("bez 'sada' u nizu i dalje daje dane", () => {
+    const j = dayJumps(hours, -1);
+    expect(j).toHaveLength(3);
+    // Nijedan nije "danas", pa svi idu na podne/prvi korak.
+    expect(j[0]!.index).toBe(1);
   });
 });

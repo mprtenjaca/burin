@@ -157,6 +157,17 @@ export const hr = {
     owmAttribution: "© OpenWeatherMap",
     locateMe: "Moja lokacija",
     nowLabel: "Sada",
+    /*
+     * Oznake dugmadi dana na vremenskoj crti (6.9.2026.).
+     *
+     * Jučer je "-24 h", a ne ime dana: ime dana u prošlosti se u trenu
+     * pomiješa s istim danom sljedećeg tjedna, dok je "-24 h" nedvosmisleno
+     * i odmah kaže koliko unatrag. Sutra ima svoju riječ jer je najčešća
+     * meta; dalji dani nose DATUM ("8.9."), jer se "pon" i "uto" pri kraju
+     * tjedna više ne razlikuju od prošlih dana.
+     */
+    dayYesterday: "-24 h",
+    dayTomorrow: "Sutra",
     play: "Pokreni animaciju",
     pause: "Zaustavi animaciju",
     needsOwmKey: "Potreban OWM ključ",

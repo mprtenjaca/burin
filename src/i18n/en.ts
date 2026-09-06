@@ -160,6 +160,8 @@ export const en: Dict = {
     owmAttribution: "© OpenWeatherMap",
     locateMe: "My location",
     nowLabel: "Now",
+    dayYesterday: "-24h",
+    dayTomorrow: "Tomorrow",
     play: "Play animation",
     pause: "Pause animation",
     needsOwmKey: "OWM key required",

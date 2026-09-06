@@ -90,6 +90,97 @@ export function nowStepIndex(steps: Step[]): number {
   return steps.findIndex((s) => s.isNow);
 }
 
+/** Jedan dan u traci dugmadi iznad klizača. */
+export type DayJump = {
+  /** "danas", "sub", "ned"… */
+  label: string;
+  /** Korak na koji dugme skače. */
+  index: number;
+  /** Prvi i zadnji korak tog dana — dugme je aktivno dok je klizač unutra. */
+  from: number;
+  to: number;
+};
+
+/**
+ * DUGMAD ZA DANE (Markov odabir 6.9.2026.: "sljedeća 3 dana želim da budu
+ * dugmad pa da prebaci na tu točku na liniji ispod").
+ *
+ * Klizač preko 96 sati je precizan, ali za "pokaži mi sutra" traži pogađanje
+ * — korisnik povlači i gleda mijenja li se datum. Dugmad daju krupnu metu za
+ * ono što se najčešće traži, a klizač ostaje za fino štimanje.
+ *
+ * Dugme skače na PODNE tog dana, ne na ponoć: podne je sat po kojem se dan
+ * prepoznaje (ponoć izgleda isto svaki dan). Iznimka je današnji dan, koji
+ * skače na "sada" — tamo je korisnik i inače krenuo.
+ *
+ * Radi SAMO na satnoj crti. Radarski okviri pokrivaju dva sata unatrag, pa
+ * ondje nema dana za preskakanje i traka se ne prikazuje.
+ *
+ * Izvezeno radi testova.
+ */
+export function dayJumps(hours: TimelineHour[], nowIdx: number): DayJump[] {
+  if (hours.length === 0) return [];
+
+  const byDate = new Map<string, number[]>();
+  hours.forEach((h, i) => {
+    const date = h.time.slice(0, 10);
+    const list = byDate.get(date);
+    if (list) list.push(i);
+    else byDate.set(date, [i]);
+  });
+
+  const todayDate = nowIdx >= 0 ? hours[nowIdx]?.time.slice(0, 10) : undefined;
+
+  return [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, idx]) => {
+      const from = idx[0]!;
+      const to = idx[idx.length - 1]!;
+      const offset = todayDate ? dayOffset(todayDate, date) : undefined;
+      const isToday = offset === 0;
+      /*
+       * Podne se traži MEĐU KORACIMA TOG DANA, a ne računa kao `from + 12`:
+       * prvi dan crte počinje u ponoć samo kad je `past_days` cijeli dan, a
+       * zadnji zna biti odrezan. Bez toga bi dugme znalo pasti u drugi dan.
+       */
+      const noon = idx.find((i) => hours[i]!.time.slice(11, 13) === "12");
+      return {
+        label: dayLabel(date, offset),
+        index: isToday && nowIdx >= 0 ? nowIdx : (noon ?? from),
+        from,
+        to,
+      };
+    });
+}
+
+/** Razlika u DANIMA između dva `YYYY-MM-DD` (pozitivno = u budućnosti). */
+function dayOffset(from: string, to: string): number {
+  const at = (s: string) => {
+    const [y = 1970, m = 1, d = 1] = s.split("-").map(Number);
+    return new Date(y, m - 1, d).getTime();
+  };
+  return Math.round((at(to) - at(from)) / 86_400_000);
+}
+
+/**
+ * Oznaka dugmeta (Markov odabir 6.9.2026.).
+ *
+ * Jučer je "-24 h", a ne ime dana: ime dana u prošlosti se pomiješa s istim
+ * danom sljedećeg tjedna, dok "-24 h" odmah kaže koliko unatrag. Sutra ima
+ * svoju riječ jer je najčešća meta. Dalji dani nose DATUM ("8.9."), jer se
+ * "pon"/"uto" pri kraju tjedna ne razlikuju od prošlih dana.
+ *
+ * Bez poznatog "danas" (radar bez izmjerenog okvira) sve pada na datum —
+ * relativne oznake tada nemaju u odnosu na što biti relativne.
+ */
+function dayLabel(date: string, offset: number | undefined): string {
+  if (offset === 0) return t.map.nowLabel;
+  if (offset === -1) return t.map.dayYesterday;
+  if (offset === 1) return t.map.dayTomorrow;
+  const [, m = "1", d = "1"] = date.split("-");
+  return `${Number(d)}.${Number(m)}.`;
+}
+
 /**
  * Vremenska crta karte — **ista komponenta na svim slojevima**, uvijek na
  * istom mjestu na dnu. Play/pauza lijevo od klizača, oznaka vremena ispod.
@@ -141,6 +232,11 @@ export function MapTimeline({
    * slojevima je otprilike u sredini (past_days=1, forecast_days=3).
    */
   const nowIdx = nowStepIndex(steps);
+  /*
+   * Dugmad dana samo na SATNOJ crti: radarski okviri pokrivaju dva sata
+   * unatrag, pa ondje nema dana za preskakanje.
+   */
+  const jumps = layer.timeline === "hours" ? dayJumps(hours, nowIdx) : [];
   const lastIdx = Math.max(1, steps.length - 1);
   const nowPct = nowIdx >= 0 ? (nowIdx / lastIdx) * 100 : undefined;
   const isFuture = nowIdx >= 0 && index > nowIdx;
@@ -156,6 +252,43 @@ export function MapTimeline({
       <Text className="font-grotesk-bold text-[12.5px] text-paper/60">
         {layer.label}
       </Text>
+
+      {/*
+        Traka dana — krupna meta za "pokaži mi sutra", dok klizač ostaje za
+        fino štimanje. Aktivno je ono dugme unutar čijeg raspona klizač
+        trenutno stoji, pa se odmah vidi GDJE si na crti.
+
+        Boja aktivnog je `ACCENT_STEEL`, ista kao klizač i čipovi slojeva na
+        tamnoj traci (`ACCENT_UI` ondje pada na 2.55:1 — vidi odluku o
+        akcentima).
+      */}
+      {jumps.length > 1 && (
+        <View className="flex-row gap-1.5">
+          {jumps.map((d) => {
+            const active = index >= d.from && index <= d.to;
+            return (
+              <Pressable
+                key={d.label + d.from}
+                onPress={() => onScrub(d.index)}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                // p-2/-m-2 pravilo za dodirne mete: glif ostaje na mjestu,
+                // a meta naraste preko 44 px (vidi odluku od 8.8.2026.).
+                className="rounded-full px-3 py-1.5"
+                style={{ backgroundColor: active ? ACCENT_STEEL : "#FAFAF81F" }}
+              >
+                <Text
+                  className="font-grotesk-bold text-[11.5px]"
+                  style={{ color: active ? "#FFFFFF" : "#FAFAF8B3" }}
+                >
+                  {d.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       <View className="flex-row items-center gap-3">
         <Pressable

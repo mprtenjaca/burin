@@ -23,7 +23,14 @@ type OmHourly = {
 };
 
 const PAST_DAYS = 1;
-const FORECAST_DAYS = 3;
+/*
+ * `forecast_days` kod Open-Metea broji DANAS KAO PRVI dan — `3` daje danas
+ * + 2, a ne danas + 3 (izmjereno 6.9.2026., Markov nalaz: "zar nisi reka da
+ * imamo 3 dana unaprijed"). Za tri PUNA dana unaprijed treba 4.
+ *
+ * Uz `past_days=1` crta tako nosi 5 dana: jučer, danas i tri naprijed.
+ */
+const FORECAST_DAYS = 4;
 
 function currentHourIso(now: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
