@@ -1,5 +1,6 @@
 import Slider from "@react-native-community/slider";
 import { Pause, Play } from "lucide-react-native";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import type { MapLayer } from "@/api/mapLayers";
@@ -203,6 +204,65 @@ function dayLabel(date: string, offset: number | undefined): string {
 }
 
 /**
+ * Dugme dana u traci iznad klizača.
+ *
+ * Zašto zasebna komponenta: treba mu `pressed` stanje, a `pressed` kroz
+ * `style`-funkciju na Pressableu NE RADI uz NativeWind — `className` se
+ * prevede u `style` i PREPIŠE funkciju (odluka iz Recent Decisions; 7.9.
+ * 2026. ponovno dokazano na ovom dugmetu: s funkcijom je nestala i
+ * pozadina, "nema backgrounda uopće"). Zato `onPressIn/Out` + `useState`,
+ * a `style` ostaje običan objekt.
+ *
+ * Pritisak se vidi ODMAH (Markov nalaz 7.9.2026.: "daj korisniku feeling
+ * da je odma otisao na taj dan"): sat i odabir se mijenjaju u istom kadru
+ * kao dodir, kasni samo SLIKA PLOČICE s mreže — bez odziva to izgleda kao
+ * da dodir nije primljen, pa korisnik pritisne opet.
+ *
+ * Neaktivno dugme mora IZGLEDATI kao dugme ("da se vidi da su
+ * klikabilni"): 12 % bijele se na `ink/90` gubi u goli tekst; 22 % ispune
+ * + tanki rub od 30 % daju obris, a aktivno (puna `ACCENT_STEEL`) i dalje
+ * jasno vodi. Rub ide i na aktivno, u boji ispune, da oba stanja ostanu
+ * iste veličine i ne poskakuju pri prebacivanju.
+ */
+function DayButton({
+  label,
+  active,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      className="rounded-full px-3 py-1.5"
+      style={{
+        backgroundColor: active ? ACCENT_STEEL : "#FAFAF838",
+        borderWidth: 1,
+        borderColor: active ? ACCENT_STEEL : "#FAFAF84D",
+        opacity: pressed ? 0.6 : 1,
+      }}
+    >
+      <Text
+        className="font-grotesk-bold text-[11.5px]"
+        style={{ color: active ? "#FFFFFF" : "#FAFAF8B3" }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/**
  * Vremenska crta karte — **ista komponenta na svim slojevima**, uvijek na
  * istom mjestu na dnu. Play/pauza lijevo od klizača, oznaka vremena ispod.
  *
@@ -308,29 +368,15 @@ export function MapTimeline({
       */}
       {jumps.length > 0 && (
         <View className="flex-row gap-1.5">
-          {jumps.map((d) => {
-            const active = index >= d.from && index <= d.to;
-            return (
-              <Pressable
-                key={d.label + d.from}
-                onPress={() => onScrub(d.index)}
-                disabled={disabled}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                // p-2/-m-2 pravilo za dodirne mete: glif ostaje na mjestu,
-                // a meta naraste preko 44 px (vidi odluku od 8.8.2026.).
-                className="rounded-full px-3 py-1.5"
-                style={{ backgroundColor: active ? ACCENT_STEEL : "#FAFAF81F" }}
-              >
-                <Text
-                  className="font-grotesk-bold text-[11.5px]"
-                  style={{ color: active ? "#FFFFFF" : "#FAFAF8B3" }}
-                >
-                  {d.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {jumps.map((d) => (
+            <DayButton
+              key={d.label + d.from}
+              label={d.label}
+              active={index >= d.from && index <= d.to}
+              disabled={disabled}
+              onPress={() => onScrub(d.index)}
+            />
+          ))}
         </View>
       )}
 
@@ -386,15 +432,42 @@ export function MapTimeline({
                 style={{ width: 2, height: 11, left: `${nowPct}%`, marginLeft: -1 }}
               />
             )}
+            {/*
+              KLIZAČ RADI U NORMALIZIRANOM RASPONU 0..span, a ne u indeksima
+              crte (popravak 7.9.2026., Markov nalaz na iOS-u: "stisnem
+              sutra, kugla je skroz na kraju; stisnem play i onda tek skokne
+              na 12").
+
+              Uzrok je u nativnom iOS Slideru (`RNCSliderComponentView.mm`
+              `updateProps`, pročitano u node_modules): `value` se upisuje
+              PRIJE `minimumValue`/`maximumValue`, a `setValue:` ga kroz
+              `discreteValue:` STEGNE NA STARI raspon i taj stegnuti broj
+              spremi kao `_unclippedValue`. Kad zatim stignu nove granice,
+              one vraćaju upravo taj krivi broj — pa je za "-24 h" podne
+              (12) postalo 38 (današnji sat), pa 23 (kraj jučerašnjeg dana).
+              Stanje je cijelo vrijeme bilo ispravno (sat je pisao 12:00);
+              samo palac nije. Android radi `updateAll()` iz spremljenih
+              vrijednosti pa ondje nema kvara.
+
+              Kad su `min`/`max` STALNI (0..23 za svaki puni dan), promjena
+              dana mijenja samo `value` i ništa se ne steže. `key` je drugi
+              pojas SAMO za promjenu `span`-a (radar s drugim brojem
+              okvira): tada se Slider ponovno montira, a na svježem je
+              `step` još 0 dok se `value` upisuje, pa `discreteValue:`
+              propušta broj netaknut. Ključ NAMJERNO nije po danu — svježi
+              UISlider jedan kadar stoji na 0 prije nego primi `value`, pa
+              je remount pri svakoj promjeni dana davao "flick" palca na
+              početak (Markov nalaz 7.9.2026.).
+            */}
             <Slider
+              key={span}
               style={{ width: "100%", height: 26 }}
-              // Raspon je ODABRANI DAN, ne cijela crta — vidi `range`.
-              minimumValue={range.from}
-              maximumValue={range.to}
+              minimumValue={0}
+              maximumValue={span}
               step={1}
-              value={index}
+              value={index - range.from}
               disabled={disabled}
-              onValueChange={(v) => onScrub(Math.round(v))}
+              onValueChange={(v) => onScrub(range.from + Math.round(v))}
               minimumTrackTintColor="transparent"
               maximumTrackTintColor="transparent"
               thumbTintColor={ACCENT_STEEL}
