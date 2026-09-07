@@ -1,18 +1,31 @@
-import { ChevronDown } from "lucide-react-native";
+import { router } from "expo-router";
+import { ChevronRight } from "lucide-react-native";
 import { Fragment, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import type { DailyPoint, HourlyPoint } from "@/api/types";
 import { t } from "@/i18n";
-import { colors } from "@/theme/colors";
+import { useDayDetails } from "@/store/dayDetails";
 import { useThemeColors } from "@/theme/useThemeColors";
-import type { TempUnit, WindUnit } from "@/utils/format";
+import type { TempUnit } from "@/utils/format";
 import { convertTemp, formatDayShort } from "@/utils/format";
 import { codeToCondition } from "@/utils/weatherCodes";
 import { ACCENT_CORAL } from "@/utils/weatherLook";
 
-import { DayDetails } from "./DayDetails";
 import { Hairline } from "./Section";
+
+/*
+ * expo-haptics kroz čuvani require, ne statični import: requireNativeModule
+ * BACA pri učitavanju modula kad nativna strana ne postoji — a instalirani
+ * dev buildovi (iOS 13 / Android 4) su građeni bez njega. Do sljedećeg
+ * builda haptika tiho ne radi, aplikacija ne smije pasti.
+ */
+let haptics: typeof import("expo-haptics") | null = null;
+try {
+  haptics = require("expo-haptics");
+} catch {
+  haptics = null;
+}
 
 /** Širine kolona — dijele ih zaglavlje i redovi da poravnanje drži. */
 const KOL_DAN = 74;
@@ -22,22 +35,42 @@ const KOL_TEMP = 38;
 
 /**
  * 14 dana: dan, ikona, % oborina, min–max s trakom raspona (raspon dana
- * unutar raspona svih 14 dana). Dodir na red otvara razdoblja dana s
- * pojedinostima.
+ * unutar raspona svih 14 dana).
+ *
+ * Dodir na red otvara SHEET s detaljima dana (`app/(screens)/day.tsx`),
+ * ne više harmoniku u listi (redizajn 7.9.2026., nakon pritužbi „otvori
+ * se podsekcija i skroz se izgubim"): otvoreni red se nije razlikovao od
+ * ostalih, panel se otvarao ispod pregiba, a zatvaranje prethodnog dana
+ * iznad je odskakalo cijelu listu. Sad lista stoji, a sheet nosi naslov
+ * dana i čipove za prebacivanje — vidi obrazloženje u `day.tsx`.
+ *
+ * Podaci za sheet idu kroz MEMORIJSKI store, ne kroz parametre: `hourly`
+ * je ~69 kB i ne smije se serijalizirati u kadru prijelaza. Lista ih već
+ * drži, pa ih prije navigacije samo pokaže storeu (referenca).
  */
 export function DailyList({
   days,
   hourly,
+  place,
   tempUnit,
-  windUnit,
 }: {
   days: DailyPoint[];
+  /** Ide sheetu kroz store, lista ga sama ne crta. */
   hourly: HourlyPoint[];
+  /** Ime mjesta za podnaslov sheeta. */
+  place: string;
+  /** Jedinica vjetra ne treba: sheet čita postavke sam. */
   tempUnit: TempUnit;
-  windUnit: WindUnit;
 }) {
   const { fg } = useThemeColors();
-  const [openDate, setOpenDate] = useState<string | null>(null);
+  /* Odziv na dodir kroz onPressIn/Out + stanje — pressed stil na Pressableu ne radi uz NativeWind. */
+  const [pressedDate, setPressedDate] = useState<string | null>(null);
+  const openDay = (date: string) => {
+    // Kratki tik PRIJE otvaranja sheeta; fire-and-forget da ne koči navigaciju.
+    haptics?.impactAsync(haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    useDayDetails.getState().setSource({ days, hourly, place });
+    router.navigate({ pathname: "/day", params: { date } });
+  };
   const allMin = Math.min(...days.map((d) => d.tMin));
   const allMax = Math.max(...days.map((d) => d.tMax));
   const span = Math.max(1, allMax - allMin);
@@ -86,13 +119,18 @@ export function DailyList({
         const width = Math.max(4, ((d.tMax - d.tMin) / span) * 100);
         const dayLabel =
           i === 0 ? t.common.today : i === 1 ? t.common.tomorrow : formatDayShort(d.date);
-        const isOpen = openDate === d.date;
         return (
           <Fragment key={d.date}>
             {i > 0 && <Hairline />}
             <Pressable
-              onPress={() => setOpenDate(isOpen ? null : d.date)}
-              className="flex-row items-center gap-2.5 py-3"
+              onPress={() => openDay(d.date)}
+              onPressIn={() => setPressedDate(d.date)}
+              onPressOut={() => setPressedDate(null)}
+              accessibilityRole="button"
+              accessibilityLabel={`${dayLabel}, ${t.home.details}`}
+              className={`-mx-2.5 flex-row items-center gap-2.5 rounded-xl px-2.5 py-3 ${
+                pressedDate === d.date ? "bg-ink/[0.05] dark:bg-paper/[0.07]" : ""
+              }`}
             >
               <View
                 className="flex-row items-center gap-1"
@@ -101,13 +139,8 @@ export function DailyList({
                 <Text className="font-grotesk-medium text-[16px] text-ink dark:text-paper">
                   {dayLabel}
                 </Text>
-                <ChevronDown
-                  size={14}
-                  strokeWidth={2}
-                  color={isOpen ? ACCENT_CORAL : fg}
-                  opacity={isOpen ? 1 : 0.35}
-                  style={{ transform: [{ rotate: isOpen ? "180deg" : "0deg" }] }}
-                />
+                {/* Ševron UDESNO: „vodi dalje", ne „širi se ovdje" (ChevronDown je bio harmonika). */}
+                <ChevronRight size={14} strokeWidth={2} color={fg} opacity={0.35} />
               </View>
               <View style={{ width: KOL_IKONA }}>
                 <Icon size={21} strokeWidth={2} color={fg} opacity={0.75} />
@@ -121,7 +154,7 @@ export function DailyList({
                   d.precipProbMax >= 1 ? { color: ACCENT_CORAL } : null,
                 ]}
               >
-                {d.precipProbMax >= 1 ? `${Math.round(d.precipProbMax)} %` : "–"}
+                {d.precipProbMax >= 1 ? `${Math.round(d.precipProbMax)} %` : "0 %"}
               </Text>
               {/* Traka uzima ostatak reda — brojke ostaju na kraju. */}
               <View className="h-1 flex-1 rounded-full bg-ink/10 dark:bg-paper/10">
@@ -143,14 +176,6 @@ export function DailyList({
                 {deg(d.tMax)}
               </Text>
             </Pressable>
-            {isOpen && (
-              <DayDetails
-                day={d}
-                hourly={hourly}
-                tempUnit={tempUnit}
-                windUnit={windUnit}
-              />
-            )}
           </Fragment>
         );
       })}

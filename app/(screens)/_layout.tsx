@@ -71,6 +71,25 @@ export default function ScreensLayout() {
       <Stack.Screen name="search" options={{ title: t.search.title }} />
       <Stack.Screen name="warnings" options={{ title: t.common.warnings }} />
       <Stack.Screen name="pollen" options={{ title: t.pollen.title }} />
+      {/*
+        Detalji dana kao SHEET odozdo (7.9.2026.), ne kartica u stacku:
+        lista od 14 dana ostaje vidljiva ispod, a naslov sheeta kaže koji
+        dan gledaš — vidi `day.tsx`. Bez headera: sheet crta vlastiti
+        naslov i „X". Detenti 3/4 i puni; na Androidu Material bottom
+        sheet (RNS 4.26), grabber je iOS.
+      */}
+      <Stack.Screen
+        name="day"
+        options={{
+          headerShown: false,
+          presentation: "formSheet",
+          sheetAllowedDetents: [0.75, 1],
+          sheetInitialDetentIndex: 0,
+          sheetGrabberVisible: true,
+          sheetCornerRadius: 24,
+          gestureEnabled: true,
+        }}
+      />
       <Stack.Screen name="preview" options={{ title: t.preview.title }} />
       <Stack.Screen name="settings" options={{ title: t.settings.title }} />
       <Stack.Screen name="sources" options={{ title: t.sources.title }} />

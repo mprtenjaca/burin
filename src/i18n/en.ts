@@ -24,6 +24,7 @@ export const en: Dict = {
     warnings: "Warnings",
     cancel: "Cancel",
     delete: "Delete",
+    close: "Close",
   },
 
   drawer: {

@@ -17,6 +17,7 @@ export const hr = {
     warnings: "Upozorenja",
     cancel: "Odustani",
     delete: "Obriši",
+    close: "Zatvori",
   },
 
   drawer: {

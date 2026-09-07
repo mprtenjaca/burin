@@ -53,7 +53,9 @@ export default function HomeScreen() {
   const warnings = useWarnings(place);
   const tempUnit = useSettings((s) => s.tempUnit);
   const windUnit = useSettings((s) => s.windUnit);
-  const quips = useSettings((s) => s.quips);
+  // ZAKOMENTIRANO 7.9.2026. (Markov odabir): heroj više ne dobiva domaću
+  // rečenicu, pa se prekidač ni ne čita. Vidi `quipBundle` niže.
+  // const quips = useSettings((s) => s.quips);
 
   /*
    * Visina prvog ekrana = IZMJERENA visina ScrollView viewporta, ne
@@ -269,10 +271,18 @@ export default function HomeScreen() {
           stops={stops}
           pageBg={pageBg}
           scrollY={scrollY}
-          // Rečenica ide na heroj SAMO kad je prekidač upaljen (zadano ne,
-          // 1.9.2026.); bez bundlea je `Hero` i ne renderira. Odluka stoji
-          // ovdje jer heroj ne čita postavke.
-          quipBundle={quips ? bundle : undefined}
+          /*
+           * DOMAĆA REČENICA — ZAKOMENTIRANA 7.9.2026. (Markov odabir).
+           *
+           * Bez ovog propa `Hero` ne renderira `QuipLine` (prop je
+           * neobavezan i provjerava se prije crtanja), pa je izostavljanje
+           * dovoljno — ne treba dirati `Hero`. Odluka je i dosad stajala
+           * OVDJE, jer heroj ne čita postavke ni za što drugo.
+           *
+           * Za povratak: odkomentirati redak ispod i čitanje `quips` iz
+           * storea na vrhu ekrana, pa sekciju u `app/(screens)/settings.tsx`.
+           */
+          // quipBundle={quips ? bundle : undefined}
         />
 
         {/*
@@ -301,7 +311,7 @@ export default function HomeScreen() {
               />
 
               <Section title={t.home.daily}>
-                <DailyList days={bundle.daily.slice(0, 14)} hourly={bundle.hourlyAll} tempUnit={tempUnit} windUnit={windUnit} />
+                <DailyList days={bundle.daily.slice(0, 14)} hourly={bundle.hourlyAll} place={bundle.place.name} tempUnit={tempUnit} />
               </Section>
 
               <Section title={t.home.mapSection}>
