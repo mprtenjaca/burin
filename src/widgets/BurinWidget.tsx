@@ -1,4 +1,5 @@
 import {
+  AccessoryWidgetBackground,
   Circle,
   HStack,
   Image,
@@ -657,21 +658,48 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
    * `currentValueLabel` je ostao — i on ide kroz isti slot, pa je pločica
    * ostala prazna. Zato je bug preživio.
    *
-   * Prsten se zato crta RUKOM, od primitiva koji U REGISTRU POSTOJE
-   * (`ZStack`, `Circle`, `Text`). Isti trik kao crtice vjetra na karti:
-   * `dash` po opsegu kružnice — obojeni dio je odrađeni luk, praznina
-   * ostatak. `strokeBorder` crta UNUTAR ruba, pa se debljina ne prelije
-   * izvan pločice.
+   * Prsten se zato crta RUKOM, od primitiva koji U REGISTRU POSTOJE.
+   * Isti trik kao crtice vjetra na karti: `dash` po opsegu kružnice —
+   * obojeni dio je odrađeni luk, praznina ostatak. `strokeBorder` crta
+   * UNUTAR ruba, pa se debljina ne prelije izvan pločice.
    *
-   * Ovdje NEMA boje: `vibrant` način svede sve na jedan ton.
+   * DRUGI KVAR, NAĐEN NA UREĐAJU 7.9.2026. („bijeli kvadrat u kutu"):
+   * ručni prsten je bio dva `Circle`-a sa `strokeBorder` — a pročitano u
+   * `node_modules`:
+   *  - `strokeBorder` NIJE potez samog pogleda nego OVERLAY s vlastitim
+   *    oblikom, a taj je zadano PRAVOKUTNIK (`ViewModifierRegistry.swift`,
+   *    `@Field var shape: ShapeType = .rectangle`). Bez `shape: "circle"`
+   *    crtao je kvadratni okvir 54×54 oko kruga.
+   *  - `CircleView` je goli `Circle()`, dakle ISPUNJEN disk (u `vibrant`
+   *    načinu bijel), bez propa za prazan krug.
+   *  Zbroj: bijeli disk + dva kvadratna okvira = bijela kocka s uglovima.
+   *  Prsten zato ide kao `strokeBorder(shape: "circle")` overlay na
+   *  `Spacer`-u s fiksnim `frame`-om — praznom domaćinu bez ispune i bez
+   *  djece (VStack traži `children`, a `null` u widget propove ne smije).
+   *  `frame` MORA biti PRVI u nizu: modifikatori se primjenjuju redom
+   *  (`View+ModifierArray.swift`, `reduce`), a prazan domaćin bez frame-a
+   *  ima 0 px pa bi overlay bio nevidljiv. Pouka iz `Gauge`-a vrijedi i
+   *  ovdje: typecheck ne vidi što nativni registar zadano radi.
+   *
+   * Iza prstena stoji `AccessoryWidgetBackground` — Appleov mutni disk
+   * kakav nose Baterija i Vrijeme: bez njega prsten na šarenoj pozadini
+   * nema na čemu stajati. Sustav ga sam boji po načinu prikaza.
+   *
+   * Boja je izričito bijela (`#FFFFFF`): zaključani zaslon je uvijek
+   * `vibrant`/`accented`, gdje sustav sve ionako svede na jedan ton.
    */
   function CircularLayout(props: WidgetProps) {
   /*
-   * Pločica `accessoryCircular` je ~58 px. Prsten se crta unutar 54 da
-   * ostane zraka za sustavnu masku, a broj stoji u sredini.
+   * Pločica `accessoryCircular` je 52–58 px ovisno o telefonu, a sustav
+   * je MASKIRA U KRUG — sve što je dalje od ~26 px od središta nestane.
+   * Prvi pokušaj (prsten 50, brojke na ±15/20) je izgubio min i max:
+   * kut glifa na (20, 25) je 32 od središta (Markov nalaz 7.9.2026.:
+   * „nema min i max, vidim polukrug, temperaturu i sunce"). Zato prsten
+   * 46 i sve oznake unutar kruga polumjera ~25.
    */
-  const size = 54;
+  const size = 46;
   const lineWidth = 5;
+  const RING = "#FFFFFF";
   // `strokeBorder` crta prema unutra, pa je promjer srednjice manji za
   // punu debljinu — opseg mora pratiti NJU, inače se luk razilazi s
   // vrijednošću (najviše na krajevima).
@@ -689,51 +717,106 @@ function BurinWidgetLayout(props: WidgetProps, environment: WidgetEnvironment) {
   const clamped = ratio < 0 ? 0 : ratio > 1 ? 1 : ratio;
 
   /*
-   * Prsten kreće na VRHU (12 sati), pa se rotira za -90°: `dash` inače
-   * počinje desno (3 sata) i dan bi izgledao pomaknut za četvrtinu.
+   * LUK OD 270°, ne puni krug (Markov nalaz 7.9.2026.: „zašto je krug, a
+   * ne polukrug") — kao Appleov `gaugeStyle("circular")`: praznina od
+   * četvrtine opsega stoji na DNU, a u nju idu min i max.
    *
-   * Puni krug, ne 3/4 luk kakav crta `gaugeStyle("circular")`: bez
-   * `Path`a se prekid luka ne može nacrtati čisto, a puni prsten na ovoj
-   * veličini čita jednako dobro.
+   * Stari komentar je tvrdio da se prekid bez `Path`a ne može nacrtati
+   * čisto — krivo: `dash` to radi sam. Trag je `[¾ opsega, ¼ opsega]`,
+   * napredak isti ¾ pomnožen omjerom. SwiftUI-jeva kružnica počinje na
+   * 3 sata i ide u smjeru kazaljke; `rotationEffect(135)` pomakne
+   * početak na 7:30 (dolje lijevo), pa luk prolazi kroz vrh i završava
+   * na 4:30 (dolje desno). Ostatak `dash` niza mora biti PUN preostali
+   * opseg, inače SwiftUI uzorak ponovi i praznina se popuni.
    */
-  const filled = circumference * clamped;
+  const ARC = 0.75;
+  const arcLength = circumference * ARC;
+  const ARC_START = 135;
+  /*
+   * TOČKA NA LUKU, NE ISPUNJENI NAPREDAK (Markov odabir 7.9.2026., po
+   * Appleovu widgetu: „htio bih da izgleda više kao lijevi"). Luk je
+   * LJESTVICA dnevnog raspona, a točka pokazuje gdje je trenutna
+   * temperatura na njoj — kao kazaljka. Ispunjeni dio je govorio
+   * „koliko je prošlo", što za temperaturu nije pitanje.
+   *
+   * Točka je isti `dash` trik: dužina praktički nula uz `round` cap daje
+   * krug promjera `lineWidth`; položaj je rotacija za kut na luku. Nije
+   * točno 0 — CoreGraphics zna izostaviti segment dužine nula.
+   */
+  const DOT = 0.01;
+  const dotAngle = ARC_START + 360 * ARC * clamped;
 
   return (
     <ZStack>
-      {/* Trag prstena — cijeli krug, prigušen; daje mjeru "koliko fali". */}
-      {Circle({
+      {/* Mutni disk sustava — popuni pločicu, sustav ga maskira u krug. */}
+      {AccessoryWidgetBackground({})}
+      {/* Trag luka — ¾ opsega, prigušen; daje mjeru "koliko fali". */}
+      {Spacer({
         modifiers: [
-          strokeBorder({ style: { lineWidth, lineCap: "round" } }),
-          opacity(0.25),
           frame({ width: size, height: size }),
-        ],
-      })}
-      {/*
-        Odrađeni dio dana. `dash: [odrađeno, ostatak]` ostavi obojenim
-        točno prvi dio opsega; `rotationEffect(-90)` mu pomakne početak na
-        vrh. Ostatak niza mora biti PUN preostali opseg (ne 0), inače
-        SwiftUI uzorak ponovi i prsten se popuni do kraja.
-      */}
-      {Circle({
-        modifiers: [
           strokeBorder({
+            shape: "circle",
+            color: RING,
             style: {
               lineWidth,
               lineCap: "round",
-              dash: [filled, circumference - filled],
+              dash: [arcLength, circumference - arcLength],
             },
           }),
-          rotationEffect(-90),
-          frame({ width: size, height: size }),
+          rotationEffect(ARC_START),
+          opacity(0.25),
         ],
       })}
-      {/*
-        Sredina: samo trenutna temperatura. Min i max su na ovoj veličini
-        nečitljivi (zato ih je i Apple izostavio), a prsten ionako govori
-        gdje je dan.
-      */}
-      <Text modifiers={[font({ size: 17, weight: "semibold" })]}>
+      {/* Kazaljka: puna bijela točka na tragu, malo šira od njega da se odvoji. */}
+      {Spacer({
+        modifiers: [
+          frame({ width: size, height: size }),
+          strokeBorder({
+            shape: "circle",
+            color: RING,
+            style: {
+              lineWidth: lineWidth + 2,
+              lineCap: "round",
+              dash: [DOT, circumference - DOT],
+            },
+          }),
+          rotationEffect(dotAngle),
+        ],
+      })}
+      {/* Sredina: trenutna temperatura, malo iznad središta da ostavi mjesta ikoni. */}
+      <Text modifiers={[font({ size: 17, weight: "semibold" }), offset({ x: 0, y: -3 })]}>
         {`${props.temp}`}
+      </Text>
+      {/*
+        Sličica vremena u sredini praznine, između min i max — kao kod
+        Applea. Puna inačica (`iconFill`), jer `vibrant` stanji obrise.
+      */}
+      <ZStack modifiers={[offset({ x: 0, y: 17 })]}>
+        {Icon({ path: props.iconFill, size: 10, tint: RING })}
+      </ZStack>
+      {/*
+        Min i max u praznini luka, kao kod Appleova gaugea: bez njih je
+        dno pločice prazno, a prsten bez krajnjih brojki kaže „negdje
+        između" bez mjere. Sitno je jer je to sporedna oznaka —
+        temperatura u sredini ostaje jedini razlog zašto pločica postoji.
+
+        BEZ `opacity` (Markov nalaz 7.9.2026., drugi put „ne vidim min i
+        max" dok se ikona na istoj visini vidi): u `vibrant` načinu iOS
+        sve svodi na tonove istog materijala, pa bijeli tekst na 80 % NA
+        mutnom disku (`AccessoryWidgetBackground`) dobije praktički ton
+        samog diska i nestane. Temperatura na 100 % se vidi; tekst
+        pravokutnog widgeta na 75 % se vidi jer pod sobom nema disk.
+        Hijerarhija ostaje kroz veličinu, ne kroz prozirnost.
+      */}
+      <Text
+        modifiers={[font({ size: 9, weight: "semibold" }), offset({ x: -11, y: 17 })]}
+      >
+        {`${props.gaugeMin}`}
+      </Text>
+      <Text
+        modifiers={[font({ size: 9, weight: "semibold" }), offset({ x: 11, y: 17 })]}
+      >
+        {`${props.gaugeMax}`}
       </Text>
     </ZStack>
   );
