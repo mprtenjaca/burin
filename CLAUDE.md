@@ -17,11 +17,21 @@ razvojni izvor iza `__DEV__`** (pravna odluka — vidi Recent Decisions).
 Karta dobila dugmad dana i klizač po danu. Repo je od danas na GitHubu
 (`origin/master`) — pushati nakon zelenih provjera.
 
+**7.9.2026. — detalji dana kao SHEET, dorade liste, lock-screen prsten.**
+Detalji dana iz 14-dnevne liste preseljeni iz harmonike u `formSheet`
+(`day.tsx` + memorijski store); layout sheeta popravljen u DVA kruga —
+pravi uzrok je NATIVNI ugovor RNS-a (vidi Recent Decisions). Lista: siva
+„0 %", highlight na dodir, haptika (`expo-haptics` = NOVI NATIVNI MODUL,
+traži nove dev buildove). Paralelna sesija preradila prsten na zaključanom
+zaslonu u 270° luk s točkom.
+
 ## Current Status
 
 | Što | Status | Bilješka |
 |---|---|---|
-| **Provjera na uređaju — današnje JS izmjene** | **Čeka Marka, reload** | Pelud (Zadar/Zagreb VISOKA ko Štampar; koprive/trputac u listi; napomena „Izmjereno peludomjerom"; `danas · sutra · datum`), Android donji rub (početna, pelud, ladica, svi podekrani), karta (dugmad dana, klizač po danu, play po danu, atribucija goli tekst iznad legende), ime mjesta („Zadar", ne županija). Sve prošlo typecheck/350 testova/export — vizualno tek na uređaju |
+| **Provjera na uređaju — 7.9.: sheet detalja dana + lista** | **Čeka Marka, reload** | Sheet iz 14-dnevne liste NAKON 2. POPRAVKA layouta (neprovjeren!); siva „0 %" umjesto crtice; highlight retka na dodir (proširen u padding kartice). Haptika je u kodu ali NE RADI do novog builda (čuvani require). Typecheck/350/export čisti |
+| **Novi dev buildovi (haptika + widget prsten)** | **Otvoreno, nakon provjere** | `expo-haptics` je nativni modul (buildovi 13/4 su BEZ njega), a novi lock-screen prsten je widget kod koji se čita iz builda — reload ih NE donosi. Jedan iOS + jedan Android build pokriva oboje; potom TestFlight |
+| **Provjera na uređaju — JS izmjene od 6.9.** | **Čeka Marka, reload** | Pelud (Zadar/Zagreb VISOKA ko Štampar; koprive/trputac u listi; napomena „Izmjereno peludomjerom"; `danas · sutra · datum`), Android donji rub (početna, pelud, ladica, svi podekrani), karta (dugmad dana, klizač po danu, play po danu, atribucija goli tekst iznad legende), ime mjesta („Zadar", ne županija). Sve prošlo typecheck/350 testova/export — vizualno tek na uređaju |
 | **TestFlight (prvi upload)** | **Sljedeći korak, 1 build** | Production build je ZASEBAN od dev builda (dev ne može na TestFlight; production ima ZAPEČEN JS). `--auto-submit` je upload, ne treći build. Upute u Next Step |
 | **Zahtjev Štamparu za ponovnu uporabu** | Otvoreno, Markova odluka | Jedini pravno čist put do mjerene peludi u produkciji. Štamparovi uvjeti se pozivaju na Pravilnik o ponovnoj uporabi informacija javnog sektora i traže zahtjev; kontakt `info@stampar.hr`. Do tada Štampar ostaje SAMO u razvoju |
 | Pelud: CAMS pragovi ostalih vrsta | Otvoreno, čeka sezonu | Ambrozija baždarena na 2 grada × 3 dana (5/6). Breza/joha/maslina/trave NISU mjerene — nije sezona; na proljeće očekivati isti pomak kao kod ambrozije. Treći grad bi rekao je li omjer CAMS/mjerenje regionalan |
@@ -50,8 +60,10 @@ Oba builda su instalabilna i aktualna: iOS
 Android [`05b82ab9`](https://expo.dev/accounts/mprtenja/projects/burin/builds/05b82ab9-28ee-46bc-8495-1dbd14c61791).
 Dev build ne zamrzava JS — svaka daljnja JS izmjena stiže reloadom.
 
-Što gledati: popis u Current Status, prvi red. Uz to na iOS-u **prsten na
-zaključanom zaslonu** (nativno, u buildu je) i nova ikona.
+Što gledati: popis u Current Status, prva TRI reda (7.9.: sheet detalja
+dana, „0 %", highlight; 6.9.: pelud, rub, karta, ime mjesta). Haptika i
+NOVI 270° prsten na zaključanom zaslonu se reloadom NE VIDE — žive u
+buildu, čekaju nove dev buildove.
 
 Radni tijek: Marko gleda, javi što bode, popravlja se odmah.
 
@@ -93,6 +105,11 @@ Sastaviti zahtjev za ponovnu uporabu informacija prema NZJZ Štampar
 
 | Odluka | Zašto |
 |---|---|
+| **Detalji dana = SHEET (`formSheet` [0.75, 1]), ne harmonika u listi** (`day.tsx`, `useDayDetails`) | Pritužbe „otvori se podsekcija i skroz se izgubim": otvoreni red se nije razlikovao od susjeda, panel se otvarao ispod pregiba, a drugi otvoreni dan odskakivao je listu. Sheet: lista stoji, naslov kaže dan, čipovi prebacuju dan bez zatvaranja. Podaci kroz MEMORIJSKI zustand store (referenca, bez persista) — `hourlyAll` ~69 kB ne smije u parametre navigacije; kroz parametar ide samo `date`. Isto pravilo kao pelud: sheet je čisti prikaz |
+| **formSheet sadržaj je UGOVOR s RNS-om: najviše header (`collapsable={false}`) + JEDAN ScrollView** | Nativni iOS kod (`RNSScreen.mm`/`RNSScreenContentWrapper.mm`) SAM nađe ScrollView u sadržaju i rukom mu postavi frame na veličinu sheeta MIMO Yoge (vlastiti TODO: na Fabricu završi na (0,0)). S tri brata (zaglavlje + čipovi + sadržaj) korekcija zgrabi krivi ScrollView — čipovi razvučeni preko naslova; `flexGrow: 0` sam NIJE pomogao jer native pregazi layout. Uz to: RN ScrollView (i VODORAVNI) nosi ugrađen `flexGrow: 1` — u omeđenom stupcu obavezan `flexGrow: 0` (RNS #2992, #3092) |
+| 14-dnevna lista: siva „0 %" umjesto crtice; highlight retka na dodir s bleedom u padding kartice | Crtica je starijim korisnicima dvosmislena (nula? nema podatka?); nula ostaje prigušena (`/25`) pa koraljna i dalje vodi oko po stupcu. Traka sati na početnoj ostaje PRAZNA ispod 1 % — okomiti prostor pod ikonom je skup. Highlight kroz `onPressIn/Out` + stanje (pravilo: `pressed` ne radi uz NativeWind) s `-mx-2.5 px-2.5` — bez bleeda highlight završava „skroz do ruba broja" |
+| **Haptika kroz ČUVANI `require`, ne statični import** (`DailyList`) | `requireNativeModule` BACA pri učitavanju modula: statični import `expo-haptics` RUŠI cijelu app na buildu bez nativne strane (dev buildovi 13/4). Čuvani require tiho preskoči do novog builda. Tik (`impactAsync` Light) ide PRIJE navigacije na sheet, fire-and-forget |
+| Lock-screen prsten: 270° LUK + TOČKA na luku; `strokeBorder(shape: "circle")` na Spaceru; sve oznake unutar r~25 | „Bijeli kvadrat u kutu": zadani oblik `strokeBorder` overlaya je PRAVOKUTNIK, a `CircleView` je ISPUNJEN disk — treba `shape: "circle"` na praznom domaćinu s `frame` PRVIM modifikatorom. Točka umjesto ispunjenog napretka (Markov odabir po Appleovu widgetu): luk je ljestvica dnevnog raspona, točka kazaljka. Sustavna kružna maska reže dalje od ~26 px od središta — prsten 46, min/max unutra; `AccessoryWidgetBackground` iza |
 | **Pelud je DNEVNI PROSJEK, ne tekući sat ni maksimum** (`pollenDaysFromHourly`) | Tekući sat: Zadar 6.9. je kroz dan imao ambroziju 1.4→48.7 (35×), pa je ista aplikacija na istom danu govorila „niska" i „vrlo visoka". Maksimum (prvi popravak istog dana) davao je RAZRED VIŠE od mjerenja — jer Hirstov peludomjer JEST 24-satni prosjek (traka se vrti dan, zrnca se podijele s protokom). Prosjek: 2/3 dana pogođeno u Zadru; max 0/3. Pragovi vrijede UZ PROSJEK — tko mijenja agregaciju, mijenja i njih |
 | **Ambrozija pragovi `[2, 5, 90]`, baždareni na DVA grada** | Jedan grad nije dovoljan — Zagreb je otkrio da omjer CAMS/mjerenje NIJE stalan: Zagreb 67–89 uz mjereno 8.0 (7–11×), Zadar 17–26 uz 6.6 (0.7–4×). Kontinent dobiva red veličine veće brojke od obale, a mjerenja su slična — pa NIJEDAN množitelj ne pogađa oba; jedino širok razred „visoke" (6–90). Stari `[2,10,30]`: 2/6; novi: 5/6 (promašen samo dan gdje model predviđa 4.9, a Pliva prognozira visoku — model vs mjerenje). Test drži OBA grada. Ostale vrste NISU baždarene (nije sezona) |
 | **Pelud prikazuje SAMO RAZRED, bez brojke** (Markov odabir) | Naša brojka je grains/m³ iz CAMS-a, Štamparova/Plivina je INDEKS 0–12+ (niska <2, umjerena <6, visoka <12, vrlo visoka ≥12) — isti dan kod nas 17.2, kod njih 6.6. Dvije mjere iste stvari jedna uz drugu izgledaju ko da netko griješi, a alergičar čita razred. Napomena na dnu IZRIČITO kaže model vs peludomjer i upućuje na županijski zavod — zdravstvena informacija, ne kozmetika |
@@ -246,6 +263,12 @@ geocodea i ODBIJA upravne jedinice (sufiksi županija/county/Landkreis…).
 **Donji rub**: `useBottomInset` (Android-only safe-area dno, edge-to-edge)
 dodan na padding svakog ScrollViewa i ladice.
 
+**Detalji dana** (7.9.2026.): red u `DailyList` upiše REFERENCU na
+`days/hourly/place` u `useDayDetails` pa navigira na `/day` (kroz parametar
+samo `date`). `day.tsx` je `formSheet` [0.75, 1] s vlastitim naslovom, X-om
+i čipovima dana; sadržaj OBAVEZNO oblika header (`collapsable={false}`) +
+jedan ScrollView — nativna RNS korekcija (vidi Recent Decisions).
+
 **Upozorenja** (`useWarnings`): HR ručna tablica 14 EMMA regija, Europa
 geokodiranje + filtar države.
 
@@ -262,6 +285,7 @@ se odgađa `InteractionManager`-om iza prijelaza.
 ```
 app/_layout.tsx       Drawer (ladica zdesna); useRefreshSavedCities u korijenu
 app/(screens)/        Stack: index (korijen), search, warnings, pollen,
+                      day (sheet detalja dana iz 14-dnevne liste),
                       preview, settings, sources — swipe-back radi jer je
                       početna korijen stacka; search/pollen montiraju liste
                       kadar nakon ekrana
@@ -272,7 +296,8 @@ src/api/              openMeteo (+fetchCurrentBatch, pollenDaysFromHourly), dhmz
                       stampar (RAZVOJNI izvor peludi; __fixtures__/stampar-zagreb.html
                       je isječak prave stranice za test parsera)
 src/store/            settings, cities, lastWeather (+refreshCurrent),
-                      searchHistory, mapTimeline
+                      searchHistory, mapTimeline, dayDetails (memorijski
+                      izvor za sheet detalja dana, bez persista)
 src/components/       Hero, HeroBackdrop, QuipLine (domaća rečenica NA
                       heroju), HourlyStrip, BentoGrid (Card/Value/
                       Compass/PressureGauge), WarningBar, Wordmark, WindFlag,
