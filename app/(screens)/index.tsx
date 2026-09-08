@@ -22,7 +22,7 @@ import { useCities } from "@/store/cities";
 import { useSettings } from "@/store/settings";
 import { colors } from "@/theme/colors";
 import { useThemeColors } from "@/theme/useThemeColors";
-import { ACCENT_UI, weatherGradient } from "@/utils/weatherLook";
+import { ACCENT_UI, readableOn, weatherGradient } from "@/utils/weatherLook";
 
 /**
  * Ladica se otvara METODOM na navigaciji, ne `dispatch`-em akcije
@@ -140,18 +140,22 @@ export default function HomeScreen() {
     }
   }, [selected, gps.status]);
 
+  /*
+   * Dok GPS radi: SAMO skeleton, bez objašnjenja na dnu (7.9.2026., Markov
+   * nalaz "vidi se u dnu na bijeloj podlozi, random izgleda samo").
+   *
+   * Tekst je bio zamišljen kao obrazloženje PRIJE nego sustav pita za
+   * dozvolu, ali ovo stanje pogađa i onoga ko je dozvolu dao davno: na
+   * "Mojoj lokaciji" se GPS traži pri svakom pokretanju i reloadu, pa je
+   * ista rečenica iskakala svaki put, nevezano uz ikakvo pitanje. Pravo
+   * mjesto za obrazloženje je dijalog sustava, gdje isti tekst već stoji
+   * (`locationWhenInUsePermission` u `app.config.ts`).
+   *
+   * `t.location.rationale` OSTAJE u rječniku — koristi ga config, a i ovaj
+   * povratak je onda jedan potez.
+   */
   if (selected === null && gps.status === "loading") {
-    return (
-      <View className="flex-1 bg-mist dark:bg-night">
-        <HomeSkeleton />
-        <Text
-          className="px-8 text-center text-xs text-ink/40 dark:text-paper/40"
-          style={{ paddingBottom: 40 + bottomInset }}
-        >
-          {t.location.rationale}
-        </Text>
-      </View>
-    );
+    return <HomeSkeleton />;
   }
   if (selected === null && gps.status === "denied") {
     return <View className="flex-1 bg-mist dark:bg-night" />;
@@ -338,7 +342,12 @@ export default function HomeScreen() {
         gdje bi se bez nje izgubile.
       */}
       <View className="absolute left-0 right-0 flex-row items-center justify-between px-5" style={{ top: insets.top + 10 }} pointerEvents="box-none">
-        <TopButton onPress={() => router.navigate("/search")} label={t.search.placeholder} bgOpacity={buttonBg} dark={dark} Icon={Search} />
+        {/*
+          `skyColor` je GORNJI stop gradijenta — točno ono što leži pod
+          gumbom kad je traka na vrhu (isti `stops[0]` nosi i pozadinu
+          ScrollViewa). Po njemu `TopButton` bira bijeli ili tamni glif.
+        */}
+        <TopButton onPress={() => router.navigate("/search")} label={t.search.placeholder} bgOpacity={buttonBg} dark={dark} Icon={Search} skyColor={stops[0]} />
         {/*
           Wordmark se pojavljuje između gumba tek sa skrolom (isti tempo
           kao njihove podloge) i namjerno NE do pune neprozirnosti — na
@@ -353,7 +362,7 @@ export default function HomeScreen() {
           */}
           <Wordmark color={dark ? colors.paper : colors.ink} accent={ACCENT_UI} textSize={16} />
         </Animated.View>
-        <TopButton onPress={() => navigation.openDrawer()} label={t.drawer.cities} bgOpacity={buttonBg} dark={dark} Icon={Menu} />
+        <TopButton onPress={() => navigation.openDrawer()} label={t.drawer.cities} bgOpacity={buttonBg} dark={dark} Icon={Menu} skyColor={stops[0]} />
       </View>
     </View>
   );
@@ -362,9 +371,39 @@ export default function HomeScreen() {
 /**
  * Gumb u fiksnoj traci početne. Bijela (coal) podloga mu se utapa
  * postupno kako se skrola — nagli preklop je izgledao kao greška.
+ *
+ * BOJA GLIFA PRATI PODLOGU POD SOBOM (7.9.2026., Markov nalaz: "kad je
+ * vedra noć koja je tamnija pozadina, crna ikona se jedva vidi").
+ *
+ * Gumb stoji nad DVIJE različite podloge, ovisno o skrolu:
+ *   na vrhu   → hero gradijent (vedra noć je gotovo crna, vruć dan svijetao)
+ *   niže      → bijela/coal pločica koja se utopi (`bgOpacity`)
+ *
+ * Dosad je glif uzimao `fg` iz TEME, dakle boju stranice. Tema je svijetla
+ * i po noći, pa je na tamnom noćnom nebu stajala crna ikona na crnom —
+ * kontrast oko 1.2:1. Popravak nije "uvijek bijela": po vedrom danu je
+ * nebo svijetloplavo i bijeli glif bi tada ispao isto neviđen.
+ *
+ * Zato se boja INTERPOLIRA istim `bgOpacity` kojim se pojavljuje podloga:
+ *   0 (na nebu)      → `readableOn(topStop)` — bijela na tamnom nebu,
+ *                      tamna na svijetlom
+ *   1 (na pločici)   → `fg` iz teme, kako je i bilo
+ * Prijelaz je time jedan pokret s podlogom, bez preklopa u pola skrola.
+ *
+ * `readableOn` mjeri WCAG luminanciju, isti alat koji značka na karti već
+ * koristi nad svijetlim i tamnim gradijentom — ne pogađa se po imenu
+ * vremena, nego po samoj boji.
  */
-function TopButton({ onPress, label, bgOpacity, dark, Icon }: { onPress: () => void; label: string; bgOpacity: Animated.AnimatedInterpolation<number>; dark: boolean; Icon: LucideIcon }) {
+function TopButton({ onPress, label, bgOpacity, dark, Icon, skyColor }: { onPress: () => void; label: string; bgOpacity: Animated.AnimatedInterpolation<number>; dark: boolean; Icon: LucideIcon; skyColor: string }) {
   const { fg } = useThemeColors();
+  /*
+   * Lucide ikone primaju `color` kao string, ne kao animiranu vrijednost,
+   * pa se glif crta DVA PUTA i jedan se utapa preko drugog. Isti trik kao
+   * podloga ispod: `useNativeDriver` radi samo na `opacity`, a dvije
+   * neprozirnosti koje se sumiraju u 1 daju čist prijelaz bez treperenja.
+   */
+  const iconOnSky = readableOn(skyColor);
+  const skyOpacity = bgOpacity.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
   return (
     <Pressable onPress={onPress} hitSlop={12} accessibilityRole="button" accessibilityLabel={label} className="h-10 w-10 items-center justify-center rounded-full">
       <Animated.View
@@ -374,7 +413,14 @@ function TopButton({ onPress, label, bgOpacity, dark, Icon }: { onPress: () => v
           backgroundColor: dark ? colors.coal : "#FFFFFF",
         }}
       />
-      <Icon size={24} strokeWidth={2} color={fg} />
+      {/* Glif nad NEBOM — vidljiv na vrhu, utapa se sa skrolom. */}
+      <Animated.View className="absolute" style={{ opacity: skyOpacity }} pointerEvents="none">
+        <Icon size={24} strokeWidth={2} color={iconOnSky} />
+      </Animated.View>
+      {/* Glif nad PLOČICOM — pojavljuje se točno kako i ona. */}
+      <Animated.View style={{ opacity: bgOpacity }} pointerEvents="none">
+        <Icon size={24} strokeWidth={2} color={fg} />
+      </Animated.View>
     </Pressable>
   );
 }
