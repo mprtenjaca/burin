@@ -1,5 +1,8 @@
 import { router } from "expo-router";
 import { Check, ChevronRight } from "lucide-react-native";
+// `Switch` je od 7.9.2026. u uporabi SAMO u zakomentiranoj sekciji domaće
+// rečenice (niže). Uvoz ostaje da povratak te sekcije bude jedan potez;
+// `tsc --noEmit` nekorištene uvoze ne prijavljuje, a lint skripte nema.
 import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 
 import { Hairline, Section } from "@/components/Section";
@@ -80,12 +83,17 @@ export default function SettingsScreen() {
   const language = useSettings((s) => s.language);
   const tempUnit = useSettings((s) => s.tempUnit);
   const windUnit = useSettings((s) => s.windUnit);
-  const quips = useSettings((s) => s.quips);
   const setTheme = useSettings((s) => s.setTheme);
   const setLanguage = useSettings((s) => s.setLanguage);
   const setTempUnit = useSettings((s) => s.setTempUnit);
   const setWindUnit = useSettings((s) => s.setWindUnit);
-  const setQuips = useSettings((s) => s.setQuips);
+  /*
+   * ZAKOMENTIRANO 7.9.2026. (Markov odabir): prekidač domaće rečenice je
+   * skinut iz postavki, pa ekran više ne čita ni stanje ni pozivatelja.
+   * Store i dalje nosi `quips`/`setQuips` — vidi sekciju niže.
+   */
+  // const quips = useSettings((s) => s.quips);
+  // const setQuips = useSettings((s) => s.setQuips);
 
   const themes: { value: ThemeSetting; label: string }[] = [
     { value: "light", label: t.settings.themeLight },
@@ -176,16 +184,30 @@ export default function SettingsScreen() {
       </Section>
 
       {/*
-        Domaća rečenica na heroju — ZADANO ISKLJUČENA (`quips: false`).
+        PREKIDAČ DOMAĆE REČENICE — ZAKOMENTIRAN 7.9.2026. (Markov odabir:
+        "ne želim ih ipak").
 
-        Cijeli redak je Pressable, ne samo prekidač: meta od 51 px je
-        prevelika da bi je se preskočilo, a isti potez već radi red
-        tražilice. `Switch` uz to hvata VLASTITI dodir, pa se oba načina
-        gase istim pozivateljem.
+        Rečenice su i dosad bile ZADANO UGAŠENE (1.9.2026.), pa gašenje
+        prekidača NE mijenja ono što korisnik vidi: `quips` u storeu je
+        `false`, rečenica se nije renderirala ni prije. Razlika je samo da
+        se sada ne može upaliti.
 
-        Napomena ispod naslova nije ukras — opcija je zadano ugašena baš
-        zbog jezika, pa mora reći što se pali prije nego se pali.
+        Kod OSTAJE, ne briše se (Markov zahtjev): `utils/quips.ts`,
+        `components/QuipLine.tsx`, prop `quipBundle` u `Hero` i polje
+        `quips`/`setQuips` u `store/settings.ts` su netaknuti, kao i
+        prijevodi `settings.quips*` u `i18n/hr.ts` i `en.ts`. Za povratak:
+        odkomentirati ovu sekciju, dva čitanja iz storea gore i redak
+        `quipBundle` u `app/(screens)/index.tsx`.
+
+        Bilješke iz izvedbe, da se ne izgube: cijeli redak je Pressable, ne
+        samo prekidač (meta od 51 px je prevelika da bi je se preskočilo, a
+        isti potez već radi red tražilice; `Switch` hvata vlastiti dodir pa
+        oba načina gase istog pozivatelja). Napomena ispod naslova nije
+        ukras — opcija je zadano ugašena baš zbog jezika, pa mora reći što
+        se pali prije nego se pali. Sam `Switch` je izvan dosega čitača
+        ekrana jer ga redak iznad već objavljuje kao `switch` sa stanjem.
       */}
+      {/*
       <Section title={t.settings.quips}>
         <Pressable
           onPress={() => setQuips(!quips)}
@@ -203,11 +225,6 @@ export default function SettingsScreen() {
               {t.settings.quipsNote}
             </Text>
           </View>
-          {/*
-            Prekidač je izvan dosega čitača ekrana (`none`) — redak ga
-            iznad već objavljuje kao `switch` sa stanjem, pa bi ga inače
-            izgovorio dvaput.
-          */}
           <Switch
             value={quips}
             onValueChange={setQuips}
@@ -217,6 +234,7 @@ export default function SettingsScreen() {
           />
         </Pressable>
       </Section>
+      */}
 
       <Pressable
         onPress={() => router.navigate("/sources")}
@@ -231,17 +249,26 @@ export default function SettingsScreen() {
       {/*
         Pregled pozadina po vremenu: efekti se vežu uz WMO kodove koje u
         stvarnosti nemamo kad ih razvijamo (snijeg u kolovozu, magla po
-        suncu). Ostaje u postavkama dok se izgled ne zaključa.
+        suncu).
+
+        SAMO U RAZVOJU (7.9.2026., Markov odabir). Ovo je alat za nas, a ne
+        postavka — korisniku na TestFlightu bi bio red bez svrhe na dnu
+        ekrana. `__DEV__` je isti mehanizam kojim je zaštićen Štamparov
+        peludomjer: Metro ga u produkcijskoj gradnji zamijeni s `false`, pa
+        red ne postoji u bundleu i nema prekidača koji se može zaboraviti.
+        Sam ekran `/preview` OSTAJE u routeru — nedostupan bez ovog reda.
       */}
-      <Pressable
-        onPress={() => router.navigate("/preview")}
-        className="flex-row items-center justify-between rounded-2xl bg-white px-4 py-4 dark:bg-coal"
-      >
-        <Text className="font-grotesk-medium text-[16px] text-ink dark:text-paper">
-          {t.settings.weatherPreview}
-        </Text>
-        <ChevronRight size={20} strokeWidth={2} color={fg} opacity={0.45} />
-      </Pressable>
+      {__DEV__ && (
+        <Pressable
+          onPress={() => router.navigate("/preview")}
+          className="flex-row items-center justify-between rounded-2xl bg-white px-4 py-4 dark:bg-coal"
+        >
+          <Text className="font-grotesk-medium text-[16px] text-ink dark:text-paper">
+            {t.settings.weatherPreview}
+          </Text>
+          <ChevronRight size={20} strokeWidth={2} color={fg} opacity={0.45} />
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
