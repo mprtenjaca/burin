@@ -364,6 +364,14 @@ export default function SearchScreen() {
                 /*
                  * GPS se traži TEK NA DODIR: otvaranje tražilice ne smije
                  * samo od sebe dizati sustavni dijalog za dozvolu.
+                 *
+                 * `gps.request()` se zove IZRAVNO, ne preko `gpsAsked` —
+                 * traženje mora krenuti u ovom kadru, da red odmah pređe
+                 * na "Tražim lokaciju..." i da se mjesto upiše čim stigne
+                 * (Markov nalaz 7.9.2026.: "pojavi se grad kao da
+                 * zašteka"). `setGpsAsked` samo pamti da je dodir bio, pa
+                 * `useLocation` ostane uključen i nakon ponovnog crtanja;
+                 * hook sam pazi da se traženje ne udvoji.
                  */
                 setGpsAsked(true);
                 gps.request();

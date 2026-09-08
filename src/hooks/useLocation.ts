@@ -1,5 +1,5 @@
 import * as Location from "expo-location";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Place } from "@/api/types";
 import { placeId } from "@/api/types";
@@ -77,8 +77,16 @@ export function placeNameFrom(
  */
 export function useLocation(enabled: boolean): GpsState & { request: () => void } {
   const [state, setState] = useState<GpsState>({ status: "loading" });
+  /*
+   * Je li traženje UOPĆE pokrenuto — čuva efekt niže od udvajanja kad
+   * ručni dodir promijeni `enabled` u istom kadru (vidi objašnjenje uz
+   * efekt). Ref, ne state: čitanje i upis moraju vrijediti ODMAH, a
+   * ponovno crtanje ovdje ne treba.
+   */
+  const started = useRef(false);
 
   const request = useCallback(() => {
+    started.current = true;
     let cancelled = false;
 
     async function run() {
@@ -133,9 +141,33 @@ export function useLocation(enabled: boolean): GpsState & { request: () => void 
     };
   }, []);
 
+  /*
+   * AUTOMATSKO traženje pri montiranju — SAMO JEDNOM po prelasku u
+   * `enabled` (popravak 7.9.2026., Markov nalaz u tražilici: "stisnem
+   * dopusti moju lokaciju, pojavi se grad kao da zašteka").
+   *
+   * Bila su DVA kvara u ovih par redova, oba iz istog uzorka:
+   *
+   * 1. `return request()` je koristio funkciju za ODUSTAJANJE kao
+   *    čišćenje efekta. U tražilici `enabled` je `selected === null ||
+   *    gpsAsked`, pa dodir na "Dopusti moju lokaciju" MIJENJA `enabled` s
+   *    false na true → React prvo pokrene ČIŠĆENJE prethodnog efekta,
+   *    koje postavi `cancelled = true` upravo onom traženju koje je dodir
+   *    tek pokrenuo. Rezultat: prvi pokušaj se tiho odbaci, pa efekt
+   *    krene iznova — odatle zastoj od jednog ciklusa i "štucanje".
+   *
+   * 2. Isti dodir zove `gps.request()` RUČNO, a efekt se zbog promjene
+   *    `enabled` pokreće ponovno — dva paralelna dohvata pozicije i dva
+   *    reverse geocodea preko mreže za jedan dodir.
+   *
+   * Popravak: efekt pokreće traženje samo kad `enabled` PRIJEĐE u true i
+   * traženje još nije bilo, a čišćenje se NE veže na `request`. Ručni
+   * `request()` iz sučelja i dalje radi uvijek (npr. ponovni pokušaj
+   * nakon odbijanja) i sam upisuje `started`, pa ga efekt ne udvaja.
+   */
   useEffect(() => {
-    if (!enabled) return;
-    return request();
+    if (!enabled || started.current) return;
+    request();
   }, [enabled, request]);
 
   return { ...state, request };
