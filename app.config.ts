@@ -175,6 +175,41 @@ const config: ExpoConfig = {
           "Burin koristi tvoju lokaciju za prikaz vremena u tvom mjestu.",
       },
     ],
+    /*
+     * SPLASH (7.9.2026., Markov nalaz: "kad palimo app vidimo li bijelo").
+     *
+     * Dosad plugina NIJE BILO, pa je Android padao na svoj zadani bijeli
+     * `splashscreen_background` — otvaranje aplikacije je bio bijeli
+     * bljesak, bez veze s tamnom pločicom koju je korisnik stisnuo.
+     *
+     * `#141821` je ISTA ploha kao ikona (`TILE` u
+     * `scripts/generate-icons.mjs`), pa se ikona i splash čitaju kao jedan
+     * pokret. Glif u `assets/splash-icon.png` je namjerno u toj istoj
+     * boji, osim srednjeg zapuha koji je plav — iz plohe "izlazi" samo on.
+     *
+     * `dark` je isti kao svijetli: splash je jedna verzija, kao i widget i
+     * ikona (ikona ima `dark` varijantu, ali istog sadržaja).
+     *
+     * `imageWidth` 180 od 1024 px glifa: potez je tanak, prevelik glif na
+     * praznoj plohi izgleda kao greška u kadriranju.
+     *
+     * TRAŽI REBUILD — splash je nativni resurs (`values/colors.xml` +
+     * `drawable`), ne JS. Reload ga ne mijenja.
+     */
+    [
+      "expo-splash-screen",
+      {
+        backgroundColor: "#141821",
+        image: "./assets/splash-icon.png",
+        imageWidth: 180,
+        resizeMode: "contain",
+        dark: {
+          backgroundColor: "#141821",
+          image: "./assets/splash-icon.png",
+          imageWidth: 180,
+        },
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

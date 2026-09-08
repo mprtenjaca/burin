@@ -29,6 +29,35 @@ const PAPER = "#FAFAF8";
  */
 const TILE = "#141821";
 const INK = "#141414";
+/**
+ * Podloga splasha (7.9.2026.) — ISTA kao pločica ikone (`TILE`).
+ *
+ * Splash i ikona su jedan pokret: korisnik stisne tamnu pločicu i ekran
+ * se otvori u istu tamnu plohu, pa nema bljeska. Zato je ovo namjerno
+ * `TILE`, a ne zasebna vrijednost — ako se pločica ikone ikad promijeni,
+ * splash je prati sam.
+ *
+ * MORA biti jednako i u `app.config.ts` (`expo-splash-screen` plugin) i u
+ * `android/.../values/colors.xml` koji `prebuild` iz njega generira.
+ */
+const SPLASH_BG = TILE;
+/**
+ * Boja vanjskih zapuha na splashu (7.9.2026., Markov odabir): PAPIRNATA,
+ * ista kao na ikoni.
+ *
+ * Put do ovoga je išao kroz render pet kandidata u PNG. Prva ideja je
+ * bila da potezi budu doslovno boje pozadine ("da samo crte bure
+ * ističu"), ali tada gornji i donji zapuh nestanu bez ostatka i na ekranu
+ * visi samo kratka plava crtica — logo se ne prepozna. Prigušene
+ * međuvarijante (`#2A3242`, `#333C4E`, `#404A5C`) daju reljef u plohi, no
+ * čitaju se kao izblijedjela ikona, a ne kao znak.
+ *
+ * Papirnata na tamnoj plohi je zato odabrana: splash je ISTA SLIKA kao
+ * ikona, samo bez pločice i bez ruba. Korisnik stisne znak i uđe u njega
+ * — pločica se "raširi" u ekran. Srednji, plavi potez i dalje nosi jedinu
+ * boju.
+ */
+const SPLASH_STROKE = PAPER;
 
 /**
  * Glif u 24×24 mreži (isti potezi kao u prijedlogu): gornji i donji zapuh
@@ -117,11 +146,28 @@ async function main() {
 
   // --- Splash i web ---
   /*
-   * Splash glif ide u TINTU, ne u papirnatu: podloga splasha je i dalje
-   * papirnata (`backgroundColor: "#FAFAF8"` u `app.config.ts`), pa bi
-   * bijeli potezi ondje bili nevidljivi. Srednji je plav kao na ikoni.
+   * SPLASH (7.9.2026., Markov odabir): pozadina je TAMNA `#141821`, ista
+   * kao pločica ikone, a na njoj STOJI ISTI GLIF kao na ikoni — papirnati
+   * vanjski zapusi, plavi srednji. Splash je time ikona bez pločice:
+   * pločica se dodirom "raširi" u cijeli ekran.
+   *
+   * Zašto ne kao dosad: podloga nikad nije bila papirnata kako je ovdje
+   * pisalo. `expo-splash-screen` NIJE bio u konfiguraciji, pa je Android
+   * padao na svoj zadani `#FFFFFF` (vidi `splashscreen_background` u
+   * `android/app/src/main/res/values/colors.xml`) — otvaranje aplikacije
+   * je bilo bijeli bljesak s tamnim glifom, bez veze s ikonom koju je
+   * korisnik upravo stisnuo. Sada je tamna ploha ista na oba mjesta.
+   *
+   * Potezi boje pozadine se NE brišu iz SVG-a: oni nose oblik, samo se ne
+   * vide kao boja. Bez njih bi srednji potez ostao sam i logo bi izgubio
+   * onaj sklad koji ima na ikoni. Ista misao kao `tinted` varijanta —
+   * razlika u tonu čuva da je srednji potez zaseban.
+   *
+   * `INK` se više ne primjenjuje, ali ostaje u datoteci: povratak na
+   * svijetli splash je onda jedan potez (`foregroundSvg(INK, STEEL)` uz
+   * `SPLASH_BG` na `PAPER`, i ista boja u `app.config.ts`).
    */
-  await sharp(Buffer.from(foregroundSvg(INK, STEEL)))
+  await sharp(Buffer.from(foregroundSvg(SPLASH_STROKE, STEEL)))
     .png()
     .toFile("assets/splash-icon.png");
   await sharp(Buffer.from(lightSvg)).resize(196, 196).png().toFile("assets/favicon.png");
