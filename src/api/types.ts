@@ -4,6 +4,14 @@ export type Place = {
   name: string;
   country?: string;
   /**
+   * Županija / pokrajina (Open-Meteo `admin1`, lokalizirano: „Zadarska
+   * županija", „Bayern"). Dodano 9.9.2026. da tražilica razlikuje
+   * istoimena mjesta — Marko je odabrao Vranu na Cresu umjesto one uz
+   * Vransko jezero, a Polača postoji i kod Knina. Može nedostajati
+   * (stariji spremljeni gradovi, GPS) — red tada pokaže samo državu.
+   */
+  region?: string;
+  /**
    * ISO kod države (HR, AT…). Bira Meteoalarm feed za upozorenja izvan
    * Hrvatske. Može nedostajati (stariji spremljeni gradovi) — tada se
    * država izvodi iz koordinata preko hrvatske tablice regija.

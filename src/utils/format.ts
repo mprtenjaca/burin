@@ -107,3 +107,22 @@ export function windDirLabel(deg: number): string {
   const idx = Math.round(deg / 45) % 8;
   return t.windDirs[idx] ?? "";
 }
+
+/**
+ * Podnaslov reda u tražilici: „Zadarska županija · Hrvatska" (9.9.2026.).
+ *
+ * Povod: tražilica je dala Vranu na Cresu umjesto one uz Vransko jezero, a
+ * Polača postoji i kod Knina — sama država ne razlikuje istoimena mjesta,
+ * županija da. Vrijedi za sve zemlje („Bayern · Njemačka"), jer i tamo ih
+ * ima. Regija se preskače kad je jednaka imenu (Wien · Wien), a prazna
+ * polja ispadaju. Bez ičega vraća prazan niz — red tada ne crta podnaslov.
+ */
+export function placeSubtitle(place: {
+  name: string;
+  region?: string;
+  country?: string;
+}): string {
+  return [place.region, place.country]
+    .filter((s): s is string => !!s && s.trim().length > 0 && s !== place.name)
+    .join(" · ");
+}

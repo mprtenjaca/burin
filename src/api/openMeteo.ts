@@ -351,6 +351,8 @@ export async function geocode(query: string): Promise<Place[]> {
       id: placeId(r.latitude, r.longitude),
       name: r.name,
       country: r.country,
+      // Županija za razlikovanje istoimenih mjesta (Vrana ×2, Polača ×2).
+      region: r.admin1,
       countryCode: r.country_code,
       lat: r.latitude,
       lon: r.longitude,

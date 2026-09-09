@@ -16,7 +16,7 @@ import { useLastWeather } from "@/store/lastWeather";
 import { useSearchHistory } from "@/store/searchHistory";
 import { useSettings } from "@/store/settings";
 import { useThemeColors } from "@/theme/useThemeColors";
-import { convertTemp, tempUnitSuffix } from "@/utils/format";
+import { convertTemp, tempUnitSuffix, placeSubtitle } from "@/utils/format";
 import { codeToCondition } from "@/utils/weatherCodes";
 import { ACCENT_UI } from "@/utils/weatherLook";
 
@@ -89,7 +89,18 @@ function PlaceRow({
         <Text className={`font-grotesk-medium text-[17px] ${active ? "" : "text-ink dark:text-paper"}`} style={active ? { color: ACCENT_UI } : undefined}>
           {place.name}
         </Text>
-        {place.country && <Text className="font-grotesk text-[13.5px] text-ink/65 dark:text-paper/65">{place.country}</Text>}
+        {/*
+          Podnaslov: ŽUPANIJA · DRŽAVA (9.9.2026., Markov zahtjev nakon što
+          je tražilica dala Vranu na Cresu umjesto one uz Vransko jezero).
+          Sama država ne razlikuje istoimena hrvatska mjesta; županija da.
+          Vrijedi za sve zemlje (Bayern · Njemačka), jer i tamo ima
+          istoimenih. Regija se preskače kad je jednaka imenu (Wien · Wien).
+        */}
+        {placeSubtitle(place) !== "" && (
+          <Text className="font-grotesk text-[13.5px] text-ink/65 dark:text-paper/65">
+            {placeSubtitle(place)}
+          </Text>
+        )}
       </View>
       {/*
         Vrijeme iz burin:last-weather — bez ijednog novog upita. Značka
