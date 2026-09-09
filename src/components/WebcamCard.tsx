@@ -74,19 +74,33 @@ export function WebcamCard({
   }
 
   const age = ageLabel(first.takenAtMs);
+  const hasMore = webcams.length > 1;
 
   return (
     <View className="gap-1.5">
       <Card className="overflow-hidden">
+        {/*
+          Dodir otvara popis SAMO kad ima više od jedne kamere (Markov
+          odabir 9.9.2026.: „pokaži mi samo najbližu bez posebnog screena
+          ako može… ostavi jedino kad ima više slika grada").
+          S jednom kamerom je ekran isti prizor drugi put — pa kartica tada
+          nije ni dodirljiva, umjesto da vodi u prazan hod.
+        */}
         <Pressable
-          onPress={() =>
-            router.navigate({
-              pathname: "/cameras",
-              params: { lat: String(lat), lon: String(lon) },
-            })
+          onPress={
+            hasMore
+              ? () =>
+                  router.navigate({
+                    pathname: "/cameras",
+                    params: { lat: String(lat), lon: String(lon) },
+                  })
+              : undefined
           }
-          accessibilityRole="button"
-          accessibilityLabel={`${first.title}, ${t.home.camerasAll}`}
+          disabled={!hasMore}
+          accessibilityRole={hasMore ? "button" : "image"}
+          accessibilityLabel={
+            hasMore ? `${first.title}, ${t.home.camerasAll}` : first.title
+          }
         >
           {/*
             16:9 kroz `aspect-video`, ne fiksna visina: kamere vraćaju
@@ -110,6 +124,15 @@ export function WebcamCard({
                 {`  ${distanceLabel(first.distanceKm)}`}
               </Text>
             </Text>
+            {/*
+              Brojač ostalih kamera stoji uz starost: bez njega ništa ne
+              kaže da kartica vodi nekamo, pa se popis ne bi ni otkrio.
+            */}
+            {hasMore && (
+              <Text className="ml-3 font-grotesk text-[12.5px] text-ink/45 dark:text-paper/45">
+                {t.home.camerasMore(webcams.length - 1)}
+              </Text>
+            )}
             {age !== undefined && (
               <Text className="ml-3 font-grotesk text-[12.5px] text-ink/45 dark:text-paper/45">
                 {age}

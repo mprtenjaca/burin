@@ -258,3 +258,57 @@ describe("observationDelta", () => {
     expect(observationDelta(model, obs(20, 70))).toBe(0);
   });
 });
+
+describe("correctWithObservation — MJERENI opis neba", () => {
+  const withText = (
+    conditionText: string | undefined,
+    distanceKm: number,
+  ): DhmzObservation => ({
+    stationName: "Zadar",
+    lat: 44.13,
+    lon: 15.206,
+    distanceKm,
+    temp: model.temp,
+    conditionText,
+    measuredAt: "09.09.2026. 15:00",
+  });
+
+  /**
+   * Povod (9.9.2026.): model je za Zadar davao WMO 2 („djelomično
+   * oblačno") dok je DHMZ na istoj postaji mjerio „pretežno oblačno" —
+   * „jedva se ne bi od oblaka vidilo". Isto načelo kao za temperaturu:
+   * model nije mjerenje.
+   */
+  it("mjereni opis pobjeđuje kod iz modela", () => {
+    const out = correctWithObservation({ ...model, code: 2 }, withText("pretežno oblačno", 3));
+    expect(out.code).toBe(3);
+  });
+
+  /** Naoblaka je zakrpasta — daleka postaja gleda drugo nebo. */
+  it("predaleka postaja ne dira opis", () => {
+    const out = correctWithObservation({ ...model, code: 2 }, withText("pretežno oblačno", 40));
+    expect(out.code).toBe(2);
+  });
+
+  it("nepoznat ili prazan opis ostavlja model", () => {
+    for (const text of [undefined, "-", "lahor"]) {
+      const out = correctWithObservation({ ...model, code: 2 }, withText(text, 3));
+      expect(out.code).toBe(2);
+    }
+  });
+
+  /** Opisi se ne prosječuju — bira se NAJBLIŽA postaja. */
+  it("iz više postaja uzima najbližu", () => {
+    const out = correctWithObservation({ ...model, code: 2 }, [
+      withText("vedro", 20),
+      withText("pretežno oblačno", 2),
+    ]);
+    expect(out.code).toBe(3);
+  });
+
+  it("bez mjerenja ostaje sve kako je bilo", () => {
+    const out = correctWithObservation({ ...model, code: 2 }, undefined);
+    expect(out.code).toBe(2);
+    expect(out.temp).toBe(model.temp);
+  });
+});

@@ -69,6 +69,68 @@ const WMO_MAP: Record<number, Entry> = {
   99: { key: "thunderstormHail", day: CloudLightning },
 };
 
+/**
+ * DHMZ-ov OPIS VREMENA → WMO kod (9.9.2026.).
+ *
+ * Povod je Markov nalaz s prozora: aplikacija je za Zadar pisala
+ * „djelomično oblačno" (WMO 2, iz modela) dok je DHMZ na istoj postaji
+ * MJERIO „pretežno oblačno" — „jedva se ne bi od oblaka vidilo".
+ *
+ * Isto načelo koje projekt već primjenjuje na temperaturu
+ * (`correctWithObservation`) i koje stoji u odlukama: **model nije
+ * mjerenje.** ECMWF je za Roč davao „vedro" dok je Pazin javljao
+ * grmljavinu. Naoblaka je upravo ono što postaja gleda, pa nema razloga
+ * vjerovati modelu kad mjerenje postoji.
+ *
+ * Preslikava se SAMO naoblaka i oborina. DHMZ u isto polje stavlja i
+ * opise VJETRA („lahor", „povjetarac", „slab vjetar") — ti ne govore
+ * ništa o nebu i vraćaju `undefined`, pa ostaje model. Isto za „-".
+ *
+ * Popis je sastavljen iz PRAVOG feeda (`hrvatska_n.xml`, 9.9.2026.: 13
+ * različitih opisa na 66 postaja), ne iz dokumentacije — DHMZ ne objavljuje
+ * šifrarnik. Nepoznat opis zato NE ruši ništa, samo prepusti modelu.
+ */
+export function dhmzTextToCode(text?: string): number | undefined {
+  if (!text) return undefined;
+  const s = text.toLowerCase().trim();
+  if (!s || s === "-") return undefined;
+
+  /*
+   * Oborina i grmljavina IDU PRVE: „slaba kiša poslije grmlj." nosi oba
+   * pojma, a kiša je ono što korisnik trenutno ima nad glavom.
+   * „grmljavina bez oborina" se namjerno ne prevodi u kod s kišom.
+   */
+  if (s.includes("snij") || s.includes("susnj")) return 73;
+  // 95 pokriva i „bez oborina": WMO 95 je grmljavina, kiša u njoj nije
+  // obećana — a značka i ambijent grmljavine su ono što korisnik treba.
+  if (s.includes("grmljavin")) return 95;
+  if (s.includes("pljusak") || s.includes("pljuskov")) return 81;
+  if (s.includes("rosulj")) return 51;
+  if (s.includes("kiša") || s.includes("kise") || s.includes("kiše")) {
+    return s.includes("slab") ? 61 : 63;
+  }
+  if (s.includes("magla") || s.includes("sumagl")) return 45;
+
+  /*
+   * Naoblaka — DHMZ-ova ljestvica na WMO:
+   *   vedro → 0 · pretežno vedro → 1 · umjereno oblačno → 2 ·
+   *   pretežno oblačno → 3 · oblačno → 3
+   *
+   * „pretežno oblačno" je namjerno 3 („oblačno"), a ne 2: hrvatski
+   * „pretežno" znači VEĆI dio neba pod oblacima, što je upravo ono što je
+   * Marko vidio kroz prozor. Redoslijed provjera je bitan — „pretežno
+   * vedro" sadrži i „vedro", pa mora ispred njega.
+   */
+  if (s.includes("pretežno oblačno") || s.includes("oblačno bez")) return 3;
+  if (s.includes("umjereno oblačno")) return 2;
+  if (s.includes("pretežno vedro")) return 1;
+  if (s.includes("vedro")) return 0;
+  // Goli „oblačno" bez pridjeva (nije viđen u feedu, ali je moguć).
+  if (s.includes("oblačno")) return 3;
+
+  return undefined;
+}
+
 export function codeToCondition(code: number, isDay: boolean): Condition {
   const entry = WMO_MAP[code];
   if (!entry) return { label: t.common.noData, Icon: Cloud };

@@ -80,6 +80,7 @@ export const en: Dict = {
     camerasOffline: "Camera images need a connection",
     camerasAttribution: "Webcams: Windy.com",
     camerasAll: "All cameras nearby",
+    camerasMore: (n: number) => `+${n}`,
     camerasAge: (v: string) => `${v} ago`,
     camerasJustNow: "just now",
     seaCaption: "Coastal sea temperature",

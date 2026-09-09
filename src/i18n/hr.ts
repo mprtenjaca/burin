@@ -79,6 +79,8 @@ export const hr = {
     // Obveza iz uvjeta Windyja: izvor se navodi, dodir vodi na njihovu stranicu.
     camerasAttribution: "Kamere: Windy.com",
     camerasAll: "Sve kamere u blizini",
+    /** + broj ostalih kamera — jedini znak da kartica vodi na popis. */
+    camerasMore: (n: number) => `+${n}`,
     /*
      * Starost slike kao GOTOVA rečenica po jeziku, ne prefiks + broj:
      * hrvatski stavlja „prije" ISPRED („prije 3 min"), engleski „ago"

@@ -142,14 +142,21 @@ export function parseWebcams(
 }
 
 /**
- * Domet u kojem se kamera smatra „u blizini".
+ * Domet u kojem se kamera smatra „u blizini" — DVA KRUGA (9.9.2026.).
  *
- * 25 km, ne 40 kao kod Štampara: tamo je širi domet bio opravdan jer je
- * jedan peludomjer PO ŽUPANIJI, pa je Polača (24.8 km od Zadra) inače
- * ispadala. Kamere su guste — 25 km drži da slika prikazuje mjesto koje
- * korisnik prepoznaje, a ne susjednu dolinu s drugim vremenom.
+ * Prvi krug je 25 km: dovoljno da slika prikazuje mjesto koje korisnik
+ * prepoznaje, a ne susjednu dolinu s drugim vremenom. (Uže od Štamparovih
+ * 40 km, gdje je širi domet bio opravdan jer je jedan peludomjer PO
+ * ŽUPANIJI — kamere su guste.)
+ *
+ * Drugi krug je 60 km i traži se SAMO kad prvi ne vrati ni jednu (Markov
+ * predlog: „ako nema u tom mjestu, isto možeš ove okolo pokazat"). Bolje
+ * kamera 40 km daleko s natpisom koliko je daleko, nego prazan okvir —
+ * korisnik sam procijeni je li mu korisna. Kartica uvijek piše
+ * udaljenost, pa nema zabune o tome što gleda.
  */
 export const WEBCAM_RANGE_KM = 25;
+export const WEBCAM_RANGE_WIDE_KM = 60;
 
 /** Koliko kamera tražimo — ekran prikazuje najbliže, kartica prvu. */
 const LIMIT = 10;
@@ -160,19 +167,40 @@ const LIMIT = 10;
  * Ključ ide u ZAGLAVLJE (`x-windy-api-key`), ne u URL — inače bi stajao u
  * povijesti zahtjeva i u svakom logu posrednika.
  */
+async function fetchInRadius(
+  lat: number,
+  lon: number,
+  radiusKm: number,
+): Promise<Webcam[]> {
+  const raw = await fetchJson<unknown>(
+    `${API_URL}?nearby=${lat.toFixed(4)},${lon.toFixed(4)},${radiusKm}` +
+      `&limit=${LIMIT}&include=images,location,urls`,
+    { headers: { "x-windy-api-key": KEY ?? "" } },
+  );
+  // Windy `nearby` zna vratiti i nešto izvan zadanog kruga — režemo sami.
+  return parseWebcams(raw, lat, lon).filter((w) => w.distanceKm <= radiusKm);
+}
+
+/**
+ * Kamere oko zadane točke, najbliža prva.
+ *
+ * Ključ ide u ZAGLAVLJE (`x-windy-api-key`), ne u URL — inače bi stajao u
+ * povijesti zahtjeva i u svakom logu posrednika.
+ *
+ * Širi krug se traži SAMO kad bliži ne vrati ni jednu kameru: to je drugi
+ * mrežni poziv, ali samo za mjesta koja svoju kameru nemaju, i samo jednom
+ * po 5 min (keš u `useWebcams`). Alternativa bi bila UVIJEK tražiti 60 km
+ * i rezati u kodu — što bi svakom mjestu dohvaćalo kamere koje mu ne
+ * trebaju.
+ */
 export async function fetchNearbyWebcams(
   lat: number,
   lon: number,
 ): Promise<Webcam[]> {
   if (!hasWindyKey()) return [];
 
-  const raw = await fetchJson<unknown>(
-    `${API_URL}?nearby=${lat.toFixed(4)},${lon.toFixed(4)},${WEBCAM_RANGE_KM}` +
-      `&limit=${LIMIT}&include=images,location,urls`,
-    { headers: { "x-windy-api-key": KEY ?? "" } },
-  );
+  const near = await fetchInRadius(lat, lon, WEBCAM_RANGE_KM);
+  if (near.length > 0) return near;
 
-  return parseWebcams(raw, lat, lon).filter(
-    (w) => w.distanceKm <= WEBCAM_RANGE_KM,
-  );
+  return fetchInRadius(lat, lon, WEBCAM_RANGE_WIDE_KM);
 }

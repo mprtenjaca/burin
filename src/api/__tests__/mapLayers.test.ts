@@ -20,9 +20,8 @@ const owm = require("../owm") as { hasOwmKey: jest.Mock };
 const frame: RadarFrame = { time: 1785885600, path: "/v2/radar/1785885600", isNowcast: false };
 
 describe("MAP_LAYERS", () => {
-  it("sadrži slojeve iz reference, Radar prvi i Radar+ uz njega", () => {
+  it("sadrži slojeve iz reference, Radar prvi", () => {
     expect(MAP_LAYERS.map((l) => l.id)).toEqual([
-      "radar",
       "radar_plus",
       "temp_new",
       "clouds_new",
@@ -39,27 +38,23 @@ describe("MAP_LAYERS", () => {
    * Radar (RainViewer), Radar+ (LibreWXR, CC-BY-4.0) i Vjetar (vlastite
    * crtice iz Open-Metea) ne traže ključ; samo OWM pločice ga traže.
    */
-  it("bez ključa rade Radar, Radar+ i Vjetar", () => {
+  it("bez ključa rade Radar i Vjetar", () => {
     expect(MAP_LAYERS.filter((l) => !l.needsKey).map((l) => l.id)).toEqual([
-      "radar",
       "radar_plus",
       "wind_new",
     ]);
   });
 
   /**
-   * Regresija (9.9.2026.): Radar+ postoji SAMO zato što ima buduće okvire
-   * i dublje podatke od RainViewera (koji je nowcast ukinuo 1.1.2026.).
-   * Izmjereno: LibreWXR nosi podatke do z=11, RainViewer do z=7 — pa
-   * Radar+ smije do kraja karte, a radar staje na 9 da se ne raspadne u
-   * kocke. Ako ovo padne, sloj je izgubio svrhu.
+   * Regresija (9.9.2026.): radar je zamijenjen upravo zato što LibreWXR
+   * nosi podatke do z=11, a RainViewer do z=7 — pa smije do kraja karte
+   * umjesto da staje na 9 da se ne raspadne u kocke. Ako ovo padne, sloj
+   * je izgubio ono zbog čega je ušao.
    */
-  it("Radar+ ide dublje od radara i do kraja karte", () => {
-    const plus = mapLayerById("radar_plus");
-    const base = mapLayerById("radar");
-    expect(plus.maxNativeZ).toBeGreaterThan(base.maxNativeZ);
-    expect(plus.maxUserZoom).toBe(MAP_MAX_ZOOM);
-    expect(base.maxUserZoom).toBeLessThan(MAP_MAX_ZOOM);
+  it("radar ide do kraja karte, jer podaci sežu duboko", () => {
+    const radar = mapLayerById("radar_plus");
+    expect(radar.maxNativeZ).toBe(11);
+    expect(radar.maxUserZoom).toBe(MAP_MAX_ZOOM);
   });
 
   /**
@@ -78,7 +73,7 @@ describe("MAP_LAYERS", () => {
    */
   it("vjetar se crta kao crtice, ostali kao pločice", () => {
     expect(mapLayerById("wind_new").render).toBe("barbs");
-    for (const id of ["radar", "radar_plus", "temp_new", "clouds_new"] as const) {
+    for (const id of ["radar_plus", "temp_new", "clouds_new"] as const) {
       expect(mapLayerById(id).render).toBe("raster");
     }
   });
@@ -109,19 +104,6 @@ describe("MAP_LAYERS", () => {
   });
 
   /**
-   * Regresija (5.8.2026., nađeno NA UREĐAJU): radar je pokazivao sivu
-   * pločicu s natpisom "Zoom Level Not Supported" pri približavanju.
-   * Izmjereno dekodiranjem: RainViewer od z=8 naviše vraća HTTP 200 i
-   * bajt-identičnu sliku (1370 B, md5 2cc6649e) na SVIM koordinatama — a ta
-   * slika JE taj natpis. Ranije je ta identičnost protumačena kao "nema
-   * novih podataka" pa je `maxNativeZ` bio 8, tj. točno razina natpisa.
-   * Stvarni podaci idu do z=7.
-   */
-  it("radar ne traži razinu na kojoj RainViewer vraća natpis", () => {
-    expect(mapLayerById("radar").maxNativeZ).toBeLessThanOrEqual(7);
-  });
-
-  /**
    * S MapLibreom granica zooma nije po sloju: iznad `maxNativeZ` se pločica
    * rasteže i sloj nikad ne nestaje. Kamera ipak mora puštati dublje od
    * podataka svakog sloja — inače rastezanje ne bi imalo smisla.
@@ -134,37 +116,30 @@ describe("MAP_LAYERS", () => {
 
   it("nepoznat id se svede na Radar (ne pada)", () => {
     // @ts-expect-error namjerno neispravan id
-    expect(mapLayerById("nema-me").id).toBe("radar");
+    expect(mapLayerById("nema-me").id).toBe("radar_plus");
+  });
+
+  /**
+   * Stari RainViewer sloj je ZAKOMENTIRAN 9.9.2026., ne obrisan (Markov
+   * odabir). Ovaj test čuva da se ne vrati NEOPAZICE — ako se jednog dana
+   * otkomentira namjerno, pada i kaže gdje se odluka mijenja.
+   */
+  it("stari RainViewer sloj nije u ponudi", () => {
+    expect(MAP_LAYERS.map((l) => l.id)).not.toContain("radar");
   });
 });
 
 describe("mapLayerTileUrl", () => {
-  it("radar traži aktivni okvir; bez njega nema pločica", () => {
-    const radar = mapLayerById("radar");
-    expect(mapLayerTileUrl(radar)).toBeNull();
-    const url = mapLayerTileUrl(radar, { host: "https://tc.rainviewer.com", frame });
-    expect(url).toBe("https://tc.rainviewer.com/v2/radar/1785885600/512/{z}/{x}/{y}/4/1_1.png");
-  });
-
   /*
-   * Veličina u URL-u i `tileSize` na sloju moraju se POKLAPATI
-   * (8.8.2026.): ako se raziđu, MapLibre skalira pločicu u krivi okvir i
-   * radar izgleda gore nego prije. Test ih drži zajedno jer su na dva
-   * mjesta u kodu.
+   * Grana za stari RainViewer sloj OSTAJE u `mapLayerTileUrl` (unos je
+   * samo zakomentiran u MAP_LAYERS), pa se testira preko ručno složenog
+   * sloja — inače bi ostala nepokrivena i tiho se pokvarila do dana kad
+   * je nekome zatreba.
    */
-  it("veličina pločice u URL-u odgovara tileSize sloja", () => {
-    const radar = mapLayerById("radar");
-    const url = mapLayerTileUrl(radar, { host: "https://tc.rainviewer.com", frame })!;
-    expect(url).toContain(`/${radar.tileSize}/{z}/{x}/{y}/`);
-    expect(radar.tileSize).toBe(512);
-  });
-
-  it("radar koristi glatku shemu boja (gradijent, ne pikseli)", () => {
-    const url = mapLayerTileUrl(mapLayerById("radar"), {
-      host: "https://tc.rainviewer.com",
-      frame,
-    });
-    expect(url).toContain("/4/1_1.png");
+  it("grana starog radara još gradi ispravan URL", () => {
+    const legacy = { ...mapLayerById("radar_plus"), id: "radar" as const, tileSize: 512 as const };
+    const url = mapLayerTileUrl(legacy, { host: "https://tc.rainviewer.com", frame });
+    expect(url).toBe("https://tc.rainviewer.com/v2/radar/1785885600/512/{z}/{x}/{y}/4/1_1.png");
   });
 
   /**
@@ -290,10 +265,9 @@ describe("baseStyleFor", () => {
 describe("isLayerAvailable", () => {
   afterEach(() => owm.hasOwmKey.mockReturnValue(true));
 
-  it("bez ključa ostaju Radar, Radar+ i Vjetar", () => {
+  it("bez ključa ostaju Radar i Vjetar", () => {
     owm.hasOwmKey.mockReturnValue(false);
     expect(MAP_LAYERS.filter(isLayerAvailable).map((l) => l.id)).toEqual([
-      "radar",
       "radar_plus",
       "wind_new",
     ]);

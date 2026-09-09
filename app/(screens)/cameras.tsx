@@ -61,37 +61,36 @@ export default function CamerasScreen() {
       ) : (
         <>
           {webcams.map((w) => (
-            <View key={w.id} className="gap-1.5">
-              <Card className="overflow-hidden">
-                <Pressable
-                  onPress={() => {
-                    if (w.pageUrl) void Linking.openURL(w.pageUrl);
-                  }}
-                  accessibilityRole="link"
-                  accessibilityLabel={w.title}
+            /*
+              Slika NIJE dodirljiva (Markov odabir 9.9.2026.: „kad kliknem
+              na njih ne želim da mi ode na Windy stranicu"). Izlazak iz
+              aplikacije u preglednik prekida ono što je korisnik radio, a
+              na Windyju ionako vidi istu sliku.
+              Obveza navođenja izvora ostaje ispunjena kroz atribuciju na
+              dnu popisa, koja i dalje vodi na Windy — ali svojevoljno,
+              jednim jasnim dodirom, ne slučajno preko slike.
+            */
+            <Card key={w.id} className="overflow-hidden">
+              <Image
+                source={{ uri: w.full ?? w.preview }}
+                className="aspect-video w-full bg-ink/5 dark:bg-paper/5"
+                resizeMode="cover"
+                accessibilityLabel={w.title}
+              />
+              <View className="flex-row items-center justify-between px-4 py-3">
+                <Text
+                  className="flex-1 font-grotesk-bold text-[14px] text-ink dark:text-paper"
+                  numberOfLines={1}
                 >
-                  <Image
-                    source={{ uri: w.full ?? w.preview }}
-                    className="aspect-video w-full bg-ink/5 dark:bg-paper/5"
-                    resizeMode="cover"
-                    accessible={false}
-                  />
-                  <View className="flex-row items-center justify-between px-4 py-3">
-                    <Text
-                      className="flex-1 font-grotesk-bold text-[14px] text-ink dark:text-paper"
-                      numberOfLines={1}
-                    >
-                      {w.title}
-                    </Text>
-                    <Text className="ml-3 font-grotesk text-[12.5px] text-ink/45 dark:text-paper/45">
-                      {w.distanceKm < 10
-                        ? `${w.distanceKm.toFixed(1)} km`
-                        : `${Math.round(w.distanceKm)} km`}
-                    </Text>
-                  </View>
-                </Pressable>
-              </Card>
-            </View>
+                  {w.title}
+                </Text>
+                <Text className="ml-3 font-grotesk text-[12.5px] text-ink/45 dark:text-paper/45">
+                  {w.distanceKm < 10
+                    ? `${w.distanceKm.toFixed(1)} km`
+                    : `${Math.round(w.distanceKm)} km`}
+                </Text>
+              </View>
+            </Card>
           ))}
 
           {/* Atribucija JEDNOM na dnu liste, ne pod svakom slikom. */}

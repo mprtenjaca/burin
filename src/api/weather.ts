@@ -1,3 +1,5 @@
+import { dhmzTextToCode } from "@/utils/weatherCodes";
+
 import { biasSlotForHour, isZeroBias } from "./bias";
 import type { ModelBias } from "./bias";
 import type { CurrentWeather, DailyPoint, DhmzObservation, HourlyPoint, Place, WeatherBundle } from "./types";
@@ -143,14 +145,46 @@ export function observationDelta(current: CurrentWeather, obs?: DhmzObservation 
   return Math.max(-cap, Math.min(cap, raw));
 }
 
-/** "Sada" korigirano mjerenjima; osjet se pomiče za istu razliku. */
+/**
+ * Dokle vrijedi DHMZ-ov OPIS neba, u kilometrima (9.9.2026.).
+ *
+ * 25 km, znatno uže od 60 km koje vrijedi za temperaturu. Temperatura se u
+ * prostoru mijenja glatko (zato tamo radi i prosjek triju postaja), a
+ * naoblaka je zakrpasta — jedan oblak nad Zadrom ne govori ništa o
+ * Benkovcu. Uža granica znači da opis dolazi samo od postaje koja gleda
+ * ISTO nebo kao korisnik.
+ */
+const CONDITION_RANGE_KM = 25;
+
+/**
+ * "Sada" korigirano mjerenjima: temperatura i osjet za isti delta, a od
+ * 9.9.2026. i OPIS VREMENA s najbliže postaje.
+ *
+ * Povod za opis je Markov nalaz s prozora: aplikacija je za Zadar pisala
+ * „djelomično oblačno" iz modela, dok je DHMZ na zadarskoj postaji mjerio
+ * „pretežno oblačno". Isti obrazac koji je već zapisan u odlukama —
+ * ECMWF je za Roč davao „vedro" uz izmjerenu grmljavinu u Pazinu. Model
+ * nije mjerenje, a nebo je upravo ono što postaja gleda.
+ *
+ * Bira se NAJBLIŽA postaja, ne prosjek: opisi se ne mogu prosječiti
+ * („vedro" + „oblačno" nije „umjereno oblačno" nego dva različita neba).
+ */
 export function correctWithObservation(current: CurrentWeather, obs?: DhmzObservation | DhmzObservation[]): CurrentWeather {
   const delta = observationDelta(current, obs);
-  if (delta === 0) return current;
+
+  const list = obs === undefined ? [] : Array.isArray(obs) ? obs : [obs];
+  const nearest = list
+    .filter((o) => o.distanceKm <= CONDITION_RANGE_KM)
+    .sort((a, b) => a.distanceKm - b.distanceKm)[0];
+  const measuredCode = dhmzTextToCode(nearest?.conditionText);
+
+  if (delta === 0 && measuredCode === undefined) return current;
   return {
     ...current,
     temp: current.temp + delta,
     feelsLike: current.feelsLike + delta,
+    // Mjerenje pobjeđuje model; nepoznat ili predaleki opis ostavlja model.
+    code: measuredCode ?? current.code,
   };
 }
 

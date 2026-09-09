@@ -15,7 +15,7 @@ import {
   mapLayerById,
   mapLayerTileUrl,
 } from "@/api/mapLayers";
-import { useRadarFrames } from "@/hooks/useRadarFrames";
+import { useLibreFrames } from "@/hooks/useRadarFrames";
 import { t } from "@/i18n";
 import { weatherGradient } from "@/utils/weatherLook";
 
@@ -44,9 +44,18 @@ export function RadarPreviewCard({
   code?: number;
   isDay?: boolean;
 }) {
-  const { data } = useRadarFrames();
+  /*
+   * LibreWXR od 9.9.2026. (stari RainViewer sloj je zakomentiran u
+   * `MAP_LAYERS`). Izvor okvira i unos sloja MORAJU se poklapati: pločica
+   * se gradi iz `host` + `path` tog izvora, pa bi mješavina tražila
+   * LibreWXR pločicu s RainViewerove adrese i pregled bi ostao prazan.
+   *
+   * `enabled: true` jer pregled stoji na početnoj i traži se odmah —
+   * jedan upit, keširan 10 min, dijeli ga s punom kartom.
+   */
+  const { data } = useLibreFrames(true);
   const lastPast = data?.frames.filter((f) => !f.isNowcast).at(-1);
-  const radar = mapLayerById("radar");
+  const radar = mapLayerById("radar_plus");
   const tileUrl =
     data && lastPast
       ? mapLayerTileUrl(radar, { host: data.host, frame: lastPast })

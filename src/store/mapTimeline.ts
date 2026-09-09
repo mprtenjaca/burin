@@ -25,7 +25,13 @@ type MapTimelineState = {
 };
 
 export const useMapTimeline = create<MapTimelineState>((set) => ({
-  layer: "radar",
+  /*
+   * ZADANI SLOJ je `radar_plus` (LibreWXR) od 9.9.2026. — stari `radar`
+   * (RainViewer) je zakomentiran u `MAP_LAYERS` pa ga `mapLayerById` ne bi
+   * ni našao. Store nije persistiran, pa nema starih instalacija koje bi
+   * ostale na uklonjenom sloju.
+   */
+  layer: "radar_plus",
   step: null,
   playing: false,
   /**

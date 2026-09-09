@@ -136,58 +136,77 @@ export type MapLayer = {
  * Redoslijed je redoslijed čipova: Radar prvi jer je jedini bez ključa.
  */
 export const MAP_LAYERS: MapLayer[] = [
-  {
-    id: "radar",
-    label: t.map.layerRadar,
-    needsKey: false,
-    render: "raster",
-    opacity: 0.7,
-    /*
-     * 7, NE 8. Izmjereno 5.8.2026. dekodiranjem pločica: RainViewer od z=8
-     * naviše vraća HTTP 200 i bajt-identičnu sliku (1370 B, md5 2cc6649e) na
-     * SVIM koordinatama — a ta slika je siva pločica s natpisom "Zoom Level
-     * Not Supported". Ranije je ta identičnost protumačena kao "nema novih
-     * podataka" i `maxNativeZ` je bio 8, pa je karta zumiranjem dohvaćala
-     * upravo natpis. Stvarni podaci idu do z=7 (provjereno na Zadru,
-     * Zagrebu, Osijeku i Splitu).
-     *
-     * Iznad 7 MapLibre rasteže pločicu sa z=7 — radar ostaje na ekranu.
-     */
-    maxNativeZ: 7,
-    // Jedini sloj na 512 — RainViewer ih nudi, i nose 3.5× više detalja.
-    tileSize: 512,
-    /*
-     * STAJE NA 9, iako karta ide do 12 (Markov nalaz 8.8.2026.:
-     * „radar je izmuljan kad priblizim").
-     *
-     * Podaci staju na z=7. Svaka razina iznad toga učetverostručuje
-     * površinu po jednom pikselu podatka: z=8 → 2×2 px, z=10 → 8×8,
-     * **z=12 → 32×32 px**. Odatle stepenaste kocke na snimci — nije
-     * greška u glačanju (`1_1` je uključen i provjeren) nego čisto
-     * rastezanje.
-     *
-     * 9 je granica jer pločica od 512 px već nosi jednu razinu viška
-     * (512@z7 ima gustoću 256@z8), pa je stvarno rastezanje na z=9
-     * samo 2×2 px — još uvijek glatko. Iznad toga se raspada.
-     */
-    maxUserZoom: 9,
-    attribution: { label: t.map.radarAttribution, url: "https://www.rainviewer.com" },
-    timeline: "frames",
-  },
   /*
-   * RADAR+ — TEST-SLOJ (9.9.2026., Markov odabir „vidit cemo").
+   * STARI RADAR (RainViewer) — ZAKOMENTIRAN 9.9.2026. (Markov odabir:
+   * „postavi radar+ kao default, onaj drugi samo makni od tamo, al ne
+   * briši implementaciju, samo zakomentiraj").
    *
-   * Stoji UZ radar, ne umjesto njega: usporedba je cijela svrha. Ako se
-   * pokaže dobar, kandidat je za zamjenu RainViewera; ako ne, briše se
-   * ovaj jedan unos i `librewxr.ts`.
+   * Zašto je ispao: izmjereno je slabiji po SVEMU. Točnost 3/12 vs 9/12
+   * protiv DHMZ mjerenja (nije vidio ni jednu od pet postaja gdje je kiša
+   * stvarno padala — ne koristi OPERA mrežu s hrvatskim radarima),
+   * budućnost 0 okvira vs 6, podaci do z=7 vs z=11, alfa pločice 76/255 vs
+   * 255. Klijent `rainviewer.ts`, hook `useRadarFrames` i grana za "radar"
+   * u `mapLayerTileUrl` OSTAJU netaknuti — vraćanje je otkomentiravanje
+   * ovog unosa, bez ijedne druge izmjene.
+   */
+  // {
+  //   id: "radar",
+  //   label: t.map.layerRadar,
+  //   needsKey: false,
+  //   render: "raster",
+  //   opacity: 0.7,
+  //   /*
+  //    * 7, NE 8. Izmjereno 5.8.2026. dekodiranjem pločica: RainViewer od z=8
+  //    * naviše vraća HTTP 200 i bajt-identičnu sliku (1370 B, md5 2cc6649e) na
+  //    * SVIM koordinatama — a ta slika je siva pločica s natpisom "Zoom Level
+  //    * Not Supported". Ranije je ta identičnost protumačena kao "nema novih
+  //    * podataka" i `maxNativeZ` je bio 8, pa je karta zumiranjem dohvaćala
+  //    * upravo natpis. Stvarni podaci idu do z=7 (provjereno na Zadru,
+  //    * Zagrebu, Osijeku i Splitu).
+  //    *
+  //    * Iznad 7 MapLibre rasteže pločicu sa z=7 — radar ostaje na ekranu.
+  //    */
+  //   maxNativeZ: 7,
+  //   // Jedini sloj na 512 — RainViewer ih nudi, i nose 3.5× više detalja.
+  //   tileSize: 512,
+  //   /*
+  //    * STAJE NA 9, iako karta ide do 12 (Markov nalaz 8.8.2026.:
+  //    * „radar je izmuljan kad priblizim").
+  //    *
+  //    * Podaci staju na z=7. Svaka razina iznad toga učetverostručuje
+  //    * površinu po jednom pikselu podatka: z=8 → 2×2 px, z=10 → 8×8,
+  //    * **z=12 → 32×32 px**. Odatle stepenaste kocke na snimci — nije
+  //    * greška u glačanju (`1_1` je uključen i provjeren) nego čisto
+  //    * rastezanje.
+  //    *
+  //    * 9 je granica jer pločica od 512 px već nosi jednu razinu viška
+  //    * (512@z7 ima gustoću 256@z8), pa je stvarno rastezanje na z=9
+  //    * samo 2×2 px — još uvijek glatko. Iznad toga se raspada.
+  //    */
+  //   maxUserZoom: 9,
+  //   attribution: { label: t.map.radarAttribution, url: "https://www.rainviewer.com" },
+  //   timeline: "frames",
+  // },
+  /*
+   * RADAR (LibreWXR) — JEDINI radarski sloj od 9.9.2026.
    *
-   * Zašto postoji: RainViewer je 1.1.2026. ukinuo buduće okvire (i satelit,
-   * i sheme boja, i spustio zoom na z=7), a pretplata koja to vraća ne
-   * postoji — vidi `librewxr.ts` za cijelu tablicu razlika i mjerenja.
+   * Ušao je 9.9. kao test-sloj uz RainViewer, a isti dan ga je i zamijenio:
+   * izmjereno je bolji po svemu (točnost 9/12 vs 3/12 protiv DHMZ-a,
+   * budućnost +60 min vs nikakva, podaci do z=11 vs z=7, puna alfa vs
+   * 76/255). Stari unos stoji zakomentiran iznad — vraćanje je
+   * otkomentiravanje, klijent i grana u `mapLayerTileUrl` su netaknuti.
+   *
+   * Cijela tablica razlika i mjerenja je u `librewxr.ts`.
    */
   {
     id: "radar_plus",
-    label: t.map.layerRadarPlus,
+    /*
+     * Zove se samo „Radar" od 9.9.2026.: stari je zakomentiran, pa je ovo
+     * JEDINI radar i „+" bi bio suvišan (razlikovao je od nečega što se
+     * više ne vidi). `id` ostaje `radar_plus` — mijenjati ga značilo bi
+     * dirati tip, store i sve testove bez ikakve koristi.
+     */
+    label: t.map.layerRadar,
     // CC-BY-4.0, bez ključa — ista sloboda kao RainViewer, vidi librewxr.ts.
     needsKey: false,
     render: "raster",
