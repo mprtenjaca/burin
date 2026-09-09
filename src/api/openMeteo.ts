@@ -341,23 +341,70 @@ export function croatiaFirst<T extends { countryCode?: string }>(list: T[]): T[]
   );
 }
 
+/**
+ * „Sv" i „Sv." → „Sveti" I „Sveta" (9.9.2026., Markov nalaz: „Sv Filip i
+ * Jakov ne izbaci ništa").
+ *
+ * Open-Meteo traži samo PO PREFIKSU punog imena — izmjereno: „Sveti Filip
+ * i Jakov" i „Sveti Petar" nađu mjesto, a „Sv Filip i Jakov", „Sv. Filip
+ * i Jakov", „Sv Juraj" i „Sv Nedelja" vraćaju NULU. Kratica je u Hrvatskoj
+ * uobičajena i na tablama, pa je korisnik piše prije punog oblika.
+ *
+ * Oba roda jer ih ima oba („Sveti Juraj", „Sveta Nedelja") — i oba se
+ * traže UZ izvorni upit, ne umjesto njega: tako proširenje ne može ništa
+ * pokvariti, a „Sveta Nedelja" upisana u cijelosti radi kao prije.
+ *
+ * Izvezeno radi testova.
+ */
+export function expandQuery(query: string): string[] {
+  const q = query.trim();
+  // Samo kad je „sv"/„sv." SAMOSTALNA prva riječ — „Sveta" i „Svetvinčenat"
+  // se ne diraju, inače bi „Svet…" dobio besmislena proširenja.
+  const m = /^sv\.?(\s+)(.+)$/i.exec(q);
+  if (!m) return [q];
+  const rest = m[2]!;
+  return [q, `Sveti ${rest}`, `Sveta ${rest}`];
+}
+
 export async function geocode(query: string): Promise<Place[]> {
-  const url = `${GEOCODING_BASE}?name=${encodeURIComponent(query)}&language=hr&count=10&format=json`;
-  const res = await fetchJson<OmGeoResponse>(url);
-  // `countryCode` OSTAJE u Place (dorada 6.8.2026.): bira Meteoalarm
-  // feed za upozorenja u 38 europskih zemalja.
-  return croatiaFirst(
-    (res.results ?? []).map((r) => ({
-      id: placeId(r.latitude, r.longitude),
-      name: r.name,
-      country: r.country,
-      // Županija za razlikovanje istoimenih mjesta (Vrana ×2, Polača ×2).
-      region: r.admin1,
-      countryCode: r.country_code,
-      lat: r.latitude,
-      lon: r.longitude,
-    })),
+  const queries = expandQuery(query);
+  const responses = await Promise.all(
+    queries.map((q) =>
+      fetchJson<OmGeoResponse>(
+        `${GEOCODING_BASE}?name=${encodeURIComponent(q)}&language=hr&count=10&format=json`,
+      ).catch(() => ({ results: [] }) as OmGeoResponse),
+    ),
   );
+
+  /*
+   * Prvi upit (izvorni) daje redoslijed, proširenja se lijepe iza; isto
+   * mjesto iz dva upita se pojavi jednom (`id` je zaokružena koordinata).
+   *
+   * `catch` po upitu: proširenje koje padne ne smije oboriti pretragu koju
+   * je korisnik zatražio. Pravi neuspjeh mreže i tako pada na prvom.
+   */
+  const seen = new Set<string>();
+  const places: Place[] = [];
+  for (const res of responses) {
+    for (const r of res.results ?? []) {
+      const id = placeId(r.latitude, r.longitude);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      places.push({
+        id,
+        name: r.name,
+        country: r.country,
+        // Županija za razlikovanje istoimenih mjesta (Vrana ×2, Polača ×2).
+        region: r.admin1,
+        // `countryCode` OSTAJE u Place (dorada 6.8.2026.): bira Meteoalarm
+        // feed za upozorenja u 38 europskih zemalja.
+        countryCode: r.country_code,
+        lat: r.latitude,
+        lon: r.longitude,
+      });
+    }
+  }
+  return croatiaFirst(places);
 }
 
 /** Odakle su brojke peludi — model ili peludomjer. Bira napomenu na ekranu. */
