@@ -17,6 +17,20 @@ razvojni izvor iza `__DEV__`** (pravna odluka — vidi Recent Decisions).
 Karta dobila dugmad dana i klizač po danu. Repo je od danas na GitHubu
 (`origin/master`) — pushati nakon zelenih provjera.
 
+**9.9.2026. — DRUGI RADAR s budućnošću (`Radar+`), izlaz s karte.**
+RainViewer je 1.1.2026. ukinuo nowcast i to se NE MOŽE kupiti (ne prodaju
+API). Dodan `Radar+` iz **LibreWXR** (CC-BY-4.0, bez ključa, bez kvote):
++60 min budućnosti, podaci do z=11, i **točniji je od starog radara —
+9/12 vs 3/12** protiv DHMZ mjerenja. Boje i brzina popravljene u DVA
+kruga (oba puta mjerenjem, ne procjenom — vidi Recent Decisions). Izlaz
+s karte bio pravi bug (`navigate` umjesto `back`).
+
+**8.9.2026. — splash, ikone u zaglavlju, GPS na prvi dodir, rečenica
+ugašena.** Android splash je dobio tamnu pločicu (nativno — traži
+rebuild); ikone tražilice/ladice se boje po NEBU, ne po temi;
+`useLocation` je vraćao `cancel` kao cleanup pa je prvi dodir na GPS
+otkazivao sam sebe; domaća rečenica (`quips`) ZAKOMENTIRANA s prekidačem.
+
 **7.9.2026. — detalji dana kao SHEET, dorade liste, lock-screen prsten.**
 Detalji dana iz 14-dnevne liste preseljeni iz harmonike u `formSheet`
 (`day.tsx` + memorijski store); layout sheeta popravljen u DVA kruga —
@@ -29,6 +43,9 @@ zaslonu u 270° luk s točkom.
 
 | Što | Status | Bilješka |
 |---|---|---|
+| **Provjera na uređaju — 9.9.: `Radar+` nakon 2. kruga popravaka** | **Čeka Marka, reload** | Boje sad shema 2 („Universal Blue", ISTA koju RainViewer koristi — jedina uz 14 bez zelenog, izmjereno histogramom); pločica 256 px (512 je bio 5× sporiji); izlaz s karte kroz `back()` + brava od dvostrukog dodira. Gledati: budućnost desno od „sada", boje na nevremenu, zoom do z=12, brzina, izlaz na prvi dodir |
+| **Radar+ vs Radar — odluka o zamjeni** | **Otvoreno, Markova odluka** | Radar+ je BOLJI po svemu izmjerenom: točnost 9/12 vs 3/12 (DHMZ, 9.9.), budućnost +60 min vs 0, zoom z=11 vs z=7, boja alfa 255 vs 76. Stari radar ostaje samo radi usporedbe. Ako Radar+ prođe na uređaju → kandidat da RainViewer ispadne |
+| **Provjera na uređaju — 8.9.: splash, ikone, GPS** | **Čeka Marka** | Splash traži REBUILD (nativni resurs, reload ga ne pokazuje); ikone u zaglavlju po nebu; GPS na prvi dodir u tražilici |
 | **Provjera na uređaju — 7.9.: sheet detalja dana + lista** | **Čeka Marka, reload** | Sheet iz 14-dnevne liste NAKON 2. POPRAVKA layouta (neprovjeren!); siva „0 %" umjesto crtice; highlight retka na dodir (proširen u padding kartice). Haptika je u kodu ali NE RADI do novog builda (čuvani require). Typecheck/350/export čisti |
 | **Novi dev buildovi (haptika + widget prsten)** | **Otvoreno, nakon provjere** | `expo-haptics` je nativni modul (buildovi 13/4 su BEZ njega), a novi lock-screen prsten je widget kod koji se čita iz builda — reload ih NE donosi. Jedan iOS + jedan Android build pokriva oboje; potom TestFlight |
 | **Provjera na uređaju — JS izmjene od 6.9.** | **Čeka Marka, reload** | Pelud (Zadar/Zagreb VISOKA ko Štampar; koprive/trputac u listi; napomena „Izmjereno peludomjerom"; `danas · sutra · datum`), Android donji rub (početna, pelud, ladica, svi podekrani), karta (dugmad dana, klizač po danu, play po danu, atribucija goli tekst iznad legende), ime mjesta („Zadar", ne županija). Sve prošlo typecheck/350 testova/export — vizualno tek na uređaju |
@@ -105,6 +122,13 @@ Sastaviti zahtjev za ponovnu uporabu informacija prema NZJZ Štampar
 
 | Odluka | Zašto |
 |---|---|
+| **RainViewer je ukinuo nowcast 1.1.2026. — ne može se kupiti; zamjena je LibreWXR** (`api/librewxr.ts`) | Ukinuti su i satelit, sve sheme boja osim jedne, zoom spušten na z=7. Pretplate NEMA — RainViewer više ne prodaje API pristup (ono što se plaća je njihova mobilna app). Zato je `radar.nowcast` prazan: ostatak strukture, ne nešto što ključ otvara. LibreWXR ima ISTI oblik odgovora (pa `librewxr.ts` je blizanac `rainviewer.ts` i nijedan potrošač nije trebao izmjenu), CC-BY-4.0 (slobodno uz atribuciju — drukčije od Plive), Europu preko OPERA mreže, i NEMA kvotu (provjereno: bez rate-limit zaglavlja, 30 pločica u nizu = 30× 200) |
+| **Radar+ je TOČNIJI od starog radara: 9/12 vs 3/12** (DHMZ, 9.9.2026.) | RainViewer nije vidio NI JEDNU od pet postaja gdje je kiša stvarno padala (Krapina, Rab, Senj, Puntijarka, Zavižan) — ne koristi OPERA mrežu na kojoj su hrvatski radari. **Metodološka pouka:** prva verzija provjere gledala je samo velike gradove i zaključila da OBA lažu; postaje se biraju po tome GDJE PADA, ne po veličini |
+| **Stari radar je „brži" jer nosi 39× MANJE podataka, ne zato što je bolji** | Markovo pitanje. Izmjereno (z=8 nad Zadrom): RainViewer **1 kB / 10 boja**, Radar+ **39 kB / 1415 boja**. Od z=8 RainViewer pada na 1 kB — to je onaj zid (podaci staju na z=7). Latencija je 44 vs 131 ms, dakle ne osjeti se; osjeti se ukupan broj bajtova × pločica × 3 okvira. Radar+ je čak NA CDN-u (`cf-cache-status: HIT`), RainViewer nije. Više podataka je upravo ono zbog čega je točniji — ne popravlja se smanjivanjem |
+| **Veličina pločice se NE prepisuje između izvora** (`tileSize` 256 za Radar+, 512 za radar) | 512 je RainVieweru nužan jer mu podaci staju na z=7 — veća pločica je jedini način da rastezanje ne izgleda mutno. LibreWXR ima z=11 i tu potrebu nema; s 512 je bio **3.0 s vs 0.64 s po pločici** (Markov nalaz „20ak sec da učita"). „Kad pustim play tek radi" je isti uzrok: prvi prolaz grije poslužiteljev keš (ponovno 0.09 s) |
+| **Ime sheme boja NIJE njezina paleta — boje se mjere pikselima** | Dva promašaja u istom danu: shema 1 („Rainviewer Original") odabrana po IMENU → zelena; shema 10 („Viper HD") odabrana uz moju tvrdnju da nema zelenog → **izmjereno `rgb(19,160,65)` nad Zagrebom, dakle ZELENA na slaboj kiši** (najčešći slučaj). Tek histogram cijele palete dao je odgovor: samo **2 („Universal Blue") i 14 („Windy")** izbjegavaju zeleno, a 2 je ono što RainViewer koristi — pa zadovoljava „bez zelenog" I „slično radaru" odjednom. Jakost po TAMNINI, ne po tonu |
+| **Izlaz s karte ide `router.back()`, ne `navigate("/")`; + brava od dvostrukog dodira** | `navigate` tretira početnu kao NOVU metu pa Drawer gradi zaslon i vrti prijelaz (Markov nalaz „treba mu sekundu"). `back()` samo odbacuje kartu i otkriva zaslon montiran ispod. Drugi dio pritužbe je zaseban kvar: bez brave drugi dodir ide JEDAN ZASLON DALJE, a na početnoj je gore lijevo tražilica — odatle „slučajno stisne search". Brava je `useRef` (ne stanje — čita se i piše u istom kadru), otpuštena pri montiranju jer karta kao Drawer zaslon preživi izlaz. Play se gasi pri izlasku |
+| **Web kamere: put je Windy, NE WhatsUpCams** (otvoreno, nije rađeno) | WhatsUpCams **nema javni API** (`/api`, `/en/api` → 404, `api.whatsupcams.com` se ne razrješava); njihove 200+ hrvatskih kamera se distribuiraju KROZ Windy. Uz to LiveCamCroatia tvrdi izključna prava za HR kamere i traži **pismeno dopuštenje** — isti obrazac na kojem je odbijena Pliva. Windy free tier IZRIČITO dopušta mobilnu app uz navođenje Windyja; Professional je €9.990/god. Free: niska rezolucija, URL-ovi ISTIČU za 10–15 min (ne mogu se spremati → kamere ne rade offline), i usluga se ne smije staviti SAMO u plaćeni dio app-a |
 | **Detalji dana = SHEET (`formSheet` [0.75, 1]), ne harmonika u listi** (`day.tsx`, `useDayDetails`) | Pritužbe „otvori se podsekcija i skroz se izgubim": otvoreni red se nije razlikovao od susjeda, panel se otvarao ispod pregiba, a drugi otvoreni dan odskakivao je listu. Sheet: lista stoji, naslov kaže dan, čipovi prebacuju dan bez zatvaranja. Podaci kroz MEMORIJSKI zustand store (referenca, bez persista) — `hourlyAll` ~69 kB ne smije u parametre navigacije; kroz parametar ide samo `date`. Isto pravilo kao pelud: sheet je čisti prikaz |
 | **formSheet sadržaj je UGOVOR s RNS-om: najviše header (`collapsable={false}`) + JEDAN ScrollView** | Nativni iOS kod (`RNSScreen.mm`/`RNSScreenContentWrapper.mm`) SAM nađe ScrollView u sadržaju i rukom mu postavi frame na veličinu sheeta MIMO Yoge (vlastiti TODO: na Fabricu završi na (0,0)). S tri brata (zaglavlje + čipovi + sadržaj) korekcija zgrabi krivi ScrollView — čipovi razvučeni preko naslova; `flexGrow: 0` sam NIJE pomogao jer native pregazi layout. Uz to: RN ScrollView (i VODORAVNI) nosi ugrađen `flexGrow: 1` — u omeđenom stupcu obavezan `flexGrow: 0` (RNS #2992, #3092) |
 | 14-dnevna lista: siva „0 %" umjesto crtice; highlight retka na dodir s bleedom u padding kartice | Crtica je starijim korisnicima dvosmislena (nula? nema podatka?); nula ostaje prigušena (`/25`) pa koraljna i dalje vodi oko po stupcu. Traka sati na početnoj ostaje PRAZNA ispod 1 % — okomiti prostor pod ikonom je skup. Highlight kroz `onPressIn/Out` + stanje (pravilo: `pressed` ne radi uz NativeWind) s `-mx-2.5 px-2.5` — bez bleeda highlight završava „skroz do ruba broja" |
@@ -241,6 +265,13 @@ nosi `past_days=1, forecast_days=4` (5 dana); `dayJumps` daje dugmad
 `playRange` u `map.tsx` vrti odabrani dan. OWM pločice se mijenjaju svaka
 3 h, vjetar svaki sat.
 
+**DVA radarska sloja** (9.9.2026.): `radar` (RainViewer, samo prošlost) i
+`radar_plus` (LibreWXR, +60 min). Oba klijenta vraćaju IDENTIČAN oblik
+(`{host, frames}` s `isNowcast`), pa `map.tsx` bira izvor na jednom mjestu
+(`isRadarPlus ? libre : radar`) i crta/player/pločice rade bez izmjene —
+oznaka „prognoza" i sidro „sada" su već postojali. `useLibreFrames(enabled)`
+se traži SAMO kad je sloj odabran, keš 10 min (javna instanca bez SLA).
+
 **Izgled**: `weatherLook.ts` je izvor istine — `weatherGradient` (plavo nebo,
 isto kao widget), `backdropEffects` (WMO 1 = zrake + rijetki oblaci; grmljavina
 = oblaci + kiša + bljeskovi), `heroAccent` (zlatna/hladna), `stripAccent`,
@@ -294,7 +325,9 @@ src/api/              openMeteo (+fetchCurrentBatch, pollenDaysFromHourly), dhmz
                       meteoalarm(+Europe), rainviewer, owm, mapLayers, windGrid,
                       windStyle, bias, weather, client (+fetchText headers), types,
                       stampar (RAZVOJNI izvor peludi; __fixtures__/stampar-zagreb.html
-                      je isječak prave stranice za test parsera)
+                      je isječak prave stranice za test parsera),
+                      librewxr (DRUGI radar `Radar+` — nowcast +60 min,
+                      blizanac rainviewera jer je oblik odgovora isti)
 src/store/            settings, cities, lastWeather (+refreshCurrent),
                       searchHistory, mapTimeline, dayDetails (memorijski
                       izvor za sheet detalja dana, bez persista)
