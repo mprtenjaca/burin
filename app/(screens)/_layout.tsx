@@ -71,6 +71,7 @@ export default function ScreensLayout() {
       <Stack.Screen name="search" options={{ title: t.search.title }} />
       <Stack.Screen name="warnings" options={{ title: t.common.warnings }} />
       <Stack.Screen name="pollen" options={{ title: t.pollen.title }} />
+      <Stack.Screen name="cameras" options={{ title: t.home.camerasSection }} />
       {/*
         Detalji dana kao SHEET odozdo (7.9.2026.), ne kartica u stacku:
         lista od 14 dana ostaje vidljiva ispod, a naslov sheeta kaže koji

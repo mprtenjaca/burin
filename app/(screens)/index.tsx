@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { hasWindyKey } from "@/api/windyWebcams";
 import { BentoGrid } from "@/components/BentoGrid";
 import { DailyList } from "@/components/DailyList";
 import { DhmzCard } from "@/components/DhmzCard";
@@ -12,11 +13,13 @@ import { Hero } from "@/components/Hero";
 import { RadarPreviewCard } from "@/components/RadarPreviewCard";
 import { Section } from "@/components/Section";
 import { HomeSkeleton } from "@/components/Skeleton";
+import { WebcamCard } from "@/components/WebcamCard";
 import { Wordmark } from "@/components/Wordmark";
 import { useBottomInset } from "@/hooks/useBottomInset";
 import { useLocation } from "@/hooks/useLocation";
 import { useWarnings } from "@/hooks/useWarnings";
 import { useWeatherBundle } from "@/hooks/useWeatherBundle";
+import { useWebcams } from "@/hooks/useWebcams";
 import { t } from "@/i18n";
 import { useCities } from "@/store/cities";
 import { useSettings } from "@/store/settings";
@@ -51,6 +54,12 @@ export default function HomeScreen() {
 
   const { bundle, isLoading, isError, isStale, isRefreshing, refetch } = useWeatherBundle(place);
   const warnings = useWarnings(place);
+  /*
+   * Kamere se traže za MJESTO IZ BUNDLEA, ne za `place`: „Moja lokacija"
+   * je bez GPS-a `null`, a bundle do tada već drži razrješene koordinate.
+   * Upit se sam ne pokrene bez ključa ni bez koordinata (`useWebcams`).
+   */
+  const webcams = useWebcams(bundle?.place.lat, bundle?.place.lon);
   const tempUnit = useSettings((s) => s.tempUnit);
   const windUnit = useSettings((s) => s.windUnit);
   // ZAKOMENTIRANO 7.9.2026. (Markov odabir): heroj više ne dobiva domaću
@@ -321,6 +330,19 @@ export default function HomeScreen() {
               <Section title={t.home.mapSection}>
                 <RadarPreviewCard lat={bundle.place.lat} lon={bundle.place.lon} temp={bundle.current.temp} code={bundle.current.code} isDay={bundle.current.isDay} />
               </Section>
+
+              {/*
+                KAMERE ispod karte (Markov odabir 9.9.2026.). Sekcija se
+                NE PRIKAZUJE bez Windy ključa — `hasWindyKey` u
+                `windyWebcams.ts`: bez toga bi produkcijska gradnja bez
+                ključa imala prazan okvir pod kartom. Zaštita je u kodu, ne
+                u konfiguraciji, kao i kod Štampara.
+              */}
+              {hasWindyKey() && (
+                <Section title={t.home.camerasSection}>
+                  <WebcamCard webcams={webcams.data ?? []} isOffline={webcams.isError} lat={bundle.place.lat} lon={bundle.place.lon} />
+                </Section>
+              )}
 
               {bundle.dhmz && (
                 <Section title={t.home.nearbyMeasurements}>

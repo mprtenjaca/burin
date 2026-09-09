@@ -31,9 +31,15 @@ async function fetchWithTimeout(
 
 export async function fetchJson<T>(
   url: string,
-  opts: { timeoutMs?: number } = {},
+  // `headers` dodan 9.9.2026.: Windy prima ključ u ZAGLAVLJU, ne u URL-u —
+  // u URL-u bi stajao u povijesti zahtjeva i u logovima posrednika.
+  opts: { timeoutMs?: number; headers?: Record<string, string> } = {},
 ): Promise<T> {
-  const res = await fetchWithTimeout(url, opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const res = await fetchWithTimeout(
+    url,
+    opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    opts.headers,
+  );
   if (!res.ok) throw new FetchError(`HTTP ${res.status}: ${url}`, res.status);
   return (await res.json()) as T;
 }

@@ -68,6 +68,24 @@ export const hr = {
     sunriseShort: "Izlazak",
     precip24: "Oborine 24 h",
     mapSection: "Karta",
+    /*
+     * „Kamere", NE „Live kamere" (9.9.2026.): Windyjev „live" je zadnja
+     * SNIMLJENA SLIKA, ne video — provjereno na njihovom playeru (poslužuje
+     * `.jpg`, `max-age=150`, nigdje `.m3u8`). Naziv mora odgovarati stvari.
+     */
+    camerasSection: "Kamere",
+    camerasEmpty: "Nema kamera u blizini",
+    camerasOffline: "Slike kamera traže internet",
+    // Obveza iz uvjeta Windyja: izvor se navodi, dodir vodi na njihovu stranicu.
+    camerasAttribution: "Kamere: Windy.com",
+    camerasAll: "Sve kamere u blizini",
+    /*
+     * Starost slike kao GOTOVA rečenica po jeziku, ne prefiks + broj:
+     * hrvatski stavlja „prije" ISPRED („prije 3 min"), engleski „ago"
+     * IZA („3 min ago"). Prefiks bi jedan od dva jezika izokrenuo.
+     */
+    camerasAge: (v: string) => `prije ${v}`,
+    camerasJustNow: "sada",
     seaCaption: "Temperatura mora uz obalu",
     pressureLow: "Nizak",
     pressureHigh: "Visok",
