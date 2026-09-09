@@ -17,13 +17,25 @@ razvojni izvor iza `__DEV__`** (pravna odluka — vidi Recent Decisions).
 Karta dobila dugmad dana i klizač po danu. Repo je od danas na GitHubu
 (`origin/master`) — pushati nakon zelenih provjera.
 
-**9.9.2026. — DRUGI RADAR s budućnošću (`Radar+`), izlaz s karte.**
+**9.9.2026. — NOVI RADAR, WEB KAMERE, MJERENO NEBO.** Velik dan, 16
+commita, dva zapisa (`2026-09-09-radar-plus-librewxr.md` i
+`2026-09-09-kamere-nebo-radar-zamjena.md`).
+
 RainViewer je 1.1.2026. ukinuo nowcast i to se NE MOŽE kupiti (ne prodaju
-API). Dodan `Radar+` iz **LibreWXR** (CC-BY-4.0, bez ključa, bez kvote):
-+60 min budućnosti, podaci do z=11, i **točniji je od starog radara —
-9/12 vs 3/12** protiv DHMZ mjerenja. Boje i brzina popravljene u DVA
-kruga (oba puta mjerenjem, ne procjenom — vidi Recent Decisions). Izlaz
-s karte bio pravi bug (`navigate` umjesto `back`).
+API). Zamijenjen **LibreWXR**-om (CC-BY-4.0, bez ključa, **bez kvote**):
++60 min budućnosti, podaci do z=11, i **točniji — 9/12 vs 3/12** protiv
+DHMZ mjerenja. Stari sloj je ZAKOMENTIRAN, ne obrisan.
+
+Dodane **web kamere (Windy)** ispod karte — slike, ne video (dokazano).
+Dodano **mjereno stanje neba**: DHMZ opis pobjeđuje model do 25 km, uz
+vlastiti razred **3.5 „pretežno oblačno"** (WMO ima 4 stupnja, DHMZ 5).
+Ambijent dobio četiri gustoće oblaka i količinu oborine po jačini; noćne
+palete za kišu/snijeg/grmljavinu. Tražilica: županija u podnaslovu i
+kratica „Sv" → „Sveti"/„Sveta".
+
+**Pouka dana:** pet krugova popravaka, i svaki koji NIJE bio izmjeren pao
+je na uređaju — ime sheme boja nije njezina paleta, `sizes` nisu adrese,
+a popravak u funkciji koju nitko ne zove prolazi testove i ne radi.
 
 **8.9.2026. — splash, ikone u zaglavlju, GPS na prvi dodir, rečenica
 ugašena.** Android splash je dobio tamnu pločicu (nativno — traži
@@ -43,12 +55,12 @@ zaslonu u 270° luk s točkom.
 
 | Što | Status | Bilješka |
 |---|---|---|
-| **Provjera na uređaju — 9.9.: `Radar+` nakon 2. kruga popravaka** | **Čeka Marka, reload** | Boje sad shema 2 („Universal Blue", ISTA koju RainViewer koristi — jedina uz 14 bez zelenog, izmjereno histogramom); pločica 256 px (512 je bio 5× sporiji); izlaz s karte kroz `back()` + brava od dvostrukog dodira. Gledati: budućnost desno od „sada", boje na nevremenu, zoom do z=12, brzina, izlaz na prvi dodir |
-| **Radar+ vs Radar — odluka o zamjeni** | **Otvoreno, Markova odluka** | Radar+ je BOLJI po svemu izmjerenom: točnost 9/12 vs 3/12 (DHMZ, 9.9.), budućnost +60 min vs 0, zoom z=11 vs z=7, boja alfa 255 vs 76. Stari radar ostaje samo radi usporedbe. Ako Radar+ prođe na uređaju → kandidat da RainViewer ispadne |
+| **Provjera na uređaju — 9.9. (VELIKI popis)** | **Čeka Marka, reload** | Sve je JS. **Radar:** LibreWXR je sad JEDINI, zove se „Radar", boje shema 2, pločica 256 px, atribucija „LibreWXR". **Kamere:** sekcija ispod karte, najbliža kamera, Polača→Tkon 13.3 km, Pridraga→Seline 16.3 km. **Nebo:** mjereni DHMZ opis do 25 km, „pretežno oblačno" ima svoj razred. **Ambijent:** 4 gustoće oblaka, količina oborine po jačini, noćne palete kiša/snijeg/grmljavina, djelomično oblačno sivlje. **Ikone:** kod 1 ima oblak, ikona uz opis na heroju. **Tražilica:** županija u podnaslovu, „Sv Filip i Jakov" radi. **Karta:** izlaz na prvi dodir i pri ponovnom ulasku. Detalji u zapisu `2026-09-09-kamere-nebo-radar-zamjena.md` |
+| **Kamere: „ista obala prije otoka"** | Otvoreno, Markova odluka | Za Polaču je najbliži **Tkon 4.2 km zrakom, ali preko kanala na Pašmanu**; Pakoštane su na istoj obali (6.2 km). Pravilo „najbliža" to ne razlikuje, a Windy ne daje podatak o kopnu/otoku. Odlučiti je li bitno nakon što se vidi slika |
 | **Provjera na uređaju — 8.9.: splash, ikone, GPS** | **Čeka Marka** | Splash traži REBUILD (nativni resurs, reload ga ne pokazuje); ikone u zaglavlju po nebu; GPS na prvi dodir u tražilici |
-| **Provjera na uređaju — 7.9.: sheet detalja dana + lista** | **Čeka Marka, reload** | Sheet iz 14-dnevne liste NAKON 2. POPRAVKA layouta (neprovjeren!); siva „0 %" umjesto crtice; highlight retka na dodir (proširen u padding kartice). Haptika je u kodu ali NE RADI do novog builda (čuvani require). Typecheck/350/export čisti |
+| **Provjera na uređaju — 7.9.: sheet detalja dana + lista** | **Čeka Marka, reload** | Sheet iz 14-dnevne liste NAKON 2. POPRAVKA layouta (neprovjeren!); siva „0 %" umjesto crtice; highlight retka na dodir (proširen u padding kartice). Haptika je u kodu ali NE RADI do novog builda (čuvani require) |
 | **Novi dev buildovi (haptika + widget prsten)** | **Otvoreno, nakon provjere** | `expo-haptics` je nativni modul (buildovi 13/4 su BEZ njega), a novi lock-screen prsten je widget kod koji se čita iz builda — reload ih NE donosi. Jedan iOS + jedan Android build pokriva oboje; potom TestFlight |
-| **Provjera na uređaju — JS izmjene od 6.9.** | **Čeka Marka, reload** | Pelud (Zadar/Zagreb VISOKA ko Štampar; koprive/trputac u listi; napomena „Izmjereno peludomjerom"; `danas · sutra · datum`), Android donji rub (početna, pelud, ladica, svi podekrani), karta (dugmad dana, klizač po danu, play po danu, atribucija goli tekst iznad legende), ime mjesta („Zadar", ne županija). Sve prošlo typecheck/350 testova/export — vizualno tek na uređaju |
+| **Provjera na uređaju — JS izmjene od 6.9.** | **Čeka Marka, reload** | Pelud (Zadar/Zagreb VISOKA ko Štampar; koprive/trputac u listi; napomena „Izmjereno peludomjerom"; `danas · sutra · datum`), Android donji rub (početna, pelud, ladica, svi podekrani), karta (dugmad dana, klizač po danu, play po danu, atribucija goli tekst iznad legende), ime mjesta („Zadar", ne županija). Sve prošlo typecheck/testove/export — vizualno tek na uređaju |
 | **TestFlight (prvi upload)** | **Sljedeći korak, 1 build** | Production build je ZASEBAN od dev builda (dev ne može na TestFlight; production ima ZAPEČEN JS). `--auto-submit` je upload, ne treći build. Upute u Next Step |
 | **Zahtjev Štamparu za ponovnu uporabu** | Otvoreno, Markova odluka | Jedini pravno čist put do mjerene peludi u produkciji. Štamparovi uvjeti se pozivaju na Pravilnik o ponovnoj uporabi informacija javnog sektora i traže zahtjev; kontakt `info@stampar.hr`. Do tada Štampar ostaje SAMO u razvoju |
 | Pelud: CAMS pragovi ostalih vrsta | Otvoreno, čeka sezonu | Ambrozija baždarena na 2 grada × 3 dana (5/6). Breza/joha/maslina/trave NISU mjerene — nije sezona; na proljeće očekivati isti pomak kao kod ambrozije. Treći grad bi rekao je li omjer CAMS/mjerenje regionalan |
@@ -62,7 +74,8 @@ zaslonu u 270° luk s točkom.
 | Traka sati u srednjem widgetu | Open, neodlučeno | Podaci već idu u `updateTimeline`; pitanje ikona (SF Symbols su Appleov jezik) |
 | Domet regije: kod 90 km, stari zapis 130 | Open, nije greška | `REGION_RANGE_KM = 90` u `useWarnings.ts`; odlučiti broj |
 | Polača tip / 14-dnevni min-max korekcija | Open | Bez gušćeg mjerenja se ne rješava; `debiasDaily` radi, mjerenje se ne primjenjuje na dnevne |
-| Vremenske vijesti / web kamere | Open / odgođeno | DHMZ ima vijesti; kamere čekaju čist izvor |
+| Vremenske vijesti | Open / odgođeno | DHMZ ima vijesti. (Web kamere su RIJEŠENE 9.9. — Windy, vidi zapis) |
+| **Rainbow.ai: radar +4 h u budućnost** | Otvoreno, treba ključ | Jedini izvor koji nudi 4 h (LibreWXR daje 1 h jer je optical-flow ekstrapolacija). Uvjeti su čisti (izričito dopuštaju distribuciju kroz aplikaciju). ALI: pločice traže ključ (401 bez njega, pa se pokrivenost nad HR ne može provjeriti unaprijed), a kvota od **30 000 pločica/mj je ~2 korisnika** — jedna sesija s play-om ≈ 450 pločica. Za testiranje da, za javno izdanje ne |
 
 ## Next Step
 
@@ -77,12 +90,27 @@ Oba builda su instalabilna i aktualna: iOS
 Android [`05b82ab9`](https://expo.dev/accounts/mprtenja/projects/burin/builds/05b82ab9-28ee-46bc-8495-1dbd14c61791).
 Dev build ne zamrzava JS — svaka daljnja JS izmjena stiže reloadom.
 
-Što gledati: popis u Current Status, prva TRI reda (7.9.: sheet detalja
-dana, „0 %", highlight; 6.9.: pelud, rub, karta, ime mjesta). Haptika i
-NOVI 270° prsten na zaključanom zaslonu se reloadom NE VIDE — žive u
-buildu, čekaju nove dev buildove.
+**VAŽNO: `.env` mora imati `EXPO_PUBLIC_WINDY_API_KEY`, a Metro se pali s
+`-c`** — `EXPO_PUBLIC_*` se zapeče pri pakiranju, ne čita se u letu. Bez
+ključa sekcija kamera se NE PRIKAZUJE (namjerno).
 
-Radni tijek: Marko gleda, javi što bode, popravlja se odmah.
+Što gledati: popis u Current Status, prvi red je popis od 9.9. Redom po
+prioritetu:
+
+1. **Radar** — budućnost desno od „sada" (6 okvira, oznaka „prognoza"),
+   boje na nevremenu, zoom do z=12, brzina učitavanja
+2. **Kamere** — Polača i Pridraga MORAJU imati kameru; Zadar samo svoje
+3. **Nebo** — kad DHMZ mjeri „pretežno oblačno", app to i piše
+4. **Pregled pozadina** (Postavke → *Pregled pozadina po vremenu*) —
+   cijeli niz naoblake 0→1→2→3.5→3, kiša/snijeg noću, gustoća po jačini
+5. **Karta** — izlaz na prvi dodir, pa ponovni ulazak i opet izlaz
+
+Haptika i NOVI 270° prsten na zaključanom zaslonu se reloadom NE VIDE —
+žive u buildu, čekaju nove dev buildove.
+
+Radni tijek: Marko gleda, javi što bode, popravlja se odmah. **Pouka od
+9.9.: svaki vizualni „popravak" mjeriti (piksele, kontrast, HTTP), ne
+procijeniti** — pet krugova je palo na procjeni.
 
 ### 2. TestFlight (prvi upload) — JEDAN dodatni build
 
@@ -126,9 +154,20 @@ Sastaviti zahtjev za ponovnu uporabu informacija prema NZJZ Štampar
 | **Radar+ je TOČNIJI od starog radara: 9/12 vs 3/12** (DHMZ, 9.9.2026.) | RainViewer nije vidio NI JEDNU od pet postaja gdje je kiša stvarno padala (Krapina, Rab, Senj, Puntijarka, Zavižan) — ne koristi OPERA mrežu na kojoj su hrvatski radari. **Metodološka pouka:** prva verzija provjere gledala je samo velike gradove i zaključila da OBA lažu; postaje se biraju po tome GDJE PADA, ne po veličini |
 | **Stari radar je „brži" jer nosi 39× MANJE podataka, ne zato što je bolji** | Markovo pitanje. Izmjereno (z=8 nad Zadrom): RainViewer **1 kB / 10 boja**, Radar+ **39 kB / 1415 boja**. Od z=8 RainViewer pada na 1 kB — to je onaj zid (podaci staju na z=7). Latencija je 44 vs 131 ms, dakle ne osjeti se; osjeti se ukupan broj bajtova × pločica × 3 okvira. Radar+ je čak NA CDN-u (`cf-cache-status: HIT`), RainViewer nije. Više podataka je upravo ono zbog čega je točniji — ne popravlja se smanjivanjem |
 | **Veličina pločice se NE prepisuje između izvora** (`tileSize` 256 za Radar+, 512 za radar) | 512 je RainVieweru nužan jer mu podaci staju na z=7 — veća pločica je jedini način da rastezanje ne izgleda mutno. LibreWXR ima z=11 i tu potrebu nema; s 512 je bio **3.0 s vs 0.64 s po pločici** (Markov nalaz „20ak sec da učita"). „Kad pustim play tek radi" je isti uzrok: prvi prolaz grije poslužiteljev keš (ponovno 0.09 s) |
+| **MJERENO stanje neba pobjeđuje model, domet 25 km, NAJBLIŽA postaja** (`useWeatherBundle`) | Markov nalaz s prozora: app je pisala „djelomično oblačno" dok je DHMZ na zadarskoj postaji MJERIO „pretežno oblačno". `conditionText` se dohvaćao od početka, ali se prikazivao SAMO u kartici „Mjerenja u blizini" — heroj je vozio model. Isto načelo koje projekt već ima za temperaturu (i za koje stoji zapis o Roču/Pazinu). Domet je UŽI od 60 km za temperaturu jer je naoblaka ZAKRPASTA, a bira se NAJBLIŽA postaja jer se opisi ne prosječuju („vedro" + „oblačno" ≠ „umjereno oblačno"). Tablica preslikavanja je iz PRAVOG feeda (13 opisa na 66 postaja) jer DHMZ ne objavljuje šifrarnik; opisi VJETRA („lahor") vraćaju `undefined` i prepuštaju modelu |
+| **Popravak u funkciji koju NITKO NE ZOVE prolazi testove i ne radi** | Prvi popravak mjerenog neba napisan je u `correctWithObservation` — a `useWeatherBundle` sam sastavlja `current` iz `observationDelta` + `correctHourly`, pa je ta funkcija dostupna SAMO testovima. Testovi zeleni, app nepromijenjena. Pravilo: pri promjeni toka podataka provjeriti `grep` da funkcija ima pozivatelja IZVAN testova |
+| **Vlastiti razred 3.5 „pretežno oblačno" (WMO ima 4 stupnja, DHMZ 5)** (`weatherCodes.ts`) | Prvi popravak je „pretežno oblačno" sveo na WMO 3 („Oblačno"), na što je Marko odmah rekao da app govori VIŠE nego mjerenje. Između 2 i 3 nema koda. Razlomak, a ne slobodan cijeli broj: sam po sebi kaže da je između, ne može se zamijeniti s WMO kodom koji jednog dana dobije značenje, a `code >= 3` ga uključuje dok `code === 3` ne. **OPASNOST koju uvodi:** sve grane po naoblaci bile su `code === 3`, pa je 3.5 propadao do `code <= 1` i dobivao SUNČANI gradijent na oblačnom nebu — isti kvar na PET mjesta (`paletteKey`, `widgetData`, dvije u `iconNames`, `quips`). Svaka usporedba s naoblakom mora biti RASPON |
+| **Ambijent: četiri gustoće oblaka i količina oborine po jačini** (`cloudDensity`, `DENSITY_BY_INTENSITY`) | Markov nalaz „na djelomično imam dojam da je praktički full sunce": pretežno vedro (1) i djelomično (2) dijelili su `sparse`, a 3.5 i 3 `full` — dvije razine za četiri stanja. Sad `sparse`/`medium`/`dense`/`full` (3/4/5/5 oblaka), `cloudDensity(code)` je izvor istine umjesto zaključka „ima zraka → rijetko". Isto za oborinu: jačina je mijenjala SAMO brzinu, pa pljusak nije imao više kapi od rosulje — `DENSITY_BY_INTENSITY` daje 40/70/100 % popisa. Reže se `thin`-om, koji vraća IZVORNE elemente pa čestica čuva položaj i fazu (to je isto svojstvo koje je riješilo vodoravni prazni „val"). **Usput nađeno: `RaysLayer` je `density` primao i NIJE ga čitao od 8.8.** — zrake su bile svih 15 na svakom sunčanom nebu |
+| **Svako vrijeme ima NOĆNU paletu** (`nightRain`, `nightSnow`, `nightThunder`) | Kiša, snijeg i grmljavina dijelile su jednu paletu za dan i noć, dok su oblaci i vedro noć već razlikovali. Izmjereno: dnevna `rain.light` je noću davala bijelom tekstu **1.87:1** na dnu — nije „svijetlo", nego nečitljivo. Nove tri su IZMEĐU oblačne noći i dnevnih, po Markovu opisu „dojam mračne kiše, al ne kao tamna jer ne želimo onu crninu dolje": dno noćne kiše je mjerljivo svjetlije od dna oblačne noći, sve ≥ 4.65:1 |
+| **WMO 1 („pretežno vedro") NIJE golo sunce** (`weatherCodes`, `iconNames`) | Markov nalaz: traka sati je u 17 h crtala SUNCE uz 29° i 2 %, pa u 18 h odjednom oblak. Open-Meteo daje kod 1 i za **~45 % naoblake**, a ikona je bila `SunDim` — prigušeno sunce BEZ oblaka, na 21 px nerazlučivo od vedrog. Kod 1 sad dijeli `CloudSun`/`CloudMoon` s kodom 2; razlika ostaje u NAZIVU i u gustoći ambijenta. Widget je imao isti kvar (`code <= 1` → „sun") |
+| **Open-Meteo geokodiranje traži SAMO PO PREFIKSU punog imena** (`expandQuery`) | Izmjereno: „Sveti Filip i Jakov" nalazi mjesto, a **„Sv Filip i Jakov", „Sv. Filip i Jakov", „Sv Juraj", „Sv Nedelja" i „Filip i Jakov" vraćaju NULU**. Kratica je na tablama pa je korisnik piše prvu. `expandQuery` širi samostalno „Sv"/„Sv." u OBA roda (ima ih oba) i traži ih UZ izvorni upit; rezultati se spajaju po `id`, izvorni ide prvi pa određuje redoslijed, svako proširenje hvata svoju grešku. Što samo POČINJE na „sv" („Svetvinčenat") ostaje jedan poziv |
+| **Tražilica pokazuje ŽUPANIJU, ne samo državu** (`placeSubtitle`) | Marko je odabrao Vranu na Cresu umjesto one uz Vransko jezero — oba reda su pisala „Vrana · Hrvatska". Open-Meteo je `admin1` vraćao cijelo vrijeme, mapper ga je bacao. Isti problem ima Polača (Zadarska i Šibensko-kninska, plus Mala i Velika). Pravilo je opće („Bayern · Njemačka"); regija jednaka imenu se preskače (ne „Wien · Wien") |
 | **Ime sheme boja NIJE njezina paleta — boje se mjere pikselima** | Dva promašaja u istom danu: shema 1 („Rainviewer Original") odabrana po IMENU → zelena; shema 10 („Viper HD") odabrana uz moju tvrdnju da nema zelenog → **izmjereno `rgb(19,160,65)` nad Zagrebom, dakle ZELENA na slaboj kiši** (najčešći slučaj). Tek histogram cijele palete dao je odgovor: samo **2 („Universal Blue") i 14 („Windy")** izbjegavaju zeleno, a 2 je ono što RainViewer koristi — pa zadovoljava „bez zelenog" I „slično radaru" odjednom. Jakost po TAMNINI, ne po tonu |
 | **Izlaz s karte ide `router.back()`, ne `navigate("/")`; + brava od dvostrukog dodira** | `navigate` tretira početnu kao NOVU metu pa Drawer gradi zaslon i vrti prijelaz (Markov nalaz „treba mu sekundu"). `back()` samo odbacuje kartu i otkriva zaslon montiran ispod. Drugi dio pritužbe je zaseban kvar: bez brave drugi dodir ide JEDAN ZASLON DALJE, a na početnoj je gore lijevo tražilica — odatle „slučajno stisne search". Brava je `useRef` (ne stanje — čita se i piše u istom kadru), otpuštena pri montiranju jer karta kao Drawer zaslon preživi izlaz. Play se gasi pri izlasku |
-| **Web kamere: put je Windy, NE WhatsUpCams** (otvoreno, nije rađeno) | WhatsUpCams **nema javni API** (`/api`, `/en/api` → 404, `api.whatsupcams.com` se ne razrješava); njihove 200+ hrvatskih kamera se distribuiraju KROZ Windy. Uz to LiveCamCroatia tvrdi izključna prava za HR kamere i traži **pismeno dopuštenje** — isti obrazac na kojem je odbijena Pliva. Windy free tier IZRIČITO dopušta mobilnu app uz navođenje Windyja; Professional je €9.990/god. Free: niska rezolucija, URL-ovi ISTIČU za 10–15 min (ne mogu se spremati → kamere ne rade offline), i usluga se ne smije staviti SAMO u plaćeni dio app-a |
+| **Web kamere: put je Windy, NE WhatsUpCams; i to su SLIKE, ne video** (`api/windyWebcams.ts`) | WhatsUpCams **nema javni API** (`/api`, `/en/api` → 404); njihove 200+ hrvatskih kamera distribuira Windy, ali samo kroz VLASTITI iframe player (Flowplayer + hls.js) — tuđi izgled u našoj app. Uz to LiveCamCroatia tvrdi izključna prava za HR kamere i traži **pismeno dopuštenje** — isti obrazac na kojem je odbijena Pliva. Windyjev „live" je pak ZADNJA SLIKA: njihov `playerType=live` poslužuje `.jpg` s `max-age=150`, nigdje `.m3u8`. Zato se sekcija zove „Kamere", ne „Live" — obećanje mora odgovarati stvari. Free tier IZRIČITO dopušta mobilnu app uz navođenje Windyja (Professional je €9.990/god); usluga se ne smije staviti SAMO u plaćeni dio |
+| **Windy token istječe za 10 min → ekran kamera ima VLASTITI upit** (`useWebcams`, `staleTime` 5 min) | Iznimka od pravila „ekran prima gotove podatke kroz parametre" (pelud, `widgetData`): proslijeđene adrese slika ne bi preživjele duže gledanje jer nose token koji nakon 10 min vraća 401. Ne istječe kamera nego LINK — novi se dobije običnim upitom, što Windy i preporučuje. Kroz parametre ide samo pozicija i ime mjesta. **Posljedica:** kamere su PRVI dio aplikacije koji bez mreže ne pokaže ništa (`lastWeather` posvuda drugdje preživi) |
+| **Kamere: prvo IME mjesta, pa udaljenost; bez svoje → TOČNO JEDNA najbliža bez granice** (`pickWebcams`) | Mjesto sa svojom kamerom pokazuje SAMO svoje (Zadar ne pokazuje Vir na 20 km — to rješava pravilo po imenu, ne kilometri). Prva verzija je susjede rezala na 12 km i time Polači (najbliža 13.3 km) i Pridragi (16.3 km) ODUZELA sekciju — rez je bio postavljen zbog Vira pod Zadrom, gdje nije ni trebao. Udaljenost nije razlog da se ništa ne pokaže; kartica je ionako ispiše. Domet traženja 25 km, pa 100 km kao drugi krug samo kad prvi ne da ništa |
+| **Windy `images.sizes` su DIMENZIJE, ne adrese** | Najskuplja greška 9.9.: parser je čitao `sizes.preview.url`, dobivao `undefined`, kartica bez slike pokazivala prazno stanje → **„nema kamera" za Polaču iako je API vratio deset**. Adrese su SAMO u `images.current` i `images.daylight`; `preview` (400×224) je najveća veličina koju v3 daje. Iz istog odgovora naučeno: Windy vraća i NEAKTIVNE kamere (slika stara danima laže gore nego prazan okvir) i po pet kamera istog mjesta → najviše jedna po mjestu. Fixture u testu je od tada isječak PRAVOG odgovora |
 | **Detalji dana = SHEET (`formSheet` [0.75, 1]), ne harmonika u listi** (`day.tsx`, `useDayDetails`) | Pritužbe „otvori se podsekcija i skroz se izgubim": otvoreni red se nije razlikovao od susjeda, panel se otvarao ispod pregiba, a drugi otvoreni dan odskakivao je listu. Sheet: lista stoji, naslov kaže dan, čipovi prebacuju dan bez zatvaranja. Podaci kroz MEMORIJSKI zustand store (referenca, bez persista) — `hourlyAll` ~69 kB ne smije u parametre navigacije; kroz parametar ide samo `date`. Isto pravilo kao pelud: sheet je čisti prikaz |
 | **formSheet sadržaj je UGOVOR s RNS-om: najviše header (`collapsable={false}`) + JEDAN ScrollView** | Nativni iOS kod (`RNSScreen.mm`/`RNSScreenContentWrapper.mm`) SAM nađe ScrollView u sadržaju i rukom mu postavi frame na veličinu sheeta MIMO Yoge (vlastiti TODO: na Fabricu završi na (0,0)). S tri brata (zaglavlje + čipovi + sadržaj) korekcija zgrabi krivi ScrollView — čipovi razvučeni preko naslova; `flexGrow: 0` sam NIJE pomogao jer native pregazi layout. Uz to: RN ScrollView (i VODORAVNI) nosi ugrađen `flexGrow: 1` — u omeđenom stupcu obavezan `flexGrow: 0` (RNS #2992, #3092) |
 | 14-dnevna lista: siva „0 %" umjesto crtice; highlight retka na dodir s bleedom u padding kartice | Crtica je starijim korisnicima dvosmislena (nula? nema podatka?); nula ostaje prigušena (`/25`) pa koraljna i dalje vodi oko po stupcu. Traka sati na početnoj ostaje PRAZNA ispod 1 % — okomiti prostor pod ikonom je skup. Highlight kroz `onPressIn/Out` + stanje (pravilo: `pressed` ne radi uz NativeWind) s `-mx-2.5 px-2.5` — bez bleeda highlight završava „skroz do ruba broja" |
@@ -204,7 +243,7 @@ Sastaviti zahtjev za ponovnu uporabu informacija prema NZJZ Štampar
 ```bash
 npx expo start --dev-client   # dev server; JS izmjene idu reloadom, BEZ rebuilda
 npm run typecheck             # tsc --noEmit
-npm test                      # jest, 350 testova u 29 skupina
+npm test                      # jest, 437 testova u 35 skupina
 node scripts/generate-widget-icons.mjs  # 20 ikona widgeta (traži sharp)
 npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 npx expo run:android          # nativni dev build
@@ -265,12 +304,15 @@ nosi `past_days=1, forecast_days=4` (5 dana); `dayJumps` daje dugmad
 `playRange` u `map.tsx` vrti odabrani dan. OWM pločice se mijenjaju svaka
 3 h, vjetar svaki sat.
 
-**DVA radarska sloja** (9.9.2026.): `radar` (RainViewer, samo prošlost) i
-`radar_plus` (LibreWXR, +60 min). Oba klijenta vraćaju IDENTIČAN oblik
-(`{host, frames}` s `isNowcast`), pa `map.tsx` bira izvor na jednom mjestu
-(`isRadarPlus ? libre : radar`) i crta/player/pločice rade bez izmjene —
-oznaka „prognoza" i sidro „sada" su već postojali. `useLibreFrames(enabled)`
-se traži SAMO kad je sloj odabran, keš 10 min (javna instanca bez SLA).
+**Radar je LibreWXR** (9.9.2026.): `radar_plus` je JEDINI radarski sloj i
+zove se „Radar"; stari `radar` (RainViewer) je ZAKOMENTIRAN u `MAP_LAYERS`,
+a klijent `rainviewer.ts`, hook `useRadarFrames` i grana u `mapLayerTileUrl`
+ostaju netaknuti (vraćanje = otkomentiravanje jednog unosa). Oba klijenta
+vraćaju IDENTIČAN oblik (`{host, frames}` s `isNowcast`), pa `map.tsx` bira
+izvor na jednom mjestu i crta/player/pločice rade bez izmjene — oznaka
+„prognoza" i sidro „sada" su već postojali. **Izvor okvira i unos sloja se
+moraju poklapati** (pločica se gradi iz `host` tog izvora) — i u
+`RadarPreviewCard` na početnoj.
 
 **Izgled**: `weatherLook.ts` je izvor istine — `weatherGradient` (plavo nebo,
 isto kao widget), `backdropEffects` (WMO 1 = zrake + rijetki oblaci; grmljavina
@@ -287,6 +329,21 @@ nad pragovima. **Štampar** (`api/stampar.ts`) je razvojni izvor: u
 `useWeatherBundle` drugi upit `enabled: __DEV__ && !!nearestStamparCity`
 (≤ 40 km), ključ po gradu, keš 6 h; kad vrati dane, zamjenjuje CAMS-ove.
 Ekran peludi i kartica čitaju `day.graded` i `day.source` (napomena).
+
+**Web kamere** (9.9.2026.): `windyWebcams.ts` → `useWebcams(lat, lon, name)`
+→ `WebcamCard` u sekciji ispod karte, i `app/(screens)/cameras.tsx` za
+popis (otvara se SAMO kad mjesto ima više od jedne vlastite kamere).
+`pickWebcams` bira po IMENU pa po udaljenosti; bez ključa
+(`EXPO_PUBLIC_WINDY_API_KEY`) sekcije nema. **Iznimka od pravila o
+parametrima:** ekran ima vlastiti upit jer token slike istječe za 10 min
+(vidi Recent Decisions). Slike, ne video.
+
+**Mjereno nebo** (9.9.2026.): `dhmzTextToCode` u `weatherCodes.ts`
+preslikava DHMZ opis („pretežno oblačno") u WMO kod, uz vlastiti razred
+**3.5**. Primjenjuje se u `useWeatherBundle` gdje se `current` sastavlja —
+najbliža postaja do `CONDITION_RANGE_KM` (25) pobjeđuje model. Svaka
+usporedba s naoblakom u kodu mora biti RASPON (`code >= 3 && code < 4`), ne
+`=== 3`.
 
 **Lokacija**: `placeNameFrom` u `useLocation` bira ime mjesta iz reverse
 geocodea i ODBIJA upravne jedinice (sufiksi županija/county/Landkreis…).
@@ -317,17 +374,20 @@ se odgađa `InteractionManager`-om iza prijelaza.
 app/_layout.tsx       Drawer (ladica zdesna); useRefreshSavedCities u korijenu
 app/(screens)/        Stack: index (korijen), search, warnings, pollen,
                       day (sheet detalja dana iz 14-dnevne liste),
+                      cameras (popis web kamera u blizini),
                       preview, settings, sources — swipe-back radi jer je
-                      početna korijen stacka; search/pollen montiraju liste
-                      kadar nakon ekrana
+                      početna korijen stacka; search/pollen/cameras montiraju
+                      liste kadar nakon ekrana
 app/map.tsx           fullscreen karta, izvan stacka
 src/api/              openMeteo (+fetchCurrentBatch, pollenDaysFromHourly), dhmz,
                       meteoalarm(+Europe), rainviewer, owm, mapLayers, windGrid,
                       windStyle, bias, weather, client (+fetchText headers), types,
                       stampar (RAZVOJNI izvor peludi; __fixtures__/stampar-zagreb.html
                       je isječak prave stranice za test parsera),
-                      librewxr (DRUGI radar `Radar+` — nowcast +60 min,
-                      blizanac rainviewera jer je oblik odgovora isti)
+                      librewxr (JEDINI radar od 9.9. — nowcast +60 min,
+                      blizanac rainviewera jer je oblik odgovora isti),
+                      windyWebcams (web kamere; hasWindyKey, pickWebcams —
+                      slike, ne video)
 src/store/            settings, cities, lastWeather (+refreshCurrent),
                       searchHistory, mapTimeline, dayDetails (memorijski
                       izvor za sheet detalja dana, bez persista)
@@ -336,17 +396,21 @@ src/components/       Hero, HeroBackdrop, QuipLine (domaća rečenica NA
                       Compass/PressureGauge), WarningBar, Wordmark, WindFlag,
                       MapPin, Skeleton, SunCycle, DailyList, DayDetails,
                       DhmzCard, MapTimeline (+dayJumps, klizač po danu),
+                      WebcamCard (najbliža kamera ispod karte),
                       LayerChips, LayerLegend...
 src/components/backdrop/  RaysLayer, RainLayer, SnowLayer, CloudsLayer,
-                      FogLayer, LightningLayer + shared.ts (IS_LOW_END, thin)
+                      FogLayer, LightningLayer + shared.ts (IS_LOW_END, thin,
+                      SPEED_BY_INTENSITY + DENSITY_BY_INTENSITY)
 src/hooks/            useWeatherBundle (+Štampar upit iza __DEV__),
                       useRefreshSavedCities, useWarnings, useNow, useRadarFrames,
                       useTimelineHours, useWindGrid, useWindStyle,
-                      useLocation (+placeNameFrom), useBottomInset
-src/utils/            weatherCodes, weatherLook (+PollenGraded, 10 vrsta peludi),
+                      useLocation (+placeNameFrom), useBottomInset, useWebcams
+src/utils/            weatherCodes (+dhmzTextToCode, razred 3.5),
+                      weatherLook (+PollenGraded, 10 vrsta peludi,
+                      cloudDensity, noćne palete),
                       emmaRegions, quips (domaće rečenice o danu — dalmatinski,
                       zamjena za OBRISANI AI sažetak), format
-                      (+futureHours), geo, dayParts
+                      (+futureHours, placeSubtitle), geo, dayParts
 src/i18n/hr.ts        SVI UI stringovi (kanonski rječnik = izvor tipa)
 index.js              registrira Android widget zadatak pa diže expo-router
 src/widgets/          iOS: BurinWidget, widgetData (most, dijeli i Android),
