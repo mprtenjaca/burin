@@ -322,7 +322,33 @@ export async function fetchNearbyWebcams(
 ): Promise<Webcam[]> {
   if (!hasWindyKey()) return [];
 
-  const near = await fetchInRadius(lat, lon, WEBCAM_RANGE_KM);
+  /*
+   * DIJAGNOSTIKA U RAZVOJU, SAMO KAD NEMA REZULTATA (9.9.2026.).
+   *
+   * Povod: „ne pokazuju se kamere na Polači" — a ispalo je da tražilica
+   * zna vratiti DRUGO mjesto istog imena (Vrana na Cresu umjesto one uz
+   * Vransko jezero; Polača kod Knina umjesto one kod Biograda). Sekcija se
+   * skriva i za „nema kamera" i za pali poziv, pa se s ekrana ne vidi ni
+   * koje je mjesto pogođeno ni što je pošlo po zlu. Ovaj `warn` u Metro
+   * terminalu kaže koordinate, što je parser propustio i zašto je prazno.
+   *
+   * Namjerno NE loga uspjeh: kamere se traže pri svakoj promjeni mjesta i
+   * svakih 5 min, pa bi to bio šum. Isti obrazac kao `[burin] widget nije
+   * osvježen:` — glas samo kad nešto ne štima. U produkciji se ne izvršava.
+   */
+  const tag = `[burin] kamere „${placeName || "?"}" (${lat.toFixed(3)}, ${lon.toFixed(3)})`;
+  const describe = (list: Webcam[]) =>
+    list.length === 0
+      ? "ništa"
+      : list.map((w) => `${w.title} ${w.distanceKm.toFixed(1)} km`).join(", ");
+
+  let near: Webcam[];
+  try {
+    near = await fetchInRadius(lat, lon, WEBCAM_RANGE_KM);
+  } catch (err) {
+    if (__DEV__) console.warn(`${tag}: poziv PAO — ${err instanceof Error ? err.message : String(err)}`);
+    throw err;
+  }
   const picked = pickWebcams(near, placeName);
   if (picked.length > 0) return picked;
 
@@ -330,8 +356,22 @@ export async function fetchNearbyWebcams(
    * Širi krug SAMO kad bliži ne da ništa upotrebljivo — mjesta bez
    * vlastite kamere i bez susjeda unutar 12 km. `pickWebcams` i tu reže,
    * pa širi upit ne znači i širi prikaz: ako ni ovdje nema ništa unutar
-   * 12 km, kartica pokaže „nema kamera u blizini", što je istina.
+   * 12 km, sekcija se na početnoj ne prikaže, što je istina.
    */
-  const wide = await fetchInRadius(lat, lon, WEBCAM_RANGE_WIDE_KM);
-  return pickWebcams(wide, placeName);
+  let wide: Webcam[];
+  try {
+    wide = await fetchInRadius(lat, lon, WEBCAM_RANGE_WIDE_KM);
+  } catch (err) {
+    if (__DEV__) console.warn(`${tag}: širi poziv PAO — ${err instanceof Error ? err.message : String(err)}`);
+    throw err;
+  }
+  const pickedWide = pickWebcams(wide, placeName);
+  if (__DEV__ && pickedWide.length === 0) {
+    console.warn(
+      `${tag}: prazno — vlastite kamere nema, unutar ${NEIGHBOUR_MAX_KM} km ništa. ` +
+        `Nakon parsera, ${WEBCAM_RANGE_KM} km: ${describe(near)}; ${WEBCAM_RANGE_WIDE_KM} km: ${describe(wide)}. ` +
+        `Provjeri je li ovo PRAVO mjesto (istoimena mjesta: Vrana, Polača…).`,
+    );
+  }
+  return pickedWide;
 }
