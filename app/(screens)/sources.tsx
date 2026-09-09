@@ -18,10 +18,20 @@ const SOURCES = [
     desc: t.sources.openMeteoDesc,
     url: "https://open-meteo.com",
   },
+  /*
+   * LibreWXR umjesto RainViewera od 9.9.2026. — RainViewer je ukinuo
+   * nowcast 1.1.2026. i zakomentiran je u `MAP_LAYERS`. Podaci CC-BY-4.0,
+   * pa je navođenje izvora obveza, ne uljudnost.
+   */
   {
-    name: t.sources.rainviewerName,
-    desc: t.sources.rainviewerDesc,
-    url: "https://www.rainviewer.com",
+    name: t.sources.librewxrName,
+    desc: t.sources.librewxrDesc,
+    url: "https://librewxr.net",
+  },
+  {
+    name: t.sources.windyName,
+    desc: t.sources.windyDesc,
+    url: "https://www.windy.com/webcams",
   },
   {
     name: t.sources.owmName,

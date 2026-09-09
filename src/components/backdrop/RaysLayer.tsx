@@ -172,16 +172,28 @@ export const RaysLayer = memo(function RaysLayer({
    * disanje i dalje čita kao nepravilno, a montira se 4 sloja umjesto
    * 15 — prijelaz na novi grad time prestaje štecati.
    */
+  /*
+   * MANJE ZRAKA UZ OBLAKE (9.9.2026., Markov zahtjev: „djelomično oblačno
+   * manje zraka ovih, logično"). `density` je do sada stizao u ovaj sloj
+   * i nije se čitao — zrake su bile svih 15 bez obzira na nebo, pa je
+   * djelomično oblačno imalo isto sunce kao vedro.
+   *
+   * `sparse` zadržava svaku DRUGU zraku (8 od 15) — sunce još vlada, ali
+   * je vidljivo oslabljeno oblacima. Preskakanje po indeksu, a ne
+   * rezanje s kraja, čuva raspored preko cijele širine; skupine se i
+   * dalje pune okruglo pa disanje ostaje nepravilno.
+   */
   const rayGroups = useMemo(() => {
     const groups: [number, number, number][][] = Array.from(
       { length: RAY_GROUPS },
       () => [],
     );
-    RAYS.forEach(([offset, w, opacity], i) => {
+    const rays = density === "sparse" ? RAYS.filter((_, i) => i % 2 === 0) : RAYS;
+    rays.forEach(([offset, w, opacity], i) => {
       groups[i % RAY_GROUPS]!.push([width - offset, w, opacity]);
     });
     return groups;
-  }, [width]);
+  }, [width, density]);
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, shift]} pointerEvents="none">

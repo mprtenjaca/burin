@@ -14,7 +14,7 @@ import { t } from "@/i18n";
 import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit, WindUnit } from "@/utils/format";
 import { clockTime, convertTemp, convertWind, futureHours, windUnitLabel } from "@/utils/format";
-import { backdropEffects, heroAccent, precipIntensity, readableOn, stripAccent, windStrength, type GradientStops } from "@/utils/weatherLook";
+import { backdropEffects, cloudDensity, heroAccent, precipIntensity, readableOn, stripAccent, windStrength, type GradientStops } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
 /** "čet 6.8." — red datuma gore lijevo. */
@@ -145,6 +145,7 @@ export function Hero({
         height={height}
         // Ambijent prati vrijeme: zrake / kiša / pahulje / magla.
         effects={backdropEffects(current.code, current.isDay)}
+        cloudDensity={cloudDensity(current.code)}
         // Rosulja jedva klizi, pljusak juri.
         intensity={precipIntensity(current.code)}
         scrollY={scrollY}

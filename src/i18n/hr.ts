@@ -287,8 +287,18 @@ export const hr = {
       "Prognoza vremena, kvaliteta zraka i pelud (CC BY 4.0). Pelud je CAMS model, ne mjerenje — orijentacijska vrijednost",
     meteoalarmName: "Meteoalarm — DHMZ upozorenja",
     meteoalarmDesc: "Vremenska upozorenja za Hrvatsku (CC BY 4.0)",
+    /*
+     * RainViewer → LibreWXR 9.9.2026. Stari ključevi ostaju jer je sloj u
+     * `MAP_LAYERS` ZAKOMENTIRAN, ne obrisan — vraćanje ne smije tražiti
+     * i ponovno pisanje stringova.
+     */
     rainviewerName: "RainViewer",
     rainviewerDesc: "Radarske snimke oborina",
+    librewxrName: "LibreWXR — radar oborina",
+    librewxrDesc:
+      "Radarske snimke i prognoza oborina do 60 min (CC BY 4.0). Europa preko EUMETNET OPERA mreže",
+    windyName: "Windy — web kamere",
+    windyDesc: "Slike s kamera u blizini (zadnja snimka, ne video)",
     owmName: "OpenWeatherMap",
     owmDesc: "Dodatni slojevi karte (temperatura, naoblaka, vjetar, oborine)",
   },

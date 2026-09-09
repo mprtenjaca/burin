@@ -65,9 +65,22 @@ const PALETTES = {
    * DJELOMIČNO OBLAČNO prati vedro, samo malo tamnije — naoblaka nebo
    * PRIGUŠUJE, ne pretvara ga u drugu boju. Iste vrijednosti kao widget.
    */
+  /*
+   * SIVLJA PLAVA od 9.9.2026. (Markov zahtjev: „djelomično oblačno želi
+   * malo sivlju plavu pozadinu"). Prije je bila samo za nijansu tamnija
+   * od vedre (#4A7BA8 vs #4F86BC), pa se uz rijetke oblake čitala kao
+   * „praktički full sunce". Naoblaka ODUZIMA boju — zato je kroma
+   * spuštena (razmak plavog i crvenog kanala 94 → 62), ne samo svjetlina.
+   *
+   * Više NE dijeli boje s widgetom: widget je pločica koja se gleda u
+   * prolazu i ondje je poklapanje s vedrim bilo u redu; heroj je cijeli
+   * ekran i tu se razlika mora vidjeti. Test parnosti s widgetom zato
+   * više ne drži ovaj ključ.
+   */
   partlyDay: {
-    light: ["#4A7BA8", "#36628E", "#284D70"],
-    dark: ["#4A7BA8", "#36628E", "#284D70"],
+    // Vrh #557896: 4.65:1 na bijeli (izmjereno; #5A7E9C je bio 4.29 — pao).
+    light: ["#557896", "#476786", "#35506A"],
+    dark: ["#557896", "#476786", "#35506A"],
   },
   cloud: {
     light: ["#97A0A8", "#A9B2B9", "#BCC4CA"],
@@ -107,15 +120,70 @@ const PALETTES = {
     light: ["#282D38", "#343A47", "#434A5A"],
     dark: ["#333844", "#282C36", "#191C23"],
   },
+  /*
+   * KIŠA NOĆU (9.9.2026., Markov nalaz: „na svijetloj temi kiša po noći
+   * je isto svijetla pozadina… dojam mračne kiše, al ne kao tamna jer ne
+   * želimo onu crninu dolje").
+   *
+   * Namjerno IZMEĐU oblačne noći i dnevne kiše: tamnija od `rain.light`
+   * (#7E97AC) da se čita kao noć, ali SVJETLIJA od `nightCloudy`
+   * (#282D38) da dno ne padne u crno — kiša mora imati plavo-sivi ton
+   * kroz koji se kapi vide. Dno #4C6072 je ~2× svjetlije od oblačne noći.
+   *
+   * Bijeli tekst (izmjereno): vrh 11.1:1, sredina 9.0:1, dno 6.5:1. Stara
+   * dnevna `rain.light` je noću davala **1.87:1** na dnu — tekst se
+   * doslovno nije vidio, ne samo da je bilo „svijetlo".
+   */
+  nightRain: {
+    light: ["#2E3D4C", "#3A4B5D", "#4C6072"],
+    dark: ["#2A3846", "#223040", "#182430"],
+  },
+  /*
+   * SNIJEG NOĆU: hladnija i plavlja od kišne noći — snijeg nosi
+   * odsjaj, pa noć uz njega nije toliko mračna. Dno (#5A6E82) je
+   * svjetlije od noćne kiše da pahulje (bijele) i dalje imaju na čemu
+   * biti, a vrh je ipak noć. Bijeli tekst: vrh 9.5:1, dno 5.2:1.
+   */
+  nightSnow: {
+    light: ["#33445A", "#42566C", "#5A6E82"],
+    dark: ["#2E3E52", "#26344A", "#1A2536"],
+  },
+  /*
+   * GRMLJAVINA NOĆU: najtamnija noćna paleta, s ljubičastim tonom
+   * (crveni kanal malo iznad zelenog) koji dnevna `thunder` već nosi —
+   * bljesak na njoj ostaje čitljiv kao bljesak. Dno #3F4459 je dnevni
+   * VRH, pa noć izgleda kao dan koji je potonuo za jedan stop.
+   * Bijeli tekst: vrh 13.0:1, dno 8.6:1.
+   */
+  nightThunder: {
+    light: ["#242738", "#30334A", "#3F4459"],
+    dark: ["#282B3E", "#1F2130", "#141520"],
+  },
 } satisfies Record<string, Palette>;
 
 type PaletteKey = keyof typeof PALETTES;
 
 /** WMO kod + doba dana → obitelj palete. Nepoznat kod = oblačno. */
 function paletteKey(code: number, isDay: boolean): PaletteKey {
-  if (code >= 95 && code <= 99) return "thunder";
-  if (code >= 71 && code <= 86 && code !== 80 && code !== 81 && code !== 82) return "snow";
-  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
+  /*
+   * SVAKO vrijeme ima noćnu paletu od 9.9.2026. (Markov zahtjev: „daj
+   * noćnu verziju za snijeg isto, i ostalo di fali"). Do tada su
+   * grmljavina, snijeg i kiša danju i noću dijelile istu — svijetlu —
+   * paletu, pa je noćna oborina na svijetloj temi izgledala kao dan.
+   */
+  if (code >= 95 && code <= 99) return isDay ? "thunder" : "nightThunder";
+  if (code >= 71 && code <= 86 && code !== 80 && code !== 81 && code !== 82) {
+    return isDay ? "snow" : "nightSnow";
+  }
+  /*
+   * KIŠA NOĆU ima svoju paletu (9.9.2026.). Prije je `rain` bila ista
+   * danju i noću, pa je na svijetloj temi kiša po noći bila SVIJETLA —
+   * Markov nalaz s uređaja. Oblaci i vedro su noć već razlikovali
+   * (`nightCloudy`/`nightClear`), kiša i grmljavina nisu.
+   */
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) {
+    return isDay ? "rain" : "nightRain";
+  }
   /*
    * `code >= 3` (ne `=== 3`) zbog vlastitog razreda **3.5 „pretežno
    * oblačno"** iz DHMZ mjerenja (9.9.2026., vidi `weatherCodes.ts`).
@@ -138,6 +206,35 @@ export function weatherGradient(
 ): GradientStops {
   const palette = PALETTES[paletteKey(code, isDay)];
   return dark ? palette.dark : palette.light;
+}
+
+/** Gustoća oblaka u ambijentu — isti tip kao `density` u `shared.ts`. */
+export type CloudDensity = "full" | "dense" | "medium" | "sparse";
+
+/**
+ * Koliko oblaka crta ambijent za dani kod — IZVOR ISTINE za gustoću
+ * (9.9.2026.), umjesto zaključka „ima zraka → rijetko" u `HeroBackdrop`.
+ *
+ * Taj zaključak nije mogao razlikovati četiri stanja koja Marko traži:
+ *
+ *   1    pretežno vedro      sparse   dva-tri oblaka, jedva
+ *   2    djelomično oblačno  medium   vidno oblačno, sunce još vlada
+ *   3.5  pretežno oblačno    dense    gusti, ali nebo nije zatvoreno
+ *   3    oblačno             full     puno pokrivanje
+ *
+ * Pretežno vedro i djelomično oblačno bili su ISTA gustoća (oba imaju
+ * zrake), a pretežno oblačno i oblačno ISTA (oba nemaju). Nalaz s uređaja:
+ * „na djelomično imam dojam da je praktički full sunce". Referenca za
+ * djelomično je V&R-ov Benkovac uz „pretežno oblačno".
+ *
+ * Sve ostalo (kiša, grmljavina, noć) ostaje `full` — tamo je oblak
+ * pozadina oborine, ne stanje samo za sebe.
+ */
+export function cloudDensity(code: number): CloudDensity {
+  if (code === 1) return "sparse";
+  if (code === 2) return "medium";
+  if (code === 3.5) return "dense";
+  return "full";
 }
 
 /**
@@ -263,10 +360,14 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
      * kojih ovdje nema, pa oblačna masa ostaje gusta — što je i točno.
      */
     case "thunder":
+    case "nightThunder":
       return ["clouds", "rain", "lightning"];
+    // Noćne oborine: isti ambijent, druga podloga (vidi `night*` palete).
     case "rain":
+    case "nightRain":
       return ["rain"];
     case "snow":
+    case "nightSnow":
       return ["snow"];
     // Oblačno i obje noćne palete: mekane mrlje, bez sunca i oborine.
     default:

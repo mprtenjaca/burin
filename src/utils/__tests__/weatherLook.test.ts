@@ -3,6 +3,7 @@ import {
   ACCENT_STEEL,
   aqiInfo,
   backdropEffects,
+  cloudDensity,
   dewPoint,
   heroAccent,
   moonPhase,
@@ -76,9 +77,22 @@ describe("weatherGradient", () => {
    * `WIDGET_DARK_PALETTES` u `widgetData.ts`. Ako se ondje promijene, a
    * ovdje ne, ovaj test pada i time javlja da su se razišle.
    */
-  it("vedro i djelomično oblačno dijele boje s widgetom", () => {
+  it("vedro dijeli boje s widgetom", () => {
     expect(weatherGradient(0, true, false)).toEqual(["#4F86BC", "#3A6C9E", "#2B5780"]);
-    expect(weatherGradient(2, true, false)).toEqual(["#4A7BA8", "#36628E", "#284D70"]);
+  });
+
+  /**
+   * DJELOMIČNO OBLAČNO se od 9.9.2026. RAZIŠLO s widgetom, namjerno
+   * (Markov zahtjev: „malo sivlju plavu pozadinu"). Naoblaka oduzima
+   * boju — provjerava se KROMA (razmak plavog i crvenog kanala), ne
+   * svjetlina: djelomično mora biti sivlje od vedrog, a i dalje plavo.
+   */
+  it("djelomično oblačno je sivlje od vedrog, ali još plavo", () => {
+    const chroma = (h: string) => parseInt(h.slice(5, 7), 16) - parseInt(h.slice(1, 3), 16);
+    const sun = weatherGradient(0, true, false)[0]!;
+    const partly = weatherGradient(2, true, false)[0]!;
+    expect(chroma(partly)).toBeLessThan(chroma(sun) * 0.75);
+    expect(chroma(partly)).toBeGreaterThan(30);
   });
 
   it("vedra noć se razlikuje od vedrog dana", () => {
@@ -679,5 +693,76 @@ describe("razred 3.5 (pretežno oblačno) u izgledu", () => {
   it("ambijent je naoblaka", () => {
     expect(backdropEffects(3.5, true)).toEqual(backdropEffects(3, true));
     expect(backdropEffects(3.5, true)).not.toContain("rays");
+  });
+});
+
+describe("četiri gustoće oblaka (cloudDensity)", () => {
+  /**
+   * Markov nalaz 9.9.2026.: „na djelomično imam dojam da je praktički
+   * full sunce" i „za pretežno oblačno i oblačno, ovisno što je oblačnije,
+   * dodati još koji oblak". S dvije razine se to nije moglo: 1 i 2 su bili
+   * ista `sparse`, 3.5 i 3 ista `full`.
+   */
+  it("svaki stupanj naoblake ima SVOJU gustoću, rastuću", () => {
+    const order = ["sparse", "medium", "dense", "full"];
+    const got = [1, 2, 3.5, 3].map(cloudDensity);
+    expect(got).toEqual(order);
+    expect(new Set(got).size).toBe(4);
+  });
+
+  /** Kiša, grmljavina, noć: oblak je pozadina oborine — puna gustoća. */
+  it("ostala vremena ostaju puna", () => {
+    for (const code of [0, 45, 61, 63, 95, 71]) {
+      expect(cloudDensity(code)).toBe("full");
+    }
+  });
+});
+
+describe("kiša noću (nightRain)", () => {
+  /**
+   * Markov nalaz 9.9.2026.: „na svijetloj temi kiša po noći je isto
+   * svijetla pozadina". Izmjereno: stara dnevna paleta je noću davala
+   * bijelom tekstu 1.87:1 na dnu — tekst se nije vidio.
+   */
+  it("noćna kiša je tamnija od dnevne", () => {
+    const day = weatherGradient(63, true, false);
+    const night = weatherGradient(63, false, false);
+    expect(night).not.toEqual(day);
+    // Svaki stop noću tamniji nego danju (usporedba po luminanciji).
+    const lum = (h: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    for (let i = 0; i < 3; i++) expect(lum(night[i]!)).toBeLessThan(lum(day[i]!));
+  });
+
+  /**
+   * „Ne kao tamna jer ne želimo onu crninu dolje": dno noćne kiše mora
+   * biti SVJETLIJE od dna oblačne noći — kiša ima plavo-sivi ton.
+   */
+  it("ali nije crna kao oblačna noć", () => {
+    const lum = (h: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    const rainBottom = weatherGradient(63, false, false)[2]!;
+    const cloudyBottom = weatherGradient(3, false, false)[2]!;
+    expect(lum(rainBottom)).toBeGreaterThan(lum(cloudyBottom));
+  });
+
+  it("bijeli tekst ostaje čitljiv (≥ 4.5:1) na cijeloj visini", () => {
+    const lum = (h: string) => {
+      const [r, g, b] = [1, 3, 5]
+        .map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
+        .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    for (const stop of weatherGradient(63, false, false)) {
+      expect((1 + 0.05) / (lum(stop) + 0.05)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("ambijent ostaje kiša", () => {
+    expect(backdropEffects(63, false)).toEqual(["rain"]);
   });
 });

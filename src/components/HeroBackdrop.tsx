@@ -10,7 +10,7 @@ import { RaysLayer } from "@/components/backdrop/RaysLayer";
 import { SnowLayer } from "@/components/backdrop/SnowLayer";
 import { StarsLayer } from "@/components/backdrop/StarsLayer";
 import type { LayerProps } from "@/components/backdrop/shared";
-import type { BackdropEffect, GradientStops } from "@/utils/weatherLook";
+import type { BackdropEffect, CloudDensity, GradientStops } from "@/utils/weatherLook";
 
 /**
  * Pozadina heroja: DIJAGONALNI gradijent po vremenu + ambijentalni sloj
@@ -54,6 +54,7 @@ export const HeroBackdrop = memo(function HeroBackdrop({
   height,
   effects = ["rays"],
   intensity = "moderate",
+  cloudDensity = "full",
   scrollY,
 }: {
   stops: GradientStops;
@@ -69,6 +70,12 @@ export const HeroBackdrop = memo(function HeroBackdrop({
   effects?: BackdropEffect[];
   /** Jačina oborine — kiša i snijeg mijenjaju brzinu (`precipIntensity`). */
   intensity?: "light" | "moderate" | "heavy";
+  /**
+   * Gustoća OBLAKA — iz `cloudDensity(code)` (9.9.2026.). Prije se
+   * zaključivala ovdje iz „ima zraka → rijetko", što nije moglo razlikovati
+   * djelomično od pretežno vedrog ni pretežno oblačno od oblačnog.
+   */
+  cloudDensity?: CloudDensity;
   /**
    * Pomak skrola početne — ambijent se pomiče (paralaksa) dok hero
    * izlazi iz kadra. Bez njega su slojevi statični (npr. u pregledima).
@@ -136,14 +143,21 @@ export const HeroBackdrop = memo(function HeroBackdrop({
             scrollY={scrollY}
             intensity={intensity}
             /*
-             * Oblaci uz zrake su rijetki i blijedi — vidi CloudsLayer.
+             * OBLACI dobivaju gustoću iz `cloudDensity(code)` — četiri
+             * razine, vidi CloudsLayer.
              *
-             * Od 8.8.2026. isto vrijedi i za ZRAKE: kad stoje uz oblake
-             * (pretežno vedro), broj iskrica pada sa 16 na 7. S punim
-             * brojem je nebo bilo pretrpano i iskricama i oblacima.
+             * ZRAKE uz oblake su prorijeđene (`sparse` = svaka druga, 8 od
+             * 15) od 9.9.2026. Bilješka o „16 → 7 iskrica" iz 8.8. je bila
+             * netočna: RaysLayer je `density` primao i nije ga čitao, pa je
+             * djelomično oblačno imalo puno sunce — odatle Markov dojam
+             * „praktički full sunce".
              */
             density={
-              (name === "clouds" || name === "rays") && sparseClouds ? "sparse" : "full"
+              name === "clouds"
+                ? cloudDensity
+                : name === "rays" && sparseClouds
+                  ? "sparse"
+                  : "full"
             }
           />
         );

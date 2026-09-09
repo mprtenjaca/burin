@@ -8,6 +8,7 @@ import { colors } from "@/theme/colors";
 import {
   ACCENT_CORAL,
   backdropEffects,
+  cloudDensity,
   precipIntensity,
   weatherGradient,
 } from "@/utils/weatherLook";
@@ -31,9 +32,17 @@ type Sample = { code: number; isDay: boolean };
  * ostale jedini neprevedeni ekran. Noćni uzorci dobivaju sufiks
  * razdoblja, jer im je WMO kod isti kao dnevnima.
  */
+/*
+ * Četiri stupnja naoblake JEDAN ZA DRUGIM (9.9.2026.), da se gustoća
+ * oblaka može usporediti u nizu: pretežno vedro → djelomično → pretežno
+ * oblačno (3.5, iz DHMZ mjerenja) → oblačno. Kiša NOĆU je dodana zbog
+ * Markova nalaza da je na svijetloj temi kiša po noći bila svijetla.
+ */
 const SAMPLES: Sample[] = [
   { code: 0, isDay: true },
+  { code: 1, isDay: true },
   { code: 2, isDay: true },
+  { code: 3.5, isDay: true },
   { code: 3, isDay: true },
   { code: 45, isDay: true },
   { code: 51, isDay: true },
@@ -45,7 +54,9 @@ const SAMPLES: Sample[] = [
   { code: 71, isDay: true },
   { code: 75, isDay: true },
   { code: 0, isDay: false },
+  { code: 3.5, isDay: false },
   { code: 61, isDay: false },
+  { code: 63, isDay: false },
   { code: 75, isDay: false },
 ];
 
@@ -94,6 +105,7 @@ export default function PreviewScreen() {
           height={previewH}
           effects={effects}
           intensity={intensity}
+          cloudDensity={cloudDensity(sample.code)}
         />
         <View className="flex-1 items-center justify-center">
           <Text

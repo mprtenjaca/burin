@@ -194,12 +194,30 @@ export const CloudsLayer = memo(function CloudsLayer({
 }: LayerProps) {
   const H = height || 1;
   /*
-   * Djelomično oblačno dobiva TRI oblaka umjesto pet i vidljivo blijeđe
-   * (6.8.2026.): tamo oblaci stoje uz sunčane zrake, pa nebo mora ostati
-   * pretežno vedro — inače se stanje ne razlikuje od oblačnog.
+   * ČETIRI GUSTOĆE (9.9.2026.; bile dvije od 6.8.). Brojke po razini:
+   *
+   *   razina  oblaka  neprozirnost   položaj (od vrha)
+   *   sparse    3     0.22–0.38      gornja trećina (uz sunce)
+   *   medium    4     0.42–0.62      gornja polovica
+   *   dense     5     0.52–0.78      gornje dvije trećine
+   *   full      5     0.40–0.75      polovica (kao dosad)
+   *
+   * Povod: „na djelomično imam dojam da je praktički full sunce" — stari
+   * `sparse` (3 oblaka na 0.22–0.38) je za DJELOMIČNO bio prerijedak, a
+   * jedina druga razina bila je puna naoblaka. Referenca je V&R-ov
+   * Benkovac uz „pretežno oblačno": veliki mekani oblaci koji vidno
+   * pokrivaju nebo, a nebo ipak nije zatvoreno.
+   *
+   * `dense` je namjerno NEPROZIRNIJI od `full`, ne rjeđi: pretežno
+   * oblačno na svijetloj plavoj podlozi (djelomično oblačno paleta)
+   * treba jače obrise da se vidi, dok `full` stoji na sivoj gdje bi isto
+   * već bilo previše. Razlika prema `full` je i u položaju: `full` seže
+   * dublje, `dense` ostaje gore i pušta velikoj brojki čistu podlogu.
    */
   const sparse = density === "sparse";
-  const count = sparse ? 3 : CLOUDS;
+  const medium = density === "medium";
+  const dense = density === "dense";
+  const count = sparse ? 3 : medium ? 4 : CLOUDS;
 
   const shift = scrollY
     ? {
@@ -230,18 +248,28 @@ export const CloudsLayer = memo(function CloudsLayer({
          */
         cy: sparse
           ? height * (0.04 + rnd(i + 47) * 0.26)
-          : height * (0.06 + rnd(i + 47) * 0.5),
-        scale: 0.8 + rnd(i + 89) * 0.8,
+          : medium
+            ? height * (0.05 + rnd(i + 47) * 0.4)
+            : dense
+              ? height * (0.05 + rnd(i + 47) * 0.55)
+              : height * (0.06 + rnd(i + 47) * 0.5),
+        // Srednja i gusta razina nose VEĆE oblake: mali oblak i kad je
+        // neproziran ostaje „mrljica", a Benkovac ima velike mekane mase.
+        scale: (medium || dense ? 1.0 : 0.8) + rnd(i + 89) * 0.8,
         // Blijeđe kad ih je malo: oblak uz sunce ne smije "težiti".
         opacity: sparse
           ? 0.22 + rnd(i + 127) * 0.16
-          : 0.4 + rnd(i + 127) * 0.35,
+          : medium
+            ? 0.42 + rnd(i + 127) * 0.2
+            : dense
+              ? 0.52 + rnd(i + 127) * 0.26
+              : 0.4 + rnd(i + 127) * 0.35,
         driftMs: DRIFT_MS[i % DRIFT_MS.length]!,
         breathMs: BREATH_MS[i % BREATH_MS.length]!,
         delayMs: Math.round(rnd(i + 173) * 6000),
         toRight: rnd(i + 211) > 0.5,
       })),
-    [width, height, count, sparse],
+    [width, height, count, sparse, medium, dense],
   );
 
   return (

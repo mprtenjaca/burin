@@ -241,6 +241,11 @@ export const en: Dict = {
     meteoalarmDesc: "Weather warnings for Croatia (CC BY 4.0)",
     rainviewerName: "RainViewer",
     rainviewerDesc: "Precipitation radar imagery",
+    librewxrName: "LibreWXR — precipitation radar",
+    librewxrDesc:
+      "Radar imagery and 60-minute precipitation nowcast (CC BY 4.0). Europe via the EUMETNET OPERA network",
+    windyName: "Windy — webcams",
+    windyDesc: "Images from nearby cameras (latest frame, not video)",
     owmName: "OpenWeatherMap",
     owmDesc: "Additional map layers (temperature, clouds, wind, precipitation)",
   },

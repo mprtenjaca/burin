@@ -21,11 +21,22 @@ export type LayerProps = {
    */
   intensity?: "light" | "moderate" | "heavy";
   /**
-   * Gustoća sloja: `"full"` je zadano (oblačno), `"sparse"` je rjeđe i
-   * blijeđe — koristi ga djelomično oblačno, gdje oblaci stoje UZ zrake
-   * sunca pa ne smiju prekriti nebo (6.8.2026.).
+   * Gustoća sloja — ČETIRI razine od 9.9.2026. (bile dvije):
+   *
+   *   `sparse`  pretežno vedro (1): dva-tri oblaka, jedva se vide
+   *   `medium`  djelomično oblačno (2): četvero, vidljivi — nebo je
+   *             vidno oblačno, ali sunce još vlada
+   *   `dense`   pretežno oblačno (3.5, iz mjerenja): pet, gusti — sunca
+   *             nema, ali nebo nije zatvoreno
+   *   `full`    oblačno (3): zadano, puno pokrivanje
+   *
+   * Povod (Markov nalaz na uređaju): „na djelomično imam dojam da je
+   * praktički full sunce" — a za 3.5 je tražio „ovisno što je više
+   * oblačnije, dodati još koji oblak". S dvije razine se to nije moglo:
+   * djelomično i pretežno vedro bili su ISTI `sparse`, a pretežno oblačno
+   * i oblačno ISTI `full`. Referenca za djelomično je V&R-ov Benkovac.
    */
-  density?: "full" | "sparse";
+  density?: "full" | "dense" | "medium" | "sparse";
 };
 
 /**

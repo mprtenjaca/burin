@@ -118,14 +118,19 @@ export function RadarPreviewCard({
           <Text className="text-sm text-ink/70 dark:text-paper/70">
             {t.home.radarPreview}
           </Text>
-          {/* Atribucija je uvjet licence (OSM/ODbL, CARTO, RainViewer). */}
+          {/*
+            Atribucija je uvjet licence (OSM/ODbL, CARTO, LibreWXR CC-BY).
+            LibreWXR od 9.9.2026. — RainViewer je zakomentiran u
+            `MAP_LAYERS`, pa je ovdje pisao izvor koji se više ne koristi
+            (Markov nalaz).
+          */}
           <View className="flex-row items-center gap-1.5">
             <Pressable
               hitSlop={10}
-              onPress={() => Linking.openURL("https://www.rainviewer.com")}
+              onPress={() => Linking.openURL(radar.attribution.url)}
             >
               <Text className="text-[9px] text-ink/35 dark:text-paper/35">
-                {t.map.radarAttribution}
+                {radar.attribution.label}
               </Text>
             </Pressable>
             <Text className="text-[9px] text-ink/25 dark:text-paper/25">·</Text>
