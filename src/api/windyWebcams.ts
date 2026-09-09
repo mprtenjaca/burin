@@ -223,17 +223,14 @@ export function parseWebcams(
  * uhvate i kamere susjednih mjesta, za slučaj da grad svoju nema.
  */
 export const WEBCAM_RANGE_KM = 25;
-export const WEBCAM_RANGE_WIDE_KM = 60;
-
-/**
- * Koliko daleko smije biti kamera SUSJEDNOG mjesta, kad grad svoju nema.
- *
- * 12 km, znatno uže od dometa traženja. Markov nalaz 9.9.2026.: u popisu
- * za Zadar se pojavio **Vir na 20 km** — „to nema smisla". Preko ~12 km je
- * to već drugo mjesto s drugim nebom, i korisnik koji je tražio Zadar
- * gleda nečije tuđe vrijeme.
+/*
+ * 100 km, ne 60 (9.9.2026.): kad mjesto nema svoju kameru, najbliža se
+ * pokazuje OBAVEZNO (Markov zahtjev za Polaču i Pridragu), pa širi krug
+ * mora dosegnuti kameru i iz Like ili Slavonije. Traži se samo kad bliži
+ * ne da ništa, i kešira 5 min — dodatni poziv plaćaju samo mjesta bez
+ * kamere u 25 km.
  */
-const NEIGHBOUR_MAX_KM = 12;
+export const WEBCAM_RANGE_WIDE_KM = 100;
 
 /**
  * Usporedba imena mjesta bez dijakritike i sufiksa („Zadar-aerodrom",
@@ -263,20 +260,22 @@ function normalizePlace(s: string): string {
  * 1. Ako mjesto ima SVOJU kameru (ime kamere se poklapa s imenom mjesta),
  *    prikazuju se SAMO njegove. Zadar s tri gradske kamere ne pokazuje
  *    Vir, bez obzira što je Vir unutar dometa.
- * 2. Ako grad svoju nema, prikazuju se najbliže susjedne — ali samo do
- *    `NEIGHBOUR_MAX_KM`. Ovo je slučaj za mjesta bez kamere, gdje je
- *    slika iz susjedstva bolja od praznog okvira.
+ * 2. Ako grad svoju nema, prikazuje se TOČNO JEDNA — najbliža, BEZ granice
+ *    udaljenosti (Markov zahtjev 9.9.2026., drugi krug: „ako nema ništa u
+ *    tom mjestu želim samo 1 najbližu kameru, obavezno"). Prva verzija je
+ *    rezala susjede na 12 km — po Viru na 20 km uz ZADAR, koji ima svoje
+ *    kamere pa ga rez nije ni trebao. Za Pridragu i Polaču, koje svoje
+ *    nemaju, isti je rez značio: nema sekcije. Kartica uvijek piše
+ *    udaljenost, pa korisnik sam vidi koliko je daleko.
  *
  * Izvezeno radi testova.
  */
 export function pickWebcams(all: Webcam[], placeName: string): Webcam[] {
   const target = normalizePlace(placeName);
-  if (!target) return all.filter((w) => w.distanceKm <= NEIGHBOUR_MAX_KM);
-
-  const own = all.filter((w) => normalizePlace(w.title) === target);
+  const own = target ? all.filter((w) => normalizePlace(w.title) === target) : [];
   if (own.length > 0) return own;
-
-  return all.filter((w) => w.distanceKm <= NEIGHBOUR_MAX_KM);
+  // `all` je sortiran po udaljenosti (parseWebcams) — prva je najbliža.
+  return all.slice(0, 1);
 }
 
 /** Koliko kamera tražimo — ekran prikazuje najbliže, kartica prvu. */
@@ -353,10 +352,9 @@ export async function fetchNearbyWebcams(
   if (picked.length > 0) return picked;
 
   /*
-   * Širi krug SAMO kad bliži ne da ništa upotrebljivo — mjesta bez
-   * vlastite kamere i bez susjeda unutar 12 km. `pickWebcams` i tu reže,
-   * pa širi upit ne znači i širi prikaz: ako ni ovdje nema ništa unutar
-   * 12 km, sekcija se na početnoj ne prikaže, što je istina.
+   * Širi krug SAMO kad bliži (25 km) ne vrati NI JEDNU upotrebljivu kameru.
+   * `pickWebcams` i tu uzme samo najbližu; tek ako ni u 100 km nema ništa,
+   * sekcija se na početnoj ne prikaže — što je u Hrvatskoj gotovo nemoguće.
    */
   let wide: Webcam[];
   try {
@@ -368,7 +366,7 @@ export async function fetchNearbyWebcams(
   const pickedWide = pickWebcams(wide, placeName);
   if (__DEV__ && pickedWide.length === 0) {
     console.warn(
-      `${tag}: prazno — vlastite kamere nema, unutar ${NEIGHBOUR_MAX_KM} km ništa. ` +
+      `${tag}: prazno — ni vlastite ni ijedne kamere do ${WEBCAM_RANGE_WIDE_KM} km. ` +
         `Nakon parsera, ${WEBCAM_RANGE_KM} km: ${describe(near)}; ${WEBCAM_RANGE_WIDE_KM} km: ${describe(wide)}. ` +
         `Provjeri je li ovo PRAVO mjesto (istoimena mjesta: Vrana, Polača…).`,
     );

@@ -234,21 +234,33 @@ describe("pickWebcams — ČIJE se kamere prikazuju", () => {
   });
 
   /**
-   * Mjesto bez vlastite kamere dobiva susjede — ali samo blizu (Markov
-   * predlog „ako nema u tom mjestu, isto možeš ove okolo pokazat").
+   * Mjesto bez vlastite kamere dobiva TOČNO JEDNU — najbližu (Markov
+   * zahtjev 9.9.2026.: „ako nema ništa u tom mjestu želim samo 1 najbližu
+   * kameru, obavezno").
    */
-  it("bez vlastite kamere uzima BLIZU susjede", () => {
+  it("bez vlastite kamere uzima samo jednu, najbližu", () => {
     const out = pickWebcams([cam("Nin", 8), cam("Vir", 20)], "Polača");
     expect(out.map((w) => w.title)).toEqual(["Nin"]);
   });
 
-  it("daleki susjedi ispadaju i kad grad nema svoju", () => {
-    expect(pickWebcams([cam("Vir", 20), cam("Zadar", 25)], "Polača")).toEqual([]);
+  /**
+   * REGRESIJA: prva verzija je susjede rezala na 12 km, pa su Pridraga i
+   * Polača (bez vlastite kamere, najbliža dalje od 12 km) ostajale BEZ
+   * sekcije. Udaljenost nije razlog da se ništa ne pokaže — kartica je
+   * ionako ispiše.
+   */
+  it("najbliža se pokazuje i kad je daleko", () => {
+    expect(pickWebcams([cam("Vir", 20), cam("Zadar", 25)], "Pridraga").map((w) => w.title)).toEqual(["Vir"]);
+    expect(pickWebcams([cam("Zadar", 48)], "Gračac").map((w) => w.title)).toEqual(["Zadar"]);
   });
 
-  it("bez imena mjesta pada na blizinu", () => {
+  it("bez imena mjesta isto uzima najbližu", () => {
     const out = pickWebcams([cam("Nin", 8), cam("Vir", 20)], "");
     expect(out.map((w) => w.title)).toEqual(["Nin"]);
+  });
+
+  it("bez ijedne kamere vraća prazno — tek tada nema sekcije", () => {
+    expect(pickWebcams([], "Pridraga")).toEqual([]);
   });
 });
 
