@@ -23,13 +23,19 @@ import { t } from "@/i18n";
  * page"), i istodobno jedini put do njihovog timelapsea i live playera.
  */
 export default function CamerasScreen() {
-  const params = useLocalSearchParams<{ lat?: string; lon?: string }>();
+  const params = useLocalSearchParams<{ lat?: string; lon?: string; place?: string }>();
   const lat = params.lat === undefined ? undefined : Number(params.lat);
   const lon = params.lon === undefined ? undefined : Number(params.lon);
 
+  /*
+   * Ime mjesta MORA doći isto kao na kartici: po njemu se bira čije se
+   * kamere prikazuju (`pickWebcams`), pa bi bez njega ekran pokazao drugi
+   * popis od one kartice s koje se otvorio.
+   */
   const { data, isPending, isError } = useWebcams(
     Number.isFinite(lat) ? lat : undefined,
     Number.isFinite(lon) ? lon : undefined,
+    params.place,
   );
   const bottomInset = useBottomInset();
 

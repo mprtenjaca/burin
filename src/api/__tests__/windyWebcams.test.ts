@@ -1,4 +1,5 @@
-import { WEBCAM_RANGE_KM, parseWebcams } from "../windyWebcams";
+import { WEBCAM_RANGE_KM, parseWebcams, pickWebcams } from "../windyWebcams";
+import type { Webcam } from "../windyWebcams";
 
 /**
  * Oblik odgovora Windy Webcams v3 (`include=images,location,urls`).
@@ -114,11 +115,91 @@ describe("parseWebcams", () => {
   });
 
   /**
-   * 25 km, ne 40 kao kod Štampara: tamo je širi domet bio opravdan jer je
-   * jedan peludomjer po županiji. Kamere su guste — širi domet bi pokazivao
-   * susjednu dolinu s drugim vremenom.
+   * Domet TRAŽENJA, ne prikaza — što se prikazuje odlučuje `pickWebcams`
+   * po imenu mjesta (vidi ispod). 25 km je dovoljno da se uhvate i
+   * susjedna mjesta, za slučaj da grad svoju kameru nema.
    */
-  it("domet je uži od Štamparovog", () => {
+  it("traži se u razumnom krugu", () => {
     expect(WEBCAM_RANGE_KM).toBe(25);
+  });
+});
+
+describe("pickWebcams — ČIJE se kamere prikazuju", () => {
+  const cam = (title: string, distanceKm: number): Webcam => ({
+    id: title + distanceKm,
+    title,
+    lat: 0,
+    lon: 0,
+    distanceKm,
+    preview: "https://img/x.jpg",
+  });
+
+  /**
+   * Markov nalaz 9.9.2026.: u popisu za Zadar su bile tri kamere — Zadar,
+   * „unknown" i **Vir na 20 km**. „To nema smisla… samo za grad ako ima
+   * grad kameru." Vir je unutar dometa traženja, ali nije Zadar.
+   */
+  it("grad sa svojom kamerom NE pokazuje susjede", () => {
+    const out = pickWebcams(
+      [cam("Zadar", 1), cam("Zadar", 3), cam("Vir", 20)],
+      "Zadar",
+    );
+    expect(out.map((w) => w.title)).toEqual(["Zadar", "Zadar"]);
+  });
+
+  /** Sufiksi i dijakritika ne smiju razdvojiti isto mjesto. */
+  it("prepoznaje mjesto uz sufiks i dijakritiku", () => {
+    expect(pickWebcams([cam("Zadar-Puntamika", 2)], "Zadar")).toHaveLength(1);
+    expect(pickWebcams([cam("Šibenik", 2)], "Sibenik")).toHaveLength(1);
+    expect(pickWebcams([cam("Sibenik", 2)], "Šibenik")).toHaveLength(1);
+  });
+
+  /**
+   * Mjesto bez vlastite kamere dobiva susjede — ali samo blizu (Markov
+   * predlog „ako nema u tom mjestu, isto možeš ove okolo pokazat").
+   */
+  it("bez vlastite kamere uzima BLIZU susjede", () => {
+    const out = pickWebcams([cam("Nin", 8), cam("Vir", 20)], "Polača");
+    expect(out.map((w) => w.title)).toEqual(["Nin"]);
+  });
+
+  it("daleki susjedi ispadaju i kad grad nema svoju", () => {
+    expect(pickWebcams([cam("Vir", 20), cam("Zadar", 25)], "Polača")).toEqual([]);
+  });
+
+  it("bez imena mjesta pada na blizinu", () => {
+    const out = pickWebcams([cam("Nin", 8), cam("Vir", 20)], "");
+    expect(out.map((w) => w.title)).toEqual(["Nin"]);
+  });
+});
+
+describe("parseWebcams — kamere bez imena", () => {
+  /**
+   * Markov nalaz 9.9.2026.: u popisu za Zadar se pojavila kamera imena
+   * „unknown". Slika bez mjesta ne govori ništa o vremenu jer se ne zna
+   * GDJE je — pa takva kamera ispada.
+   */
+  it("odbacuje kamere bez upotrebljivog imena", () => {
+    const raw = {
+      webcams: [
+        { webcamId: 1, location: { latitude: 44.12, longitude: 15.24, city: "unknown" }, images: { current: { preview: "https://i/1.jpg" } } },
+        { webcamId: 2, location: { latitude: 44.12, longitude: 15.24, city: "" }, title: "Cam 3", images: { current: { preview: "https://i/2.jpg" } } },
+        { webcamId: 3, location: { latitude: 44.12, longitude: 15.24, city: "  " }, title: "webcam 12", images: { current: { preview: "https://i/3.jpg" } } },
+        { webcamId: 4, location: { latitude: 44.12, longitude: 15.24, city: "Zadar" }, images: { current: { preview: "https://i/4.jpg" } } },
+      ],
+    };
+    const out = parseWebcams(raw, 44.12, 15.24);
+    expect(out.map((w) => w.title)).toEqual(["Zadar"]);
+  });
+
+  /** Ne smije pojesti prava imena koja slučajno sadrže brojku ili kraticu. */
+  it("zadržava stvarna imena mjesta", () => {
+    const mk = (city: string) => ({
+      webcamId: city,
+      location: { latitude: 44.12, longitude: 15.24, city },
+      images: { current: { preview: "https://i/x.jpg" } },
+    });
+    const out = parseWebcams({ webcams: ["Vir", "Nin", "Mali Lošinj", "Novi Vinodolski"].map(mk) }, 44.12, 15.24);
+    expect(out).toHaveLength(4);
   });
 });

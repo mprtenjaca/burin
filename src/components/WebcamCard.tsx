@@ -46,6 +46,7 @@ export function WebcamCard({
   isOffline,
   lat,
   lon,
+  placeName,
 }: {
   webcams: Webcam[];
   /** Bez mreže se slika ne može obnoviti — token istječe za 10 min. */
@@ -53,6 +54,8 @@ export function WebcamCard({
   /** Pozicija ide ekranu kroz parametre; slike NE (token istječe). */
   lat: number;
   lon: number;
+  /** Ime mjesta — ekran po njemu bira isti popis kao kartica. */
+  placeName: string;
 }) {
   const first = webcams[0];
 
@@ -92,7 +95,7 @@ export function WebcamCard({
               ? () =>
                   router.navigate({
                     pathname: "/cameras",
-                    params: { lat: String(lat), lon: String(lon) },
+                    params: { lat: String(lat), lon: String(lon), place: placeName },
                   })
               : undefined
           }

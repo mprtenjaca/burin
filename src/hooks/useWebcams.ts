@@ -20,14 +20,15 @@ const MIN = 60 * 1000;
  * `enabled` pada na false bez ključa I bez koordinata: bez ključa sekcija
  * se ne prikazuje, pa nema smisla ni pokretati upit.
  */
-export function useWebcams(lat?: number, lon?: number) {
+export function useWebcams(lat?: number, lon?: number, placeName?: string) {
   const ready = hasWindyKey() && lat !== undefined && lon !== undefined;
 
   return useQuery({
     // Zaokruženo na 2 decimale (~1 km): inače bi svaki GPS šum bio nov ključ
-    // i trošio upit na isto mjesto.
-    queryKey: ["windy-webcams", lat?.toFixed(2), lon?.toFixed(2)],
-    queryFn: () => fetchNearbyWebcams(lat!, lon!),
+    // i trošio upit na isto mjesto. Ime mjesta je U KLJUČU jer određuje
+    // ČIJE se kamere prikazuju (vidi `pickWebcams`).
+    queryKey: ["windy-webcams", lat?.toFixed(2), lon?.toFixed(2), placeName ?? ""],
+    queryFn: () => fetchNearbyWebcams(lat!, lon!, placeName),
     enabled: ready,
     staleTime: 5 * MIN,
     gcTime: 10 * MIN,

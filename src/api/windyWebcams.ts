@@ -87,6 +87,24 @@ const num = (v: unknown): number | undefined =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
 /**
+ * Imena koja Windy vrati, a koja korisniku ne govore ništa.
+ *
+ * „unknown" se stvarno pojavio u popisu za Zadar (Markov nalaz 9.9.2026.).
+ * Ostalo je isti razred: prazan naziv, generički „webcam"/„cam 3", ili
+ * naziv koji je samo broj. Slika bez mjesta ne govori ništa o vremenu jer
+ * se ne zna GDJE je — pa takva kamera ispada iz popisa.
+ */
+function isUsableName(name: string): boolean {
+  if (name.length < 2) return false;
+  const s = name.toLowerCase();
+  if (s === "unknown" || s === "n/a" || s === "null" || s === "-") return false;
+  // Samo brojka ili „cam 3" / „webcam 12" — nije mjesto.
+  if (/^[\d\s#-]+$/.test(s)) return false;
+  if (/^(web)?cam(era)?\b[\s\d#-]*$/.test(s)) return false;
+  return true;
+}
+
+/**
  * Izvezeno radi testova: odgovor Windyja → naše kamere, sortirane po
  * udaljenosti od zadane točke.
  *
@@ -111,6 +129,19 @@ export function parseWebcams(
     if (!id) continue;
 
     /*
+     * KAMERA BEZ IMENA SE ODBACUJE (Markov nalaz 9.9.2026.: „ako nema ime
+     * ne pokazuj").
+     *
+     * Windy vraća i kamere kojima je `location.city` prazan ili doslovno
+     * „unknown", a `title` beskoristan („Cam 3"). Prije je fallback bio
+     * `#<id>`, pa se u popisu za Zadar pojavila kamera imena „unknown" —
+     * slika bez mjesta ne govori NIŠTA o vremenu jer se ne zna gdje je.
+     * Nema pametnog imena → nema kartice.
+     */
+    const rawName = (w?.location?.city ?? w?.title ?? "").trim();
+    if (!isUsableName(rawName)) continue;
+
+    /*
      * Slika se traži na VIŠE mjesta: v3 je vraća pod `images.current`, a
      * neke kamere je nose pod `images.sizes`. Prvo što postoji pobjeđuje —
      * tako parser preživi obje varijante bez grananja po verziji.
@@ -126,7 +157,8 @@ export function parseWebcams(
     out.push({
       id,
       // Ime mjesta je korisnije od naslova kamere ("Cam 3"), kad postoji.
-      title: (w?.location?.city ?? w?.title ?? "").trim() || `#${id}`,
+      // Bez upotrebljivog imena se ovdje uopće ne dolazi (vidi filtar iznad).
+      title: rawName,
       lat: wLat,
       lon: wLon,
       distanceKm: haversineKm({ lat, lon }, { lat: wLat, lon: wLon }),
@@ -142,21 +174,68 @@ export function parseWebcams(
 }
 
 /**
- * Domet u kojem se kamera smatra „u blizini" — DVA KRUGA (9.9.2026.).
+ * Domet traženja, u kilometrima.
  *
- * Prvi krug je 25 km: dovoljno da slika prikazuje mjesto koje korisnik
- * prepoznaje, a ne susjednu dolinu s drugim vremenom. (Uže od Štamparovih
- * 40 km, gdje je širi domet bio opravdan jer je jedan peludomjer PO
- * ŽUPANIJI — kamere su guste.)
- *
- * Drugi krug je 60 km i traži se SAMO kad prvi ne vrati ni jednu (Markov
- * predlog: „ako nema u tom mjestu, isto možeš ove okolo pokazat"). Bolje
- * kamera 40 km daleko s natpisom koliko je daleko, nego prazan okvir —
- * korisnik sam procijeni je li mu korisna. Kartica uvijek piše
- * udaljenost, pa nema zabune o tome što gleda.
+ * NE određuje što se prikazuje — to radi `pickWebcams` po IMENU MJESTA
+ * (vidi ispod). Ovo je samo koliko se široko pita Windy: dovoljno da se
+ * uhvate i kamere susjednih mjesta, za slučaj da grad svoju nema.
  */
 export const WEBCAM_RANGE_KM = 25;
 export const WEBCAM_RANGE_WIDE_KM = 60;
+
+/**
+ * Koliko daleko smije biti kamera SUSJEDNOG mjesta, kad grad svoju nema.
+ *
+ * 12 km, znatno uže od dometa traženja. Markov nalaz 9.9.2026.: u popisu
+ * za Zadar se pojavio **Vir na 20 km** — „to nema smisla". Preko ~12 km je
+ * to već drugo mjesto s drugim nebom, i korisnik koji je tražio Zadar
+ * gleda nečije tuđe vrijeme.
+ */
+const NEIGHBOUR_MAX_KM = 12;
+
+/**
+ * Usporedba imena mjesta bez dijakritike i sufiksa („Zadar-aerodrom",
+ * „Zadar (Puntamika)" → „zadar"). Bez ovoga bi ista mjesta ispadala
+ * različita zbog jednog slova.
+ */
+function normalizePlace(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    // Kombinirajući dijakritički znakovi (U+0300–U+036F) — „Šibenik" →
+    // „sibenik". `đ` se ne razlaže NFD-om, pa ide zasebno.
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z]/g, " ")
+    .trim()
+    .split(/\s+/)[0] ?? "";
+}
+
+/**
+ * ŠTO SE PRIKAZUJE (Markov odabir 9.9.2026.: „samo za grad, ako ima grad
+ * kameru; ako ne, onda šire; i ako nema ime ne pokazuj — pogotovo ne Vir
+ * koji je 20 km").
+ *
+ * Pravilo je najprije po IMENU, pa tek onda po kilometrima:
+ *
+ * 1. Ako mjesto ima SVOJU kameru (ime kamere se poklapa s imenom mjesta),
+ *    prikazuju se SAMO njegove. Zadar s tri gradske kamere ne pokazuje
+ *    Vir, bez obzira što je Vir unutar dometa.
+ * 2. Ako grad svoju nema, prikazuju se najbliže susjedne — ali samo do
+ *    `NEIGHBOUR_MAX_KM`. Ovo je slučaj za mjesta bez kamere, gdje je
+ *    slika iz susjedstva bolja od praznog okvira.
+ *
+ * Izvezeno radi testova.
+ */
+export function pickWebcams(all: Webcam[], placeName: string): Webcam[] {
+  const target = normalizePlace(placeName);
+  if (!target) return all.filter((w) => w.distanceKm <= NEIGHBOUR_MAX_KM);
+
+  const own = all.filter((w) => normalizePlace(w.title) === target);
+  if (own.length > 0) return own;
+
+  return all.filter((w) => w.distanceKm <= NEIGHBOUR_MAX_KM);
+}
 
 /** Koliko kamera tražimo — ekran prikazuje najbliže, kartica prvu. */
 const LIMIT = 10;
@@ -196,11 +275,21 @@ async function fetchInRadius(
 export async function fetchNearbyWebcams(
   lat: number,
   lon: number,
+  /** Ime odabranog mjesta — po njemu se bira ČIJE se kamere prikazuju. */
+  placeName = "",
 ): Promise<Webcam[]> {
   if (!hasWindyKey()) return [];
 
   const near = await fetchInRadius(lat, lon, WEBCAM_RANGE_KM);
-  if (near.length > 0) return near;
+  const picked = pickWebcams(near, placeName);
+  if (picked.length > 0) return picked;
 
-  return fetchInRadius(lat, lon, WEBCAM_RANGE_WIDE_KM);
+  /*
+   * Širi krug SAMO kad bliži ne da ništa upotrebljivo — mjesta bez
+   * vlastite kamere i bez susjeda unutar 12 km. `pickWebcams` i tu reže,
+   * pa širi upit ne znači i širi prikaz: ako ni ovdje nema ništa unutar
+   * 12 km, kartica pokaže „nema kamera u blizini", što je istina.
+   */
+  const wide = await fetchInRadius(lat, lon, WEBCAM_RANGE_WIDE_KM);
+  return pickWebcams(wide, placeName);
 }

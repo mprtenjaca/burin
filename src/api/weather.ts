@@ -154,7 +154,7 @@ export function observationDelta(current: CurrentWeather, obs?: DhmzObservation 
  * Benkovcu. Uža granica znači da opis dolazi samo od postaje koja gleda
  * ISTO nebo kao korisnik.
  */
-const CONDITION_RANGE_KM = 25;
+export const CONDITION_RANGE_KM = 25;
 
 /**
  * "Sada" korigirano mjerenjima: temperatura i osjet za isti delta, a od

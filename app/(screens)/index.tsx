@@ -59,7 +59,7 @@ export default function HomeScreen() {
    * je bez GPS-a `null`, a bundle do tada već drži razrješene koordinate.
    * Upit se sam ne pokrene bez ključa ni bez koordinata (`useWebcams`).
    */
-  const webcams = useWebcams(bundle?.place.lat, bundle?.place.lon);
+  const webcams = useWebcams(bundle?.place.lat, bundle?.place.lon, bundle?.place.name);
   const tempUnit = useSettings((s) => s.tempUnit);
   const windUnit = useSettings((s) => s.windUnit);
   // ZAKOMENTIRANO 7.9.2026. (Markov odabir): heroj više ne dobiva domaću
@@ -340,7 +340,7 @@ export default function HomeScreen() {
               */}
               {hasWindyKey() && (
                 <Section title={t.home.camerasSection}>
-                  <WebcamCard webcams={webcams.data ?? []} isOffline={webcams.isError} lat={bundle.place.lat} lon={bundle.place.lon} />
+                  <WebcamCard webcams={webcams.data ?? []} isOffline={webcams.isError} lat={bundle.place.lat} lon={bundle.place.lon} placeName={bundle.place.name} />
                 </Section>
               )}
 

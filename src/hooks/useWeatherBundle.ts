@@ -17,6 +17,7 @@ import { fetchStamparPollen, nearestStamparCity } from "@/api/stampar";
 import type { Place, WeatherBundle } from "@/api/types";
 import { NO_BIAS, biasSlotForHour, learnModelBias } from "@/api/bias";
 import {
+  CONDITION_RANGE_KM,
   buildBundle,
   correctHourly,
   debiasDaily,
@@ -24,6 +25,7 @@ import {
   observationDelta,
 } from "@/api/weather";
 import { useLastWeather } from "@/store/lastWeather";
+import { dhmzTextToCode } from "@/utils/weatherCodes";
 import { useSettings } from "@/store/settings";
 import { pushWidget } from "@/widgets/widgetData";
 
@@ -157,6 +159,30 @@ export function useWeatherBundle(place: Place | null) {
     const delta = observationDelta(debiasedCurrent, nearby);
 
     /*
+     * MJERENO STANJE NEBA pobjeđuje model (9.9.2026., Markov nalaz s
+     * prozora: app je pisala „djelomično oblačno" dok je DHMZ na zadarskoj
+     * postaji mjerio „pretežno oblačno" — „jedva se ne bi od oblaka
+     * vidilo").
+     *
+     * Isto načelo koje ovaj hook već primjenjuje na temperaturu i koje
+     * stoji u odlukama (ECMWF je za Roč davao „vedro" uz izmjerenu
+     * grmljavinu u Pazinu): model nije mjerenje, a nebo je upravo ono što
+     * postaja gleda.
+     *
+     * Domet je UŽI od onoga za temperaturu (25 vs 60 km): temperatura se
+     * u prostoru mijenja glatko, pa se smije prosječiti iz nekoliko
+     * postaja; naoblaka je zakrpasta i uzima se samo s NAJBLIŽE postaje —
+     * „vedro" i „oblačno" se ne prosječuju u „umjereno oblačno".
+     *
+     * `dhmzObs` je već najbliža postaja (≤ 50 km), pa se ovdje samo
+     * dodatno steže na `CONDITION_RANGE_KM`.
+     */
+    const measuredCode =
+      dhmzObs && dhmzObs.distanceKm <= CONDITION_RANGE_KM
+        ? dhmzTextToCode(dhmzObs.conditionText)
+        : undefined;
+
+    /*
      * Izvor peludi: peludomjer ako je stigao i nije prazan, inače CAMS.
      * `stampar.data` je `undefined` u produkciji (upit onemogućen) i `[]`
      * kad stranica ne da ništa upotrebljivo — oboje pada na CAMS.
@@ -171,6 +197,8 @@ export function useWeatherBundle(place: Place | null) {
         ...debiasedCurrent,
         temp: debiasedCurrent.temp + delta,
         feelsLike: debiasedCurrent.feelsLike + delta,
+        // Mjereno nebo; bez mjerenja (predaleko, nepoznat opis) ostaje model.
+        code: measuredCode ?? debiasedCurrent.code,
       },
       hourly: correctHourly(debiasedHourly, delta),
       hourlyAll: correctHourly(debiasedAll, delta),
