@@ -1,4 +1,4 @@
-import { Moon, Sun } from "lucide-react-native";
+import { CloudMoon, CloudSun, Moon, Sun } from "lucide-react-native";
 
 import { hr } from "@/i18n/hr";
 import { codeToCondition, dhmzTextToCode } from "../weatherCodes";
@@ -133,5 +133,28 @@ describe("razred 3.5 (pretežno oblačno)", () => {
   it("nije nepoznat kod", () => {
     expect(codeToCondition(3.5, true).label).not.toBe(hr.common.noData);
     expect(codeToCondition(3.5, false).label).not.toBe(hr.common.noData);
+  });
+});
+
+describe("pretežno vedro (1) ima oblak", () => {
+  /**
+   * Markov nalaz 9.9.2026.: traka sati je u 17 h crtala SUNCE uz 45 %
+   * naoblake (Open-Meteo kod 1), pa u 18 h odjednom oblak. `SunDim` je bio
+   * prigušeno sunce bez oblaka — na 21 px nerazlučivo od vedrog. Kod 1
+   * sad dijeli ikonu s 2; razlika ostaje u nazivu i ambijentu.
+   */
+  it("danju je sunce S oblakom, ne golo sunce", () => {
+    expect(codeToCondition(1, true).Icon).toBe(CloudSun);
+    expect(codeToCondition(1, true).Icon).not.toBe(codeToCondition(0, true).Icon);
+  });
+
+  it("noću je mjesec s oblakom", () => {
+    expect(codeToCondition(1, false).Icon).toBe(CloudMoon);
+    expect(codeToCondition(0, false).Icon).toBe(Moon);
+  });
+
+  it("naziv se i dalje razlikuje od djelomično oblačnog", () => {
+    expect(codeToCondition(1, true).label).toBe(hr.conditions.mostlyClear);
+    expect(codeToCondition(1, true).label).not.toBe(codeToCondition(2, true).label);
   });
 });

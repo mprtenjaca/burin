@@ -9,8 +9,9 @@ describe("iconForWeather", () => {
   it("vedro danju je sunce, noću mjesec sa zvijezdama", () => {
     expect(iconForWeather(0, true)).toBe("sun");
     expect(iconForWeather(0, false)).toBe("night");
-    expect(iconForWeather(1, true)).toBe("sun");
-    expect(iconForWeather(1, false)).toBe("night");
+    // Kod 1 ima oblak od 9.9.2026. (Open-Meteo ga daje i za ~45 % naoblake).
+    expect(iconForWeather(1, true)).toBe("partly");
+    expect(iconForWeather(1, false)).toBe("night-cloudy");
   });
 
   it("djelomično oblačno danju ima sunce s oblakom", () => {

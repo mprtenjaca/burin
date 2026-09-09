@@ -11,7 +11,6 @@ import {
   CloudSun,
   Moon,
   Sun,
-  SunDim,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 
@@ -35,7 +34,20 @@ type Entry = { key: ConditionKey; day: LucideIcon; night?: LucideIcon };
  */
 const WMO_MAP: Record<number, Entry> = {
   0: { key: "clear", day: Sun, night: Moon },
-  1: { key: "mostlyClear", day: SunDim, night: Moon },
+  /*
+   * PRETEŽNO VEDRO IMA OBLAK (9.9.2026., Markov nalaz: u traci sati u
+   * 17 h ikona sunca uz 45 % naoblake, pa u 18 h odjednom oblak — „čudno
+   * mi je to"). Do sada je 1 crtao `SunDim`, prigušeno sunce BEZ oblaka,
+   * pa se od vedrog razlikovao samo nijansom koju nitko ne vidi na 21 px.
+   *
+   * Open-Meteo daje kod 1 i za ~45 % neba pod oblacima — to nije „vedro
+   * samo malo manje", to je nebo s oblacima. Zato ista ikona kao 2:
+   * razlika 1↔2 ostaje u nazivu („Pretežno vedro" / „Djelomično
+   * oblačno") i u ambijentu (`cloudDensity`: sparse / medium), a ikona
+   * u oba slučaja pošteno kaže da oblaka IMA. Noću isto: mjesec s
+   * oblakom, ne goli mjesec.
+   */
+  1: { key: "mostlyClear", day: CloudSun, night: CloudMoon },
   2: { key: "partlyCloudy", day: CloudSun, night: CloudMoon },
   /*
    * 3.5 NIJE WMO kod — vlastiti razred „pretežno oblačno", dodan

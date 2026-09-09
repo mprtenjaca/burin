@@ -84,7 +84,14 @@ export function iconForWeather(code: number, isDay: boolean): WidgetIconName {
   if (code === 45 || code === 48) return "fog";
   // Isto kao u ambientForWeather: 3.5 mora ostati naoblaka.
   if (code >= 3 && code < 4) return isDay ? "cloud" : "night-cloudy";
-  if (code === 2) return isDay ? "partly" : "night-cloudy";
-  if (code <= 1) return isDay ? "sun" : "night";
+  /*
+   * Kod 1 (pretežno vedro) dijeli ikonu s 2 od 9.9.2026. — isti razlog
+   * kao u `weatherCodes.ts`: Open-Meteo daje 1 i za ~45 % naoblake, a
+   * goli „sun" je na pločici lagao da je vedro. `partly` PNG već postoji
+   * pa je ovo samo JS; ambijent (`ambientForWeather`) ostaje `rays` jer
+   * widget ne može zrake + oblake odjednom, a sunce još vlada.
+   */
+  if (code === 2 || code === 1) return isDay ? "partly" : "night-cloudy";
+  if (code === 0) return isDay ? "sun" : "night";
   return isDay ? "cloud" : "night-cloudy";
 }
