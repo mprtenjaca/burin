@@ -206,8 +206,24 @@ export const MAP_LAYERS: MapLayer[] = [
      * „Zoom Level Not Supported".
      */
     maxNativeZ: 11,
-    // 512 je podržano (provjereno, 110 kB) — kao i na radaru, više detalja.
-    tileSize: 512,
+    /*
+     * 256, NE 512 (Markov nalaz na uređaju 9.9.2026.: „malo sporo, treba
+     * mi 20ak sec da učita").
+     *
+     * Prva verzija je uzela 512 jer je RainVieweru pomogao — ali njemu
+     * podaci staju na z=7, pa mu je veća pločica bila jedini način da
+     * rastezanje ne izgleda mutno. LibreWXR ima podatke do z=11 i tu
+     * potrebu NEMA.
+     *
+     * Izmjereno na istoj pločici (z=7 nad Zadrom):
+     *   256 px → 0.64 s (47 kB)
+     *   512 px → 3.0 s (104 kB)
+     * Skoro 5× brže. Karta montira tri okvira (prošli/aktivni/sljedeći) ×
+     * nekoliko pločica po ekranu, pa se ta razlika množi — odatle 20 s
+     * hladnog učitavanja i „kad pustim play tek radi" (prvi prolaz grije
+     * poslužiteljev keš; ponovni poziv iste pločice je 0.09 s).
+     */
+    tileSize: 256,
     /*
      * IDE DO KRAJA KARTE, za razliku od radara.
      *

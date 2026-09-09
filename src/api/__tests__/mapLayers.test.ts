@@ -169,17 +169,27 @@ describe("mapLayerTileUrl", () => {
 
   /**
    * Radar+ (LibreWXR) gradi URL istog OBLIKA kao radar, ali sa svojom
-   * shemom boja: 1 = „Rainviewer Original", namjerno, da test-sloj
-   * izgleda što bliže radaru na koji je korisnik navikao. Provjereno da
-   * sheme stvarno rade (1/2/10/14 vraćaju različite slike).
+   * shemom boja: 10 = „Viper HD" (Markov odabir 9.9.2026. nakon provjere
+   * na uređaju — shema 1 je imala zeleni srednji pojas pa se nevrijeme
+   * nije razlikovalo od slabe kiše). Provjereno da sheme stvarno rade.
    */
   it("Radar+ gradi URL iz okvira, sa svojom shemom boja", () => {
     const plus = mapLayerById("radar_plus");
     expect(mapLayerTileUrl(plus)).toBeNull();
     const url = mapLayerTileUrl(plus, { host: "https://api.librewxr.net", frame })!;
     expect(url).toBe(
-      "https://api.librewxr.net/v2/radar/1785885600/512/{z}/{x}/{y}/1/1_1.png",
+      "https://api.librewxr.net/v2/radar/1785885600/256/{z}/{x}/{y}/10/1_1.png",
     );
+  });
+
+  /**
+   * Regresija (9.9.2026., nađeno NA UREĐAJU: „treba mi 20ak sec da
+   * učita"). Izmjereno na istoj pločici: 256 px = 0.64 s, 512 px = 3.0 s.
+   * LibreWXR ima podatke do z=11 pa mu veća pločica — koja RainVieweru
+   * pomaže jer njemu staju na z=7 — ne donosi ništa osim čekanja.
+   */
+  it("Radar+ traži manju pločicu (512 je bio 5× sporiji)", () => {
+    expect(mapLayerById("radar_plus").tileSize).toBe(256);
   });
 
   /*

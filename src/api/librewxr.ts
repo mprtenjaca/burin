@@ -54,12 +54,22 @@ export type LibreFrames = { frames: RadarFrame[]; host: string };
 /**
  * Shema boja u URL-u pločice.
  *
- * 1 = "Rainviewer Original" — namjerno, da test-sloj izgleda što bliže
- * radaru na koji je Marko navikao (od 15 shema koje LibreWXR nudi). Sheme
- * se stvarno razlikuju: provjereno da 1/2/10/14 vraćaju različite slike
- * (drugi md5), dakle broj nije dekoracija.
+ * **10 = „Viper HD"** (Markov odabir 9.9.2026. nakon prve provjere na
+ * uređaju). Prva verzija je uzela shemu 1 („Rainviewer Original") jer je
+ * tražena sličnost s postojećim radarom — ali na uređaju je pala na
+ * nalazu „ove neke čudne zelene boje, ne mogu dobit dojam kad je nevrime
+ * kad ne": ta shema ima ZELENI srednji pojas, pa slaba kiša i pravo
+ * nevrijeme izgledaju jednako ozbiljno.
+ *
+ * Viper HD nosi jakost kroz plavo → žuto → crveno → magentu, bez zelenog
+ * međupojasa: nevrijeme skoči u boju koja se ne može promašiti. Za
+ * radarsku kartu je razlikovanje jakosti važnije od podsjećanja na stari
+ * izvor.
+ *
+ * Sheme stvarno rade — provjereno da 1/2/10/14 vraćaju različite slike
+ * (drugi md5), dakle broj nije dekoracija. LibreWXR ih nudi 15.
  */
-const COLOR_SCHEME = 1;
+const COLOR_SCHEME = 10;
 
 /**
  * Zadnji dio URL-a: `<glačanje>_<snijeg>`, isto što koristi radarski sloj

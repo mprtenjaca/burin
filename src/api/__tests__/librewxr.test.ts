@@ -102,8 +102,17 @@ describe("libreTileUrl", () => {
    * JS-u nego ga rasterski izvor puni sam.
    */
   it("ostavlja MapLibre predloške i nosi shemu boja", () => {
-    const url = libreTileUrl("https://api.librewxr.net", "/v2/radar/123", 512);
-    expect(url).toBe("https://api.librewxr.net/v2/radar/123/512/{z}/{x}/{y}/1/1_1.png");
+    const url = libreTileUrl("https://api.librewxr.net", "/v2/radar/123", 256);
+    expect(url).toBe("https://api.librewxr.net/v2/radar/123/256/{z}/{x}/{y}/10/1_1.png");
+  });
+
+  /**
+   * Shema 10 („Viper HD") je Markov odabir nakon provjere na uređaju:
+   * shema 1 je imala ZELENI srednji pojas pa se „nije moglo dobit dojam
+   * kad je nevrime kad ne". Viper ide plavo → žuto → crveno → magenta.
+   */
+  it("koristi shemu bez zelenog srednjeg pojasa", () => {
+    expect(libreTileUrl("https://h", "/p", 256)).toContain("/10/");
   });
 
   it("veličina pločice ide u URL", () => {
