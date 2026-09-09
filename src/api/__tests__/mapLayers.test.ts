@@ -20,24 +20,55 @@ const owm = require("../owm") as { hasOwmKey: jest.Mock };
 const frame: RadarFrame = { time: 1785885600, path: "/v2/radar/1785885600", isNowcast: false };
 
 describe("MAP_LAYERS", () => {
-  it("sadrži četiri sloja iz reference, Radar prvi", () => {
+  it("sadrži slojeve iz reference, Radar prvi i Radar+ uz njega", () => {
     expect(MAP_LAYERS.map((l) => l.id)).toEqual([
       "radar",
+      "radar_plus",
       "temp_new",
       "clouds_new",
       "wind_new",
     ]);
   });
 
+  it("id-evi su jedinstveni", () => {
+    const ids = MAP_LAYERS.map((l) => l.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   /**
-   * Radar (RainViewer) i Vjetar (vlastite crtice iz Open-Metea) ne traže
-   * ključ; samo OWM pločice ga traže.
+   * Radar (RainViewer), Radar+ (LibreWXR, CC-BY-4.0) i Vjetar (vlastite
+   * crtice iz Open-Metea) ne traže ključ; samo OWM pločice ga traže.
    */
-  it("bez ključa rade Radar i Vjetar", () => {
+  it("bez ključa rade Radar, Radar+ i Vjetar", () => {
     expect(MAP_LAYERS.filter((l) => !l.needsKey).map((l) => l.id)).toEqual([
       "radar",
+      "radar_plus",
       "wind_new",
     ]);
+  });
+
+  /**
+   * Regresija (9.9.2026.): Radar+ postoji SAMO zato što ima buduće okvire
+   * i dublje podatke od RainViewera (koji je nowcast ukinuo 1.1.2026.).
+   * Izmjereno: LibreWXR nosi podatke do z=11, RainViewer do z=7 — pa
+   * Radar+ smije do kraja karte, a radar staje na 9 da se ne raspadne u
+   * kocke. Ako ovo padne, sloj je izgubio svrhu.
+   */
+  it("Radar+ ide dublje od radara i do kraja karte", () => {
+    const plus = mapLayerById("radar_plus");
+    const base = mapLayerById("radar");
+    expect(plus.maxNativeZ).toBeGreaterThan(base.maxNativeZ);
+    expect(plus.maxUserZoom).toBe(MAP_MAX_ZOOM);
+    expect(base.maxUserZoom).toBeLessThan(MAP_MAX_ZOOM);
+  });
+
+  /**
+   * `doubleUp` je zaobilaznica za OWM alfu 76/255. LibreWXR pločica ima
+   * alfu 255 (izmjereno dekodiranjem), pa bi dvostruko crtanje bilo
+   * trošak bez razlike.
+   */
+  it("Radar+ ne crta pločicu dvaput", () => {
+    expect(mapLayerById("radar_plus").doubleUp).toBeUndefined();
   });
 
   /**
@@ -47,7 +78,7 @@ describe("MAP_LAYERS", () => {
    */
   it("vjetar se crta kao crtice, ostali kao pločice", () => {
     expect(mapLayerById("wind_new").render).toBe("barbs");
-    for (const id of ["radar", "temp_new", "clouds_new"] as const) {
+    for (const id of ["radar", "radar_plus", "temp_new", "clouds_new"] as const) {
       expect(mapLayerById(id).render).toBe("raster");
     }
   });
@@ -136,6 +167,43 @@ describe("mapLayerTileUrl", () => {
     expect(url).toContain("/4/1_1.png");
   });
 
+  /**
+   * Radar+ (LibreWXR) gradi URL istog OBLIKA kao radar, ali sa svojom
+   * shemom boja: 1 = „Rainviewer Original", namjerno, da test-sloj
+   * izgleda što bliže radaru na koji je korisnik navikao. Provjereno da
+   * sheme stvarno rade (1/2/10/14 vraćaju različite slike).
+   */
+  it("Radar+ gradi URL iz okvira, sa svojom shemom boja", () => {
+    const plus = mapLayerById("radar_plus");
+    expect(mapLayerTileUrl(plus)).toBeNull();
+    const url = mapLayerTileUrl(plus, { host: "https://api.librewxr.net", frame })!;
+    expect(url).toBe(
+      "https://api.librewxr.net/v2/radar/1785885600/512/{z}/{x}/{y}/1/1_1.png",
+    );
+  });
+
+  /*
+   * Isti ugovor kao za radar: veličina u URL-u i `tileSize` na sloju se
+   * ne smiju raziđi, inače MapLibre skalira u krivi okvir.
+   */
+  it("Radar+ veličina u URL-u odgovara tileSize sloja", () => {
+    const plus = mapLayerById("radar_plus");
+    const url = mapLayerTileUrl(plus, { host: "https://api.librewxr.net", frame })!;
+    expect(url).toContain(`/${plus.tileSize}/{z}/{x}/{y}/`);
+  });
+
+  /**
+   * Glačanje (prvi broj) stvarno radi — izmjereno 9.9.2026.: `1_*` daje
+   * 41 kB, `0_*` samo 5 kB grubih polja. Ne smije se ugasiti.
+   */
+  it("Radar+ traži glačanu pločicu", () => {
+    const url = mapLayerTileUrl(mapLayerById("radar_plus"), {
+      host: "https://api.librewxr.net",
+      frame,
+    })!;
+    expect(url).toMatch(/\/1_[01]\.png$/);
+  });
+
   it("OWM slojevi grade URL iz svog id-a", () => {
     for (const id of ["temp_new", "clouds_new"] as const) {
       expect(mapLayerTileUrl(mapLayerById(id))).toContain(`/map/${id}/`);
@@ -213,10 +281,11 @@ describe("baseStyleFor", () => {
 describe("isLayerAvailable", () => {
   afterEach(() => owm.hasOwmKey.mockReturnValue(true));
 
-  it("bez ključa ostaju Radar i Vjetar", () => {
+  it("bez ključa ostaju Radar, Radar+ i Vjetar", () => {
     owm.hasOwmKey.mockReturnValue(false);
     expect(MAP_LAYERS.filter(isLayerAvailable).map((l) => l.id)).toEqual([
       "radar",
+      "radar_plus",
       "wind_new",
     ]);
   });

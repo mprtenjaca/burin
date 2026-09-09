@@ -10,6 +10,16 @@ const SCALES: Record<MapLayerId, { colors: string[]; from: string; to: string }>
     from: t.map.legendWeak,
     to: t.map.legendStrong,
   },
+  /*
+   * ISTA skala kao radar — namjerno. Radar+ traži LibreWXR shemu 1
+   * („Rainviewer Original"), pa su boje istog jezika; različita legenda
+   * bi lagala da mjere nisu iste.
+   */
+  radar_plus: {
+    colors: ["#8CD1F5", "#2E9DF7", "#2EE68A", "#F5E12E", "#F58A2E", "#E63946"],
+    from: t.map.legendWeak,
+    to: t.map.legendStrong,
+  },
   temp_new: {
     colors: ["#8E44AD", "#2E86DE", "#2EE6A8", "#F5E12E", "#F58A2E", "#E63946"],
     from: "-40 °C",

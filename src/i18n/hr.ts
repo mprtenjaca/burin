@@ -149,12 +149,18 @@ export const hr = {
   map: {
     title: "Radar oborina",
     layerRadar: "Radar",
+    // Test-sloj uz radar (9.9.2026.): drugi izvor koji IMA buduće okvire.
+    // „+" jer stoji odmah uz Radar i mora se razlikovati na prvi pogled.
+    layerRadarPlus: "Radar+",
     layerTemperature: "Temperatura",
     layerClouds: "Naoblaka",
     layerWind: "Vjetar",
     layerPrecipitation: "Oborine",
     forecastLabel: "prognoza",
     radarAttribution: "Radar: RainViewer",
+    // CC-BY-4.0 traži navođenje izvora; OPERA je europska radarska mreža
+    // iz koje LibreWXR crta podatke za Hrvatsku.
+    radarPlusAttribution: "Radar: LibreWXR · OPERA",
     owmAttribution: "© OpenWeatherMap",
     locateMe: "Moja lokacija",
     nowLabel: "Sada",

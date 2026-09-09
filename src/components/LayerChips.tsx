@@ -1,4 +1,4 @@
-import { Cloudy, Radar, Thermometer, Wind } from "lucide-react-native";
+import { Cloudy, Radar, Satellite, Thermometer, Wind } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
@@ -10,6 +10,9 @@ import { ACCENT_UI } from "@/utils/weatherLook";
 /** Ikona po sloju — ista kao u ladici, da se izbornici poklapaju. */
 const LAYER_ICONS: Record<MapLayerId, LucideIcon> = {
   radar: Radar,
+  // Test-sloj stoji ODMAH uz radar, pa mu ikona mora biti drukčija na prvi
+  // pogled — dva jednaka „radara" u stupcu bi se čitala kao greška.
+  radar_plus: Satellite,
   temp_new: Thermometer,
   clouds_new: Cloudy,
   wind_new: Wind,

@@ -1,5 +1,5 @@
 import { router, usePathname } from "expo-router";
-import { BookmarkPlus, ChevronRight, Cloudy, Info, MapPin, Radar, Search, Settings, Thermometer, TriangleAlert, Wind } from "lucide-react-native";
+import { BookmarkPlus, ChevronRight, Cloudy, Info, MapPin, Radar, Satellite, Search, Settings, Thermometer, TriangleAlert, Wind } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -52,6 +52,9 @@ const FADE_H = 130;
  */
 const LAYER_ICONS: Record<MapLayerId, { Icon: LucideIcon; color: string }> = {
   radar: { Icon: Radar, color: ACCENT_CORAL },
+  // Ljubičasta: jedina slobodna nijansa u ovom nizu koja na mist podlozi
+  // drži ≥65 % kontrasta, a ne sudara se s koraljnom radara odmah iznad.
+  radar_plus: { Icon: Satellite, color: "#7B5EA7" },
   temp_new: { Icon: Thermometer, color: "#D9822B" },
   clouds_new: { Icon: Cloudy, color: "#4C8FDF" },
   wind_new: { Icon: Wind, color: "#2F9E8F" },

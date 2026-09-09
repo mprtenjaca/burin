@@ -31,7 +31,7 @@ import { MapPin } from "@/components/MapPin";
 import { MapTimeline } from "@/components/MapTimeline";
 import { WindBarbs } from "@/components/WindBarbs";
 import { useLocation } from "@/hooks/useLocation";
-import { useRadarFrames } from "@/hooks/useRadarFrames";
+import { useLibreFrames, useRadarFrames } from "@/hooks/useRadarFrames";
 import { nowIndex, useTimelineHours } from "@/hooks/useTimelineHours";
 import { useWindGrid } from "@/hooks/useWindGrid";
 import { useWindStyle } from "@/hooks/useWindStyle";
@@ -160,8 +160,21 @@ export default function MapScreen() {
     layer.timeline === "hours",
   );
 
-  const frames = radar.data?.frames ?? [];
-  const host = radar.data?.host;
+  /*
+   * Koji radarski izvor hrani crtu (9.9.2026.).
+   *
+   * Oba klijenta vraćaju IDENTIČAN oblik (`{host, frames}` s `isNowcast`),
+   * pa se izvor mijenja ovdje i sve ostalo — crta, player, pločice, sidro
+   * „sada" — radi bez ijedne izmjene. Razlika je samo u sadržaju: LibreWXR
+   * doista puni `nowcast` (6 okvira, +60 min), RainViewer ga je izgubio
+   * 1.1.2026. Vidi `librewxr.ts`.
+   */
+  const isRadarPlus = layer.id === "radar_plus";
+  const libre = useLibreFrames(isRadarPlus);
+  const radarQuery = isRadarPlus ? libre : radar;
+
+  const frames = radarQuery.data?.frames ?? [];
+  const host = radarQuery.data?.host;
   const hours = hoursQuery.data ?? [];
 
   /** Zadani korak: zadnji izmjereni okvir (radar) ili tekući sat (ostalo). */
@@ -322,8 +335,9 @@ export default function MapScreen() {
     });
   }, [layer, host, frames, hours, index]);
 
-  const radarBusy = layer.id === "radar" && radar.isPending;
-  const radarFailed = layer.id === "radar" && radar.isError;
+  // Oba radarska sloja imaju svoj upit; spinner/greška prate ODABRANI.
+  const radarBusy = layer.timeline === "frames" && radarQuery.isPending;
+  const radarFailed = layer.timeline === "frames" && radarQuery.isError;
 
   /*
    * Slojevi koji nisu radar žive od Open-Metea, koji ima SATNU kvotu i pri
@@ -610,7 +624,7 @@ export default function MapScreen() {
       {radarFailed && (
         <View className="absolute inset-0 items-center justify-center">
           <View className="rounded-2xl bg-paper/95 px-6 dark:bg-night/95">
-            <ErrorView onRetry={() => void radar.refetch()} />
+            <ErrorView onRetry={() => void radarQuery.refetch()} />
           </View>
         </View>
       )}

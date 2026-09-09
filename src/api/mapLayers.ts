@@ -1,5 +1,6 @@
 import { t } from "@/i18n";
 
+import { libreTileUrl } from "./librewxr";
 import { hasOwmKey, owmTileUrl } from "./owm";
 import type { RadarFrame } from "./types";
 
@@ -48,7 +49,7 @@ export const MAP_LABELS_LAYER_ID = "boundary_country_outline";
 export const MAP_MIN_ZOOM = 4;
 export const MAP_MAX_ZOOM = 12;
 
-export type MapLayerId = "radar" | "temp_new" | "clouds_new" | "wind_new";
+export type MapLayerId = "radar" | "radar_plus" | "temp_new" | "clouds_new" | "wind_new";
 
 /** Odakle vremenska crta uzima korake za ovaj sloj. */
 export type TimelineKind = "frames" | "hours";
@@ -171,6 +172,53 @@ export const MAP_LAYERS: MapLayer[] = [
      */
     maxUserZoom: 9,
     attribution: { label: t.map.radarAttribution, url: "https://www.rainviewer.com" },
+    timeline: "frames",
+  },
+  /*
+   * RADAR+ — TEST-SLOJ (9.9.2026., Markov odabir „vidit cemo").
+   *
+   * Stoji UZ radar, ne umjesto njega: usporedba je cijela svrha. Ako se
+   * pokaže dobar, kandidat je za zamjenu RainViewera; ako ne, briše se
+   * ovaj jedan unos i `librewxr.ts`.
+   *
+   * Zašto postoji: RainViewer je 1.1.2026. ukinuo buduće okvire (i satelit,
+   * i sheme boja, i spustio zoom na z=7), a pretplata koja to vraća ne
+   * postoji — vidi `librewxr.ts` za cijelu tablicu razlika i mjerenja.
+   */
+  {
+    id: "radar_plus",
+    label: t.map.layerRadarPlus,
+    // CC-BY-4.0, bez ključa — ista sloboda kao RainViewer, vidi librewxr.ts.
+    needsKey: false,
+    render: "raster",
+    opacity: 0.7,
+    /*
+     * BEZ `doubleUp` i bez zasićenja, za razliku od OWM slojeva.
+     *
+     * Izmjereno dekodiranjem pločice nad Zadrom: alfa je **255**, dakle
+     * boja je puna. `doubleUp` je zaobilaznica za OWM-ovih 76/255 i ovdje
+     * bi samo dvaput crtao istu punu pločicu — trošak bez razlike.
+     */
+    /*
+     * 11, ne 7. Izmjereno 9.9.2026. na Zadru kroz z=6…11: svaka razina
+     * vraća DRUGU sliku (različit md5), dakle podaci stvarno postoje —
+     * dok RainViewer od z=8 vraća bajt-identičnu pločicu s natpisom
+     * „Zoom Level Not Supported".
+     */
+    maxNativeZ: 11,
+    // 512 je podržano (provjereno, 110 kB) — kao i na radaru, više detalja.
+    tileSize: 512,
+    /*
+     * IDE DO KRAJA KARTE, za razliku od radara.
+     *
+     * Radar staje na 9 jer mu podaci staju na 7 pa se pločica rasteže u
+     * kocke („izmuljan kad priblizim"). Ovdje podaci sežu do 11, a pločica
+     * od 512 px nosi još jednu razinu gustoće — pa na z=12 nema stvarnog
+     * rastezanja. To je i glavna praktična razlika koju treba pogledati na
+     * uređaju: približi na grad i vidi ostaje li mrlja glatka.
+     */
+    maxUserZoom: MAP_MAX_ZOOM,
+    attribution: { label: t.map.radarPlusAttribution, url: "https://librewxr.net" },
     timeline: "frames",
   },
   /*
@@ -329,5 +377,20 @@ export function mapLayerTileUrl(
      */
     return `${radar.host}${radar.frame.path}/512/{z}/{x}/{y}/4/1_1.png`;
   }
+
+  /*
+   * RADAR+ (LibreWXR): isti oblik URL-a kao gore, ali shema boja i
+   * glačanje žive u `librewxr.ts` — uz mjerenja koja te brojke
+   * opravdavaju, da se ne razdvoje od svog obrazloženja.
+   *
+   * `host` dolazi iz odgovora (`api.librewxr.net`), ne iz konstante: kao i
+   * kod RainViewera, instanca ga sama objavljuje pa preseljenje ne traži
+   * izmjenu koda.
+   */
+  if (layer.id === "radar_plus") {
+    if (!radar) return null;
+    return libreTileUrl(radar.host, radar.frame.path, layer.tileSize);
+  }
+
   return owmTileUrl(layer.id, atUnix);
 }
