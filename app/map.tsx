@@ -7,7 +7,7 @@ import {
   type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import * as Location from "expo-location";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { ArrowLeft, LocateFixed } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, Text, View } from "react-native";
@@ -298,13 +298,24 @@ export default function MapScreen() {
    */
   const leaving = useRef(false);
   /*
-   * Brava se OTPUSTI kad se karta ponovno montira — inače bi ostala
-   * zaključana i drugi ulazak na kartu imao mrtav gumb natrag (karta je
-   * Drawer zaslon i preživi izlaz).
+   * Brava se OTPUŠTA NA FOKUS, ne na montiranje (popravak 9.9.2026.,
+   * Markov nalaz: „back button s mape nekad ne radi").
+   *
+   * Prva verzija (isto jutro) ju je otpuštala u `useEffect(..., [])` uz
+   * obrazloženje „jer karta kao Drawer zaslon preživi izlaz" — što je
+   * bio TOČAN razlog za POGREŠAN zaključak: baš zato što preživi,
+   * montiranje se drugi put ne dogodi, effect se ne ponovi, i brava iz
+   * prvog izlaska ostane zaključana. Obrazac s uređaja „nekad ne radi" =
+   * radi pri prvom ulasku, mrtav pri svakom sljedećem.
+   *
+   * `useFocusEffect` iz expo-routera (ne iz `@react-navigation/*` — taj
+   * uvoz ruši `expo export`) puca svaki put kad karta dođe u prvi plan.
    */
-  useEffect(() => {
-    leaving.current = false;
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      leaving.current = false;
+    }, []),
+  );
   const goBack = useCallback(() => {
     if (leaving.current) return;
     leaving.current = true;
@@ -312,6 +323,15 @@ export default function MapScreen() {
     stop();
     if (router.canGoBack()) router.back();
     else router.navigate("/");
+    /*
+     * Sigurnosni tajmer: ako navigacija tiho ne uspije (karta ostane u
+     * fokusu pa se `useFocusEffect` ne oglasi), brava se otvori sama.
+     * 600 ms je dulje od dvostrukog dodira, pa zaštita od „nazad, nazad
+     * → tražilica" ostaje, a zaglavljeno stanje se ne može dogoditi.
+     */
+    setTimeout(() => {
+      leaving.current = false;
+    }, 600);
   }, [stop]);
 
   const locateMe = useCallback(async () => {
