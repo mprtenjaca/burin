@@ -1,8 +1,8 @@
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet } from "react-native";
 import Svg, { Line } from "react-native-svg";
 
-import { IS_LOW_END, SLOPE, SPEED_BY_INTENSITY, thin, type LayerProps } from "./shared";
+import { DENSITY_BY_INTENSITY, IS_LOW_END, SLOPE, SPEED_BY_INTENSITY, thin, type LayerProps } from "./shared";
 
 /**
  * KIŠA — isprekidane kose zrake koje klize niz dijagonalu.
@@ -165,6 +165,23 @@ export const RainLayer = memo(function RainLayer({
    * bešavna jer se pomak (period uzorka) ne mijenja.
    */
   const ambientMs = Math.round(AMBIENT_MS * SPEED_BY_INTENSITY[intensity]);
+  /*
+   * BROJ PRUGA po jačini (9.9.2026.; Markov nalaz: „kiša i jaki pljuskovi
+   * nema razlike u količini crtica"). Do sada je jačina mijenjala SAMO
+   * brzinu, a pruge su bile sve — rosulja i pljusak isto gusti.
+   *
+   * Reže se `thin`-om nad `VISIBLE_STRIPES`, koje su već prorijeđene za
+   * slab uređaj; izvorni indeks putuje u četvrtom polju pa uzorak i faza
+   * crtica ostaju nepravilni (bez toga se vraća vodoravni prazan „val").
+   */
+  const stripes = useMemo(
+    () =>
+      thin(
+        VISIBLE_STRIPES,
+        Math.round(VISIBLE_STRIPES.length * DENSITY_BY_INTENSITY[intensity]),
+      ),
+    [intensity],
+  );
   /** Okomita rezerva platna — na niskim plohama je fiksna, ne udio visine. */
   const pad = vertPad(height);
   /*
@@ -240,7 +257,7 @@ export const RainLayer = memo(function RainLayer({
         height={height + pad * 2}
         style={{ position: "absolute", top: -pad, left: -SIDE_PAD }}
       >
-        {VISIBLE_STRIPES.map(([offset, w, opacity, i]) => (
+        {stripes.map(([offset, w, opacity, i]) => (
           <Line
             key={offset}
             x1={SIDE_PAD + width - offset + pad * SLOPE}

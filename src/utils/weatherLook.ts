@@ -77,10 +77,17 @@ const PALETTES = {
    * ekran i tu se razlika mora vidjeti. Test parnosti s widgetom zato
    * više ne drži ovaj ključ.
    */
+  /*
+   * Drugi krug sivljenja (Markov nalaz: „sivlju malo pozadinu, ne tamno
+   * plaviju"). Prvi krug je spustio kromu 94 → 65 i to je izašlo kao
+   * TAMNIJA plava, ne sivlja — jer je i svjetlina pala. Sad kroma ide na
+   * ~40 (vedro je 109), a svjetlina se VRAĆA gore, pa je razlika prema
+   * vedrom u boji a ne u tami. Vrh #5E7286: 4.97:1 na bijeli, kroma 40
+   * (izmjereno; #6A7E92 je bio 4.19 — pao).
+   */
   partlyDay: {
-    // Vrh #557896: 4.65:1 na bijeli (izmjereno; #5A7E9C je bio 4.29 — pao).
-    light: ["#557896", "#476786", "#35506A"],
-    dark: ["#557896", "#476786", "#35506A"],
+    light: ["#5E7286", "#586B7E", "#465768"],
+    dark: ["#5E7286", "#586B7E", "#465768"],
   },
   cloud: {
     light: ["#97A0A8", "#A9B2B9", "#BCC4CA"],

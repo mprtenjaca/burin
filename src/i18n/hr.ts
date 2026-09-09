@@ -191,9 +191,13 @@ export const hr = {
     layerPrecipitation: "Oborine",
     forecastLabel: "prognoza",
     radarAttribution: "Radar: RainViewer",
-    // CC-BY-4.0 traži navođenje izvora; OPERA je europska radarska mreža
-    // iz koje LibreWXR crta podatke za Hrvatsku.
-    radarPlusAttribution: "Radar: LibreWXR · OPERA",
+    /*
+     * CC-BY-4.0 TRAŽI navođenje izvora — nije ukras, pa ostaje. Skraćeno
+     * 9.9.2026. (Markov nalaz: „ne stane nam natpis"): „OPERA" i
+     * „Radar:" su otpali — OPERA je LibreWXR-ov izvor, ne naš, a „Radar:"
+     * ponavlja naslov kartice. Samo ime, kao „© CARTO" uz njega.
+     */
+    radarPlusAttribution: "LibreWXR",
     owmAttribution: "© OpenWeatherMap",
     locateMe: "Moja lokacija",
     nowLabel: "Sada",

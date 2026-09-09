@@ -57,6 +57,9 @@ const SAMPLES: Sample[] = [
   { code: 3.5, isDay: false },
   { code: 61, isDay: false },
   { code: 63, isDay: false },
+  // Slab, umjeren i jak snijeg noću — broj pahulja raste s jačinom.
+  { code: 71, isDay: false },
+  { code: 73, isDay: false },
   { code: 75, isDay: false },
 ];
 

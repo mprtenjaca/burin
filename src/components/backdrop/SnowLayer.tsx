@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
-import { SPEED_BY_INTENSITY, rnd, type LayerProps } from "./shared";
+import { DENSITY_BY_INTENSITY, SPEED_BY_INTENSITY, rnd, thin, type LayerProps } from "./shared";
 
 /**
  * SNIJEG — pahulje koje polako padaju i pritom se NJIŠU lijevo-desno.
@@ -11,7 +11,13 @@ import { SPEED_BY_INTENSITY, rnd, type LayerProps } from "./shared";
  * (linearan, bešavan) i njihanje (sinusno). Padu se ne smije mijenjati
  * tempo — na spoju petlje bi "trznuo".
  */
-const FLAKES = 26;
+/*
+ * 40 pahulja u PUNOM popisu (bilo 26), a stvarni broj po jačini:
+ * slab snijeg 16, umjeren 28, jak 40 (`DENSITY_BY_INTENSITY`). Do
+ * 9.9.2026. je broj bio fiksan i jačina je mijenjala samo brzinu —
+ * Markov nalaz: „za jači i slabiji snijeg dodaj još pahulja, učestalije".
+ */
+const FLAKES = 40;
 
 /** Koliko skupina dijeli jednu petlju pada — manje slojeva, brže montiranje. */
 const FLAKE_GROUPS = 5;
@@ -194,20 +200,30 @@ export const SnowLayer = memo(function SnowLayer({
    * visine platna, pa dok skupina putuje jednu visinu, uvijek netko
    * ulazi odozgo i netko izlazi dolje.
    */
+  /*
+   * Broj pahulja po JAČINI (9.9.2026.). `thin` čuva izvorni indeks pa
+   * svaka pahulja zadrži svoj položaj i veličinu bez obzira koliko ih je
+   * — slab i jak snijeg dijele iste pahulje, jak ih samo ima više.
+   */
+  const count = Math.round(FLAKES * DENSITY_BY_INTENSITY[intensity]);
   const flakeGroups = useMemo(() => {
     const groups: { x: number; y: number; r: number; opacity: number }[][] =
       Array.from({ length: FLAKE_GROUPS }, () => []);
-    for (let i = 0; i < FLAKES; i++) {
-      groups[i % FLAKE_GROUPS]!.push({
+    const indices = thin(
+      Array.from({ length: FLAKES }, (_, i) => i),
+      count,
+    );
+    indices.forEach((i, slot) => {
+      groups[slot % FLAKE_GROUPS]!.push({
         x: rnd(i + 3) * width,
         y: rnd(i + 199) * height * 2,
         // Manje pahulje su "dalje": sitnije i bljeđe.
         r: 1.4 + rnd(i + 53) * 2.4,
         opacity: 0.3 + rnd(i + 97) * 0.45,
       });
-    }
+    });
     return groups;
-  }, [width, height]);
+  }, [width, height, count]);
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, shift]} pointerEvents="none">

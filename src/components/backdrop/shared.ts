@@ -92,6 +92,24 @@ export const SPEED_BY_INTENSITY = {
   heavy: 0.6,
 } as const;
 
+/**
+ * KOLIČINA čestica po jačini (9.9.2026.) — uz brzinu iznad, koja je do
+ * sada bila JEDINA razlika. Markov nalaz na uređaju: „kiša i jaki
+ * pljuskovi nema razlike u količini crtica" i „dodaj još pahulja
+ * učestalije". Brzina sama ne nosi jačinu — pljusak koji juri s istim
+ * brojem kapi kao rosulja i dalje izgleda kao rosulja.
+ *
+ * Udio od punog popisa čestica u sloju: rosulja trećina, jaka kiša sve.
+ * Popisi su ZAJEDNIČKI (63 pruge, 40 pahulja) i režu se `thin`-om, koji
+ * čuva izvorni indeks — uzorak i faza ostaju nepravilni (isto pravilo
+ * kao kod prorjeđivanja na slabijim uređajima).
+ */
+export const DENSITY_BY_INTENSITY = {
+  light: 0.4,
+  moderate: 0.7,
+  heavy: 1,
+} as const;
+
 /** Nagib kosih elemenata: koliko px udesno "ode" po visini heroja. */
 export const SLOPE = 0.55;
 

@@ -168,7 +168,7 @@ export const en: Dict = {
     layerPrecipitation: "Precipitation",
     forecastLabel: "forecast",
     radarAttribution: "Radar: RainViewer",
-    radarPlusAttribution: "Radar: LibreWXR · OPERA",
+    radarPlusAttribution: "LibreWXR",
     owmAttribution: "© OpenWeatherMap",
     locateMe: "My location",
     nowLabel: "Now",

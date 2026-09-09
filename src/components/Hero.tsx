@@ -267,10 +267,21 @@ export function Hero({
           </View>
         </View>
 
-        {/* Malo primaknuto brojci u odnosu na prijašnjih −10. */}
-        <Text className="font-grotesk-bold text-[17px]" style={[{ color: heroFg }, { marginTop: -10 }]}>
-          {condition.label}
-        </Text>
+        {/*
+          IKONA UZ OPIS (9.9.2026., Markov zahtjev: „ikonu kraj opisa ovog
+          jaki pljuskovi, mislim da će to bit super dodatak"). Ista ikona
+          koju daje `codeToCondition` — dan/noć varijanta već riješena.
+          Ikona je u omotu bez dodira (pravilo za SVG na Androidu), 20 px
+          da stane uz 17 px slova bez da ih nadvisi.
+        */}
+        <View className="flex-row items-center gap-1.5" style={{ marginTop: -10 }}>
+          <View pointerEvents="none">
+            <condition.Icon size={20} color={heroFg} strokeWidth={2.2} />
+          </View>
+          <Text className="font-grotesk-bold text-[17px]" style={{ color: heroFg }}>
+            {condition.label}
+          </Text>
+        </View>
 
         {/* Stvarni osjet odmah uz opis vremena. */}
         <Text className="mt-0.5 font-grotesk-medium text-[15px]" style={heroFg75}>
