@@ -103,16 +103,18 @@ describe("libreTileUrl", () => {
    */
   it("ostavlja MapLibre predloške i nosi shemu boja", () => {
     const url = libreTileUrl("https://api.librewxr.net", "/v2/radar/123", 256);
-    expect(url).toBe("https://api.librewxr.net/v2/radar/123/256/{z}/{x}/{y}/10/1_1.png");
+    expect(url).toBe("https://api.librewxr.net/v2/radar/123/256/{z}/{x}/{y}/2/1_1.png");
   });
 
   /**
-   * Shema 10 („Viper HD") je Markov odabir nakon provjere na uređaju:
-   * shema 1 je imala ZELENI srednji pojas pa se „nije moglo dobit dojam
-   * kad je nevrime kad ne". Viper ide plavo → žuto → crveno → magenta.
+   * Shema 2 („Universal Blue") je ista paleta koju RainViewer koristi, pa
+   * su dva radarska sloja istog jezika boja — i jedina (uz 14) koja NE
+   * koristi zeleno, izmjereno histogramom palete. Shema 10 („Viper HD")
+   * je odbačena upravo zato što JE zelena na slaboj kiši
+   * (`rgb(19,160,65)` nad Zagrebom), suprotno prvoj pretpostavci.
    */
-  it("koristi shemu bez zelenog srednjeg pojasa", () => {
-    expect(libreTileUrl("https://h", "/p", 256)).toContain("/10/");
+  it("koristi paletu bez zelenog (istu kao radar)", () => {
+    expect(libreTileUrl("https://h", "/p", 256)).toContain("/2/");
   });
 
   it("veličina pločice ide u URL", () => {

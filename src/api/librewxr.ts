@@ -54,22 +54,41 @@ export type LibreFrames = { frames: RadarFrame[]; host: string };
 /**
  * Shema boja u URL-u pločice.
  *
- * **10 = „Viper HD"** (Markov odabir 9.9.2026. nakon prve provjere na
- * uređaju). Prva verzija je uzela shemu 1 („Rainviewer Original") jer je
- * tražena sličnost s postojećim radarom — ali na uređaju je pala na
- * nalazu „ove neke čudne zelene boje, ne mogu dobit dojam kad je nevrime
- * kad ne": ta shema ima ZELENI srednji pojas, pa slaba kiša i pravo
- * nevrijeme izgledaju jednako ozbiljno.
+ * **2 = „Universal Blue"** — ISTA paleta koju RainViewer danas koristi,
+ * pa su dva radarska sloja u aplikaciji istog jezika boja (Markov zahtjev
+ * 9.9.2026.: „boje što sličnije radaru").
  *
- * Viper HD nosi jakost kroz plavo → žuto → crveno → magentu, bez zelenog
- * međupojasa: nevrijeme skoči u boju koja se ne može promašiti. Za
- * radarsku kartu je razlikovanje jakosti važnije od podsjećanja na stari
- * izvor.
+ * Do ovoga se došlo kroz DVA promašaja, oba ispravljena mjerenjem palete
+ * a ne procjenom — pa neka stoji zapisano da se ne ponovi:
+ *
+ * 1. Shema 1 („Rainviewer Original"), odabrana po IMENU. Pala na nalazu
+ *    „ove neke čudne zelene boje, ne mogu dobit dojam kad je nevrime kad
+ *    ne".
+ * 2. Shema 10 („Viper HD"), odabrana uz tvrdnju da nema zelenog
+ *    međupojasa. Ta tvrdnja je bila NETOČNA: dekodiranjem piksela nad
+ *    Zagrebom i Zadrom izmjereno `rgb(19,160,65)` i `rgb(30,200,102)` —
+ *    zeleno, i to na SLABOJ kiši, koja je najčešći slučaj. Karta je
+ *    ostala zelena.
+ *
+ * Tek je onda paleta izmjerena kroz cijeli raspon (histogram svih boja u
+ * pločici, grupiran po tonu):
+ *
+ * | shema | tonovi kroz jakost |
+ * |---|---|
+ * | 1 „Rainviewer Original" | ZELENA → siva |
+ * | **2 „Universal Blue"** | **samo tirkiz/plava** |
+ * | 4, 10, 12 | ZELENA |
+ * | 11 „MRMS CREF" | plava → tirkiz → ZELENA |
+ * | 14 „Windy" | samo tirkiz |
+ *
+ * Samo 2 i 14 uopće izbjegavaju zeleno; od njih je 2 ono što RainViewer
+ * koristi, pa jedina zadovoljava „bez zelenog" i „slično radaru"
+ * istodobno. Jakost se čita po TAMNINI, ne po tonu.
  *
  * Sheme stvarno rade — provjereno da 1/2/10/14 vraćaju različite slike
  * (drugi md5), dakle broj nije dekoracija. LibreWXR ih nudi 15.
  */
-const COLOR_SCHEME = 10;
+const COLOR_SCHEME = 2;
 
 /**
  * Zadnji dio URL-a: `<glačanje>_<snijeg>`, isto što koristi radarski sloj

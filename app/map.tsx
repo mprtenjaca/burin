@@ -277,6 +277,43 @@ export default function MapScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus?.id]);
 
+  /*
+   * IZLAZ S KARTE (Markov nalaz na uređaju 9.9.2026.: „treba mu sekundu
+   * da se vrati nazad i korisnik misli da nije dobro stisnuo, stisne opet
+   * već mu ode natrag i slučajno stisne search button").
+   *
+   * Dva uzroka, oba ovdje:
+   *
+   * 1. Bilo je `router.navigate("/")` — to NAVIGIRA na početnu kao na novu
+   *    metu, pa Drawer gradi ciljani zaslon i vrti prijelaz. `back()` samo
+   *    odbacuje kartu i otkriva zaslon koji je već montiran ispod — bez
+   *    građenja i bez čekanja. (Rezerva na `navigate` ostaje za slučaj da
+   *    se karta otvori kao prvi zaslon, npr. deep linkom, kad natrag nema
+   *    kamo.)
+   *
+   * 2. Zaštita od DVOSTRUKOG dodira. Bez nje drugi dodir u ista dva kadra
+   *    ide u SLJEDEĆI zaslon — a na početnoj je gore lijevo tražilica, pa
+   *    je „nazad, nazad" korisnika slalo u pretragu. Ref (ne stanje) jer
+   *    se čita i piše u istom kadru, bez ponovnog crtanja.
+   */
+  const leaving = useRef(false);
+  /*
+   * Brava se OTPUSTI kad se karta ponovno montira — inače bi ostala
+   * zaključana i drugi ulazak na kartu imao mrtav gumb natrag (karta je
+   * Drawer zaslon i preživi izlaz).
+   */
+  useEffect(() => {
+    leaving.current = false;
+  }, []);
+  const goBack = useCallback(() => {
+    if (leaving.current) return;
+    leaving.current = true;
+    // Play bi inače nastavio pomicati crtu i tražiti pločice dok karta izlazi.
+    stop();
+    if (router.canGoBack()) router.back();
+    else router.navigate("/");
+  }, [stop]);
+
   const locateMe = useCallback(async () => {
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
@@ -474,7 +511,7 @@ export default function MapScreen() {
         kontrole (dorada 6.8.2026.).
       */}
       <Pressable
-        onPress={() => router.navigate("/")}
+        onPress={goBack}
         hitSlop={10}
         accessibilityRole="button"
         accessibilityLabel={t.common.weather}

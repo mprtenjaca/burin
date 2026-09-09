@@ -168,17 +168,16 @@ describe("mapLayerTileUrl", () => {
   });
 
   /**
-   * Radar+ (LibreWXR) gradi URL istog OBLIKA kao radar, ali sa svojom
-   * shemom boja: 10 = „Viper HD" (Markov odabir 9.9.2026. nakon provjere
-   * na uređaju — shema 1 je imala zeleni srednji pojas pa se nevrijeme
-   * nije razlikovalo od slabe kiše). Provjereno da sheme stvarno rade.
+   * Radar+ (LibreWXR) gradi URL istog OBLIKA kao radar, sa shemom 2
+   * („Universal Blue") — istom paletom koju RainViewer koristi, pa su
+   * oba radarska sloja istog jezika boja i nijedan nije zelen.
    */
-  it("Radar+ gradi URL iz okvira, sa svojom shemom boja", () => {
+  it("Radar+ gradi URL iz okvira, sa shemom boja kao radar", () => {
     const plus = mapLayerById("radar_plus");
     expect(mapLayerTileUrl(plus)).toBeNull();
     const url = mapLayerTileUrl(plus, { host: "https://api.librewxr.net", frame })!;
     expect(url).toBe(
-      "https://api.librewxr.net/v2/radar/1785885600/256/{z}/{x}/{y}/10/1_1.png",
+      "https://api.librewxr.net/v2/radar/1785885600/256/{z}/{x}/{y}/2/1_1.png",
     );
   });
 
