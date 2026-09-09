@@ -94,7 +94,8 @@ function paletteKeyFor(code: number, isDay: boolean): string {
   if (code >= 95 && code <= 99) return "thunder";
   if (code >= 71 && code <= 86 && code !== 80 && code !== 81 && code !== 82) return "snow";
   if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
-  if (code === 3 || code === 45 || code === 48) return isDay ? "cloud" : "nightCloudy";
+  // >= 3 zbog razreda 3.5 „pretezno oblacno" — vidi weatherLook.paletteKey.
+  if ((code >= 3 && code < 4) || code === 45 || code === 48) return isDay ? "cloud" : "nightCloudy";
   if (code === 2) return isDay ? "partlyDay" : "nightCloudy";
   if (code <= 1) return isDay ? "sunDay" : "nightClear";
   return isDay ? "cloud" : "nightCloudy";

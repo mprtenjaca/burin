@@ -136,6 +136,7 @@ export const en: Dict = {
     clear: "Clear",
     mostlyClear: "Mostly clear",
     partlyCloudy: "Partly cloudy",
+    mostlyCloudy: "Mostly cloudy",
     overcast: "Overcast",
     fog: "Fog",
     drizzle: "Drizzle",

@@ -116,7 +116,16 @@ function paletteKey(code: number, isDay: boolean): PaletteKey {
   if (code >= 95 && code <= 99) return "thunder";
   if (code >= 71 && code <= 86 && code !== 80 && code !== 81 && code !== 82) return "snow";
   if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
-  if (code === 3 || code === 45 || code === 48) return isDay ? "cloud" : "nightCloudy";
+  /*
+   * `code >= 3` (ne `=== 3`) zbog vlastitog razreda **3.5 „pretežno
+   * oblačno"** iz DHMZ mjerenja (9.9.2026., vidi `weatherCodes.ts`).
+   * S jednakošću je 3.5 propadao kroz sve grane do `code <= 1` i dobivao
+   * SUNČANI gradijent na oblačnom nebu. Gornja granica 4 drži da ovo
+   * ostane naoblaka i ne pojede magle (45/48) ni oborine (51+).
+   */
+  if ((code >= 3 && code < 4) || code === 45 || code === 48) {
+    return isDay ? "cloud" : "nightCloudy";
+  }
   if (code === 2) return isDay ? "partlyDay" : "nightCloudy";
   if (code <= 1) return isDay ? "sunDay" : "nightClear";
   return isDay ? "cloud" : "nightCloudy";

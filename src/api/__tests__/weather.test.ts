@@ -281,7 +281,7 @@ describe("correctWithObservation — MJERENI opis neba", () => {
    */
   it("mjereni opis pobjeđuje kod iz modela", () => {
     const out = correctWithObservation({ ...model, code: 2 }, withText("pretežno oblačno", 3));
-    expect(out.code).toBe(3);
+    expect(out.code).toBe(3.5);
   });
 
   /** Naoblaka je zakrpasta — daleka postaja gleda drugo nebo. */
@@ -303,7 +303,7 @@ describe("correctWithObservation — MJERENI opis neba", () => {
       withText("vedro", 20),
       withText("pretežno oblačno", 2),
     ]);
-    expect(out.code).toBe(3);
+    expect(out.code).toBe(3.5);
   });
 
   it("bez mjerenja ostaje sve kako je bilo", () => {

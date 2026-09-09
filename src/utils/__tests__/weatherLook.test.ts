@@ -653,3 +653,31 @@ describe("mjesečeva mijena", () => {
     expect(moonShadowOffset(0.85)).toBeGreaterThan(0);
   });
 });
+
+describe("razred 3.5 (pretežno oblačno) u izgledu", () => {
+  /**
+   * REGRESIJA koju je 3.5 gotovo uveo (9.9.2026.): sve grane po naoblaci
+   * su bile pisane kao `code === 3`, pa je 3.5 propadao kroz njih do
+   * `code <= 1` i dobivao SUNČANI gradijent na oblačnom nebu. Isti kvar
+   * je bio na pet mjesta (paletteKey, widgetData, dvije funkcije u
+   * iconNames, quips) — svaka usporedba s naoblakom mora biti raspon.
+   */
+  it("daje oblačan gradijent, ne sunčani", () => {
+    const mostly = weatherGradient(3.5, true, false);
+    expect(mostly).toEqual(weatherGradient(3, true, false));
+    expect(mostly).not.toEqual(weatherGradient(0, true, false));
+    expect(mostly).not.toEqual(weatherGradient(1, true, false));
+  });
+
+  it("noću je oblačan, kao i puna naoblaka", () => {
+    expect(weatherGradient(3.5, false, false)).toEqual(
+      weatherGradient(3, false, false),
+    );
+  });
+
+  /** Ambijent mora biti oblaci, ne zrake. */
+  it("ambijent je naoblaka", () => {
+    expect(backdropEffects(3.5, true)).toEqual(backdropEffects(3, true));
+    expect(backdropEffects(3.5, true)).not.toContain("rays");
+  });
+});

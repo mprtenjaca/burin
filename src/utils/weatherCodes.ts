@@ -37,6 +37,23 @@ const WMO_MAP: Record<number, Entry> = {
   0: { key: "clear", day: Sun, night: Moon },
   1: { key: "mostlyClear", day: SunDim, night: Moon },
   2: { key: "partlyCloudy", day: CloudSun, night: CloudMoon },
+  /*
+   * 3.5 NIJE WMO kod — vlastiti razred „pretežno oblačno", dodan
+   * 9.9.2026. (Markov nalaz: „ako DHMZ pokazuje pretežno oblačno, zašto
+   * mi pokazujemo samo oblačno?").
+   *
+   * WMO ima četiri stupnja naoblake, DHMZ pet: između „djelomično
+   * oblačno" (2) i „oblačno" (3) stoji „pretežno oblačno". Dosad se
+   * mjereno „pretežno" svodilo na 3, što je govorilo više nego mjerenje.
+   *
+   * Razlomak, a ne slobodan cijeli broj (npr. 4): time razred SAM PO SEBI
+   * kaže da je između 3 i 2, i ne može se zamijeniti s WMO kodom koji
+   * jednog dana dobije značenje. Svaka usporedba tipa `code >= 3` ga
+   * uključuje, `code === 3` ne — što je i ispravno, jer to nije oblačno
+   * nebo. Dolazi ISKLJUČIVO iz mjerenja; model daje samo cijele WMO
+   * stupnjeve.
+   */
+  3.5: { key: "mostlyCloudy", day: Cloud },
   3: { key: "overcast", day: Cloud },
   45: { key: "fog", day: CloudFog },
   48: { key: "fog", day: CloudFog },
@@ -112,20 +129,22 @@ export function dhmzTextToCode(text?: string): number | undefined {
   if (s.includes("magla") || s.includes("sumagl")) return 45;
 
   /*
-   * Naoblaka — DHMZ-ova ljestvica na WMO:
+   * Naoblaka — DHMZ-ova ljestvica ima PET stupnjeva, WMO četiri:
    *   vedro → 0 · pretežno vedro → 1 · umjereno oblačno → 2 ·
-   *   pretežno oblačno → 3 · oblačno → 3
+   *   **pretežno oblačno → 3.5** · oblačno → 3
    *
-   * „pretežno oblačno" je namjerno 3 („oblačno"), a ne 2: hrvatski
-   * „pretežno" znači VEĆI dio neba pod oblacima, što je upravo ono što je
-   * Marko vidio kroz prozor. Redoslijed provjera je bitan — „pretežno
-   * vedro" sadrži i „vedro", pa mora ispred njega.
+   * 3.5 je vlastiti razred (vidi `WMO_MAP`), dodan 9.9.2026. jer se
+   * mjereno „pretežno oblačno" dotad svodilo na „Oblačno" — što govori
+   * više nego mjerenje. Sad aplikacija piše isto što i DHMZ.
+   *
+   * Redoslijed provjera je bitan: „pretežno vedro" sadrži i „vedro", pa
+   * mora ispred njega; isto „pretežno oblačno" ispred golog „oblačno".
    */
-  if (s.includes("pretežno oblačno") || s.includes("oblačno bez")) return 3;
+  if (s.includes("pretežno oblačno")) return 3.5;
   if (s.includes("umjereno oblačno")) return 2;
   if (s.includes("pretežno vedro")) return 1;
   if (s.includes("vedro")) return 0;
-  // Goli „oblačno" bez pridjeva (nije viđen u feedu, ali je moguć).
+  // Goli „oblačno" bez pridjeva — puna naoblaka.
   if (s.includes("oblačno")) return 3;
 
   return undefined;

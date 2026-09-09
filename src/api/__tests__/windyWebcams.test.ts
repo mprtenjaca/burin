@@ -4,45 +4,65 @@ import type { Webcam } from "../windyWebcams";
 /**
  * Oblik odgovora Windy Webcams v3 (`include=images,location,urls`).
  *
- * NAPOMENA o izvoru: ovo je oblik iz dokumentacije, ne isječak PRAVOG
- * odgovora — API vraća 403 bez ključa, pa se pravi odgovor nije mogao
- * uzeti. Kad ključ postoji, ovaj fixture treba zamijeniti stvarnim
- * odgovorom (kao `__fixtures__/stampar-zagreb.html`), jer tek tada test
- * čuva parser od promjene na tuđoj strani.
+ * Isječak PRAVOG odgovora, dohvaćen s ključem 9.9.2026. (kamera Tkon uz
+ * Polaču). Kad Windy promijeni oblik, ovaj test pukne prvi — isto načelo
+ * kao `__fixtures__/stampar-zagreb.html`.
  *
- * Zato je parser namjerno OBRAMBEN i traži sliku na više mjesta — testovi
- * ispod pokrivaju obje varijante.
+ * Ovdje je i zamka koja je stvarno prevarila prvu verziju parsera:
+ * `images.sizes` nosi DIMENZIJE, ne adrese.
  */
 const RESPONSE = {
   total: 3,
   webcams: [
     {
-      webcamId: 1651177539,
-      title: "Tkon: Live cam - ferry",
-      location: { latitude: 43.9078, longitude: 15.2158, city: "Tkon" },
-      images: { current: { preview: "https://img/tkon-preview.jpg?t=abc" } },
-      urls: { detail: "https://www.windy.com/webcams/1651177539" },
-      lastUpdatedOn: "2026-09-09T12:54:43.000Z",
-    },
-    {
-      // Bliža kamera, ali NAVEDENA DRUGA — mora ispasti prva po udaljenosti.
-      webcamId: 42,
-      title: "Cam 3",
-      location: { latitude: 44.12, longitude: 15.24, city: "Zadar" },
-      // Druga varijanta smještaja slike (`sizes` umjesto `current`).
+      webcamId: 1437078303,
+      title: "Tkon: Webcam Live - Marina",
+      status: "active",
+      lastUpdatedOn: "2026-09-09T08:11:45.000Z",
       images: {
+        current: {
+          icon: "https://imgproxy.windy.com/_/icon/plain/current/1437078303/original.jpg?v=2",
+          thumbnail: "https://imgproxy.windy.com/_/thumbnail/plain/current/1437078303/original.jpg?v=2",
+          preview: "https://imgproxy.windy.com/_/preview/plain/current/1437078303/original.jpg?v=2",
+        },
+        // DIMENZIJE, ne adrese — prva verzija parsera je odavde citala
+        //  i dobivala undefined (vidi test ispod).
         sizes: {
-          preview: { url: "https://img/zd-preview.jpg?t=def" },
-          full: { url: "https://img/zd-full.jpg?t=def" },
+          icon: { width: 48, height: 48 },
+          thumbnail: { width: 200, height: 112 },
+          preview: { width: 400, height: 224 },
+        },
+        daylight: {
+          preview: "https://imgproxy.windy.com/_/preview/plain/daylight/1437078303/original.jpg?v=2",
         },
       },
-      urls: { detail: "https://www.windy.com/webcams/42" },
+      location: {
+        city: "Tkon",
+        region: "Zadar County",
+        country_code: "HR",
+        latitude: 43.92212,
+        longitude: 15.41891,
+      },
+      urls: {
+        detail: "https://windy.com/webcams/1437078303",
+        provider: "https://www.whatsupcams.com/en/webcams/Croatia/Zadar/Tkon/tkon-marina",
+      },
+    },
+    {
+      // Blize Zadru — mora ispasti prvo po udaljenosti.
+      webcamId: 42,
+      title: "Cam 3",
+      status: "active",
+      location: { latitude: 44.12, longitude: 15.24, city: "Zadar" },
+      images: { current: { preview: "https://img/zd.jpg?t=def" } },
+      urls: { detail: "https://windy.com/webcams/42" },
       lastUpdatedOn: "2026-09-09T13:00:00.000Z",
     },
     {
-      // Bez koordinata — mora se ODBACITI (vidi test).
+      // Bez koordinata — odbacuje se.
       webcamId: 99,
       title: "Nowhere",
+      status: "active",
       images: { current: { preview: "https://img/x.jpg" } },
     },
   ],
@@ -53,7 +73,7 @@ const ZADAR = { lat: 44.12, lon: 15.24 };
 describe("parseWebcams", () => {
   it("sortira po udaljenosti, najbliža prva", () => {
     const out = parseWebcams(RESPONSE, ZADAR.lat, ZADAR.lon);
-    expect(out.map((w) => w.id)).toEqual(["42", "1651177539"]);
+    expect(out.map((w) => w.id)).toEqual(["42", "1437078303"]);
     expect(out[0]!.distanceKm).toBeLessThan(out[1]!.distanceKm);
   });
 
@@ -73,24 +93,83 @@ describe("parseWebcams", () => {
   });
 
   /**
-   * Slika se traži na VIŠE mjesta jer je v3 vraća pod `images.current`, a
-   * neke kamere pod `images.sizes`. Obje varijante moraju proći.
+   * REGRESIJA koja je stvarno pogodila korisnika (9.9.2026.): za Polaču je
+   * kartica pisala „nema kamera u blizini" iako je API vratio deset.
+   *
+   * Uzrok: prva verzija je sliku čitala kao `images.sizes.preview.url`, a
+   * `sizes` nosi DIMENZIJE (`{width, height}`) — adrese su samo u
+   * `images.current` i `images.daylight`. Rezultat je bio `undefined`, a
+   * kartica bez slike pokazuje prazno stanje.
    */
-  it("nalazi sliku u obje varijante odgovora", () => {
+  it("čita sliku iz images.current, ne iz sizes (dimenzije)", () => {
     const out = parseWebcams(RESPONSE, ZADAR.lat, ZADAR.lon);
-    const zd = out.find((w) => w.id === "42")!;
-    const tkon = out.find((w) => w.id === "1651177539")!;
-    expect(zd.preview).toBe("https://img/zd-preview.jpg?t=def");
-    expect(zd.full).toBe("https://img/zd-full.jpg?t=def");
-    expect(tkon.preview).toBe("https://img/tkon-preview.jpg?t=abc");
-    // Bez `full` pada na `preview` — bolje manja slika nego prazan okvir.
+    const tkon = out.find((w) => w.id === "1437078303")!;
+    expect(tkon.preview).toBe(
+      "https://imgproxy.windy.com/_/preview/plain/current/1437078303/original.jpg?v=2",
+    );
+    // `preview` (400×224) je najveća veličina koju v3 daje — nema većeg.
     expect(tkon.full).toBe(tkon.preview);
+  });
+
+  /** Kamera koja noću ne daje sliku pada na zadnju DNEVNU. */
+  it("bez current slike uzima daylight", () => {
+    const raw = {
+      webcams: [
+        {
+          webcamId: 7,
+          status: "active",
+          location: { latitude: 44.12, longitude: 15.24, city: "Nin" },
+          images: { daylight: { preview: "https://img/day.jpg" } },
+        },
+      ],
+    };
+    expect(parseWebcams(raw, ZADAR.lat, ZADAR.lon)[0]!.preview).toBe(
+      "https://img/day.jpg",
+    );
+  });
+
+  /**
+   * Slika stara danima laže o današnjem vremenu gore nego prazan okvir,
+   * pa neaktivne kamere ispadaju.
+   */
+  it("odbacuje neaktivne kamere", () => {
+    const raw = {
+      webcams: [
+        {
+          webcamId: 8,
+          status: "inactive",
+          location: { latitude: 44.12, longitude: 15.24, city: "Nin" },
+          images: { current: { preview: "https://img/old.jpg" } },
+        },
+      ],
+    };
+    expect(parseWebcams(raw, ZADAR.lat, ZADAR.lon)).toEqual([]);
+  });
+
+  /**
+   * Izmjereno na pravom odgovoru za Polaču: od 10 vraćenih kamera PET je
+   * bio Tkon, sve na 4.2 km. Pet slika istog mjesta ne govori više od
+   * jedne, a istisnu susjedna mjesta iz limita.
+   */
+  it("zadržava najviše jednu kameru po mjestu", () => {
+    const mk = (city: string, lat: number) => ({
+      webcamId: `${city}-${lat}`,
+      status: "active",
+      location: { latitude: lat, longitude: 15.24, city },
+      images: { current: { preview: "https://img/x.jpg" } },
+    });
+    const out = parseWebcams(
+      { webcams: [mk("Tkon", 43.92), mk("Tkon", 43.93), mk("Nin", 44.24)] },
+      ZADAR.lat,
+      ZADAR.lon,
+    );
+    expect(out.map((w) => w.title)).toEqual(["Nin", "Tkon"]);
   });
 
   /** Obveza iz uvjeta Windyja: svaka slika mora vesti na njihovu stranicu. */
   it("svaka kamera ima adresu svoje stranice", () => {
     for (const w of parseWebcams(RESPONSE, ZADAR.lat, ZADAR.lon)) {
-      expect(w.pageUrl).toMatch(/^https:\/\/www\.windy\.com\/webcams\//);
+      expect(w.pageUrl).toMatch(/^https:\/\/(www\.)?windy\.com\/webcams\//);
     }
   });
 

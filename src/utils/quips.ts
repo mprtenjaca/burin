@@ -143,7 +143,8 @@ export function quipKey(input: QuipInput): QuipKey {
 
   // 7. Obično nebo.
   if (code === 45 || code === 48) return "fog";
-  if (code === 3) return "overcast";
+  // 3.5 („pretezno oblacno", mjereno) ide u istu recenicu kao oblacno.
+  if (code >= 3 && code < 4) return "overcast";
   if (code === 2) return "cloudy";
   if (code === 0 || code === 1) {
     if (!isDay) return "clearNight";

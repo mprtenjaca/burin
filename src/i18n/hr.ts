@@ -145,6 +145,19 @@ export const hr = {
     clear: "Vedro",
     mostlyClear: "Pretežno vedro",
     partlyCloudy: "Djelomično oblačno",
+    /*
+     * PETI razred naoblake, dodan 9.9.2026. (Markov nalaz: „ako DHMZ
+     * pokazuje pretežno oblačno, zašto mi pokazujemo samo oblačno?").
+     *
+     * WMO ima ČETIRI stupnja (0 vedro · 1 pretežno vedro · 2 djelomično
+     * oblačno · 3 oblačno), a DHMZ pet — između „djelomično" i „oblačno"
+     * stoji „pretežno oblačno". Bez ovog naziva se mjereno „pretežno"
+     * moralo svesti na „Oblačno", što je govorilo VIŠE nego mjerenje.
+     *
+     * Koristi se SAMO kad dolazi iz mjerenja (interni kod 3.5, vidi
+     * `weatherCodes.ts`); model daje samo WMO stupnjeve.
+     */
+    mostlyCloudy: "Pretežno oblačno",
     overcast: "Oblačno",
     fog: "Magla",
     drizzle: "Rosulja",

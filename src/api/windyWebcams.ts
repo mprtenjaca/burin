@@ -72,13 +72,24 @@ export type Webcam = {
 type RawWebcam = {
   webcamId?: number | string;
   title?: string;
+  status?: string;
   location?: { latitude?: number; longitude?: number; city?: string };
+  /*
+   * Oblik POTVRĐEN na pravom odgovoru (9.9.2026., kamera Tkon):
+   * URL-ovi su SAMO u `images.current` i `images.daylight`, u tri
+   * veličine (icon 48px · thumbnail 200px · preview 400×224).
+   *
+   * `images.sizes` NIJE mjesto s adresama nego s DIMENZIJAMA
+   * (`{preview: {width, height}}`) — prva verzija je odande čitala
+   * `sizes.preview.url`, dobivala `undefined`, i kartica je zbog toga
+   * pokazivala „nema kamera" iako ih je API vratio (Markov nalaz za
+   * Polaču). Nema veličine veće od `preview`.
+   */
   images?: {
     current?: { preview?: string; thumbnail?: string; icon?: string };
-    sizes?: { preview?: { url?: string }; full?: { url?: string } };
-    daylight?: { preview?: string };
+    daylight?: { preview?: string; thumbnail?: string };
   };
-  urls?: { detail?: string; edit?: string };
+  urls?: { detail?: string; edit?: string; provider?: string };
   lastUpdatedOn?: string;
 };
 type RawResponse = { total?: number; webcams?: RawWebcam[] };
@@ -142,15 +153,26 @@ export function parseWebcams(
     if (!isUsableName(rawName)) continue;
 
     /*
-     * Slika se traži na VIŠE mjesta: v3 je vraća pod `images.current`, a
-     * neke kamere je nose pod `images.sizes`. Prvo što postoji pobjeđuje —
-     * tako parser preživi obje varijante bez grananja po verziji.
+     * Samo AKTIVNE kamere. Windy vraća i one sa statusom „inactive" —
+     * njihova zadnja slika može biti stara danima, a slika od prošlog
+     * tjedna o današnjem vremenu laže gore nego prazan okvir.
+     */
+    if (w?.status !== undefined && w.status !== "active") continue;
+
+    /*
+     * `current` je zadnja snimka, `daylight` zadnja DNEVNA — druga je
+     * rezerva za kamere koje noću ne daju sliku. Ispod toga thumbnail:
+     * manja slika je bolja od praznog okvira.
+     *
+     * `preview` (400×224) je najveća veličina koju v3 daje, pa je i
+     * `full` isti URL — nema većeg.
      */
     const preview =
       w?.images?.current?.preview ??
-      w?.images?.sizes?.preview?.url ??
-      w?.images?.daylight?.preview;
-    const full = w?.images?.sizes?.full?.url ?? preview;
+      w?.images?.daylight?.preview ??
+      w?.images?.current?.thumbnail ??
+      w?.images?.daylight?.thumbnail;
+    const full = preview;
 
     const taken = w?.lastUpdatedOn ? Date.parse(w.lastUpdatedOn) : NaN;
 
@@ -170,7 +192,27 @@ export function parseWebcams(
     });
   }
 
-  return out.sort((a, b) => a.distanceKm - b.distanceKm);
+  out.sort((a, b) => a.distanceKm - b.distanceKm);
+
+  /*
+   * NAJVIŠE JEDNA KAMERA PO MJESTU (9.9.2026.).
+   *
+   * Izmjereno na pravom odgovoru za Polaču: od 10 vraćenih kamera njih
+   * **pet je bio Tkon**, sve na 4.2 km. Popis od pet slika istog mjesta ne
+   * govori ništa više od jedne, a istisne susjedna mjesta iz `LIMIT`-a.
+   * Zadržava se najbliža (niz je već sortiran).
+   *
+   * Ovo NE dira grad s vlastitim kamerama na različitim lokacijama unutar
+   * istog imena — takve Windy ionako vraća pod istim `city`, pa je jedna
+   * po mjestu ispravan izbor i tamo.
+   */
+  const seen = new Set<string>();
+  return out.filter((w) => {
+    const key = w.title.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**

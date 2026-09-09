@@ -332,13 +332,20 @@ export default function HomeScreen() {
               </Section>
 
               {/*
-                KAMERE ispod karte (Markov odabir 9.9.2026.). Sekcija se
-                NE PRIKAZUJE bez Windy ključa — `hasWindyKey` u
-                `windyWebcams.ts`: bez toga bi produkcijska gradnja bez
-                ključa imala prazan okvir pod kartom. Zaštita je u kodu, ne
-                u konfiguraciji, kao i kod Štampara.
+                KAMERE ispod karte (Markov odabir 9.9.2026.).
+                Sekcija se NE PRIKAZUJE u dva slučaja:
+
+                1. Bez Windy ključa (`hasWindyKey`) — inače bi produkcijska
+                   gradnja bez ključa imala prazan okvir pod kartom.
+                   Zaštita je u kodu, ne u konfiguraciji, kao kod Štampara.
+                2. Kad nema NI JEDNE kamere (Markov odabir: „ako nema
+                   kamere nemoj uopće pokazivati sekciju kamera") — naslov
+                   nad porukom „nema kamera" je prazna obećanja, a mjesta
+                   bez kamere su rijetka pa se sekcija ionako gotovo uvijek
+                   vidi. Dok upit traje sekcije nema, pa se ne pojavi pa
+                   nestane.
               */}
-              {hasWindyKey() && (
+              {hasWindyKey() && (webcams.data?.length ?? 0) > 0 && (
                 <Section title={t.home.camerasSection}>
                   <WebcamCard webcams={webcams.data ?? []} isOffline={webcams.isError} lat={bundle.place.lat} lon={bundle.place.lon} placeName={bundle.place.name} />
                 </Section>

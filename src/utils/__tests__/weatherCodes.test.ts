@@ -43,12 +43,15 @@ describe("dhmzTextToCode", () => {
   /**
    * Povod (9.9.2026., Markov nalaz s prozora): app je za Zadar pisala
    * „djelomično oblačno" (WMO 2, model) dok je DHMZ na zadarskoj postaji
-   * MJERIO „pretežno oblačno". Hrvatsko „pretežno" znači veći dio neba pod
-   * oblacima — mora završiti kao „oblačno" (3), ne kao 2.
+   * MJERIO „pretežno oblačno". Prvi popravak ga je sveo na „oblačno" (3),
+   * na što je Marko odmah primijetio: „zašto mi pokazujemo samo oblačno, a
+   * ne pretežno kao na DHMZ-u?" — pa 3.5 postoji da razred bude isti kao
+   * na mjerenju, ni jači ni slabiji.
    */
-  it("pretežno oblačno je OBLAČNO, ne djelomično", () => {
-    expect(dhmzTextToCode("pretežno oblačno")).toBe(3);
+  it("pretežno oblačno ima SVOJ razred, ne oblačno ni djelomično", () => {
+    expect(dhmzTextToCode("pretežno oblačno")).toBe(3.5);
     expect(dhmzTextToCode("umjereno oblačno")).toBe(2);
+    expect(dhmzTextToCode("oblačno")).toBe(3);
   });
 
   /** „pretežno vedro" sadrži i „vedro" — redoslijed provjera to mora paziti. */
@@ -96,7 +99,7 @@ describe("dhmzTextToCode", () => {
       "pretežno vedro": 1,
       "pretežno vedro, vjetrovito": 1,
       "umjereno oblačno": 2,
-      "pretežno oblačno": 3,
+      "pretežno oblačno": 3.5,
       "slaba kiša": 61,
       "slaba kiša poslije grmlj.": 61,
       "grmljavina s oborinom": 95,
@@ -110,5 +113,25 @@ describe("dhmzTextToCode", () => {
     for (const [text, code] of Object.entries(seen)) {
       expect(dhmzTextToCode(text)).toBe(code);
     }
+  });
+});
+
+describe("razred 3.5 (pretežno oblačno)", () => {
+  /**
+   * Markov nalaz 9.9.2026.: „ako DHMZ pokazuje pretežno oblačno, zašto mi
+   * pokazujemo samo oblačno?" WMO ima četiri stupnja naoblake, DHMZ pet —
+   * pa 3.5 postoji da mjerenje ne mora govoriti više nego što jest.
+   */
+  it("ima svoj naziv, različit od oblačnog i djelomičnog", () => {
+    const mostly = codeToCondition(3.5, true).label;
+    expect(mostly).toBe(hr.conditions.mostlyCloudy);
+    expect(mostly).not.toBe(codeToCondition(3, true).label);
+    expect(mostly).not.toBe(codeToCondition(2, true).label);
+  });
+
+  /** Ne smije završiti kao „nema podataka" — to je bila prva opasnost. */
+  it("nije nepoznat kod", () => {
+    expect(codeToCondition(3.5, true).label).not.toBe(hr.common.noData);
+    expect(codeToCondition(3.5, false).label).not.toBe(hr.common.noData);
   });
 });

@@ -64,7 +64,9 @@ export function ambientForWeather(code: number, isDay: boolean): AmbientKind {
   if (code >= 71 && code <= 86 && code !== 80 && code !== 81 && code !== 82) return "snow";
   if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
   if (code === 45 || code === 48) return "clouds";
-  if (code === 3) return "clouds";
+  // >= 3 (ne === 3) zbog razreda 3.5 "pretezno oblacno" iz DHMZ mjerenja:
+  // s jednakoscu je propadao do  i davao SUNCE na oblacnom nebu.
+  if (code >= 3 && code < 4) return "clouds";
   /*
    * Djelomično oblačno ima SVOJ sloj (Markov ispravak 7.8.2026.): oblak
    * je izraženiji nego kod pune naoblake, da se razlika vidi. Noću ide na
@@ -80,7 +82,8 @@ export function iconForWeather(code: number, isDay: boolean): WidgetIconName {
   if (code >= 71 && code <= 86 && code !== 80 && code !== 81 && code !== 82) return "snow";
   if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
   if (code === 45 || code === 48) return "fog";
-  if (code === 3) return isDay ? "cloud" : "night-cloudy";
+  // Isto kao u ambientForWeather: 3.5 mora ostati naoblaka.
+  if (code >= 3 && code < 4) return isDay ? "cloud" : "night-cloudy";
   if (code === 2) return isDay ? "partly" : "night-cloudy";
   if (code <= 1) return isDay ? "sun" : "night";
   return isDay ? "cloud" : "night-cloudy";
