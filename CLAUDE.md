@@ -17,6 +17,32 @@ razvojni izvor iza `__DEV__`** (pravna odluka — vidi Recent Decisions).
 Karta dobila dugmad dana i klizač po danu. Repo je od danas na GitHubu
 (`origin/master`) — pushati nakon zelenih provjera.
 
+**10.9.2026. (2) — RADAR KAO SUDAC ZA OBORINU (napisano, NEPROVJERENO).**
+Markov nalaz kroz prozor: app piše „grmljavinsko nevrijeme" sat i pol
+nakon što je prošlo; Verona „rosulja" uz jaku kišu; Polača „nevrijeme" uz
+same oblake. Tri kvara, jedan uzrok — **nijedan izvor koji app ima ne zna
+pada li SADA**: DHMZ tekst je snimka satnog TERMINA (objavljen 30–70 min
+kasnije, a `Termin` je LOKALNI sat — ne UTC, kako sam prvo pročitao), a
+model za oborinu jednostavno griješi (Crikvenica kod 61 uz 0 mm i prazan
+radar; Verona kod 61 uz 47 dBZ).
+
+Rješenje: **radar čita aplikacija sama** — PNG pločica se dohvati i
+dekodira ČISTIM JS-om (`fflate`, bez nativnog modula, bez rebuilda), pa
+se uzme najveći dBZ u krugu 5 km. Sudi **RainViewer**, ne LibreWXR (vidi
+odluke — izmjereno na 290 postaja s mjerenjem na TLU: Austrija mm/10 min,
+Slovenija pojava, Hrvatska tekst).
+
+Tri pravila, svako sa svojim temeljem: **< 20 dBZ obara** tvrdnju o
+oborini (95 % suhih od 269 postaja), **≥ 42 dBZ podiže** na jaku kišu
+(0 lažnih na 290 postaja), **između 20–42 ne dira** — tu radar ne
+razlikuje kišu na tlu od one koja isparava. Odjek se osvježava svakih
+10 min, lista okvira svakih 5 → heroj, ikona, ambijent i prvi stupac
+trake prate nevrijeme u koracima od ~10 min, umjesto da stoje do
+sljedećeg termina.
+
+Stanje: **503/503 testa, typecheck i export čisti; NIJE provjereno na
+uređaju i NIJE commitano.**
+
 **10.9.2026. — BRZINA I MEMORIJA.** Marko na dev buildu: „puno brže
 učitavanje gradova". Nalaz je bio: novi grad iz tražilice zamrzne
 tražilicu 2–3 s, poznati na tren pokaže krivu prognozu — na SVA TRI
@@ -83,6 +109,8 @@ zaslonu u 270° luk s točkom.
 
 | Što | Status | Bilješka |
 |---|---|---|
+| **Radar kao sudac za oborinu — PROVJERA na uređaju** | **Napisano, NEPROVJERENO, NECOMMITANO** | Sve je JS (reload). Konzola Metroa po mjestu ispiše ODLUKU: `[radar] Zadar: 17 dBZ (okvir −3 min), postaja 95, model 61 → 3 (radar)`. Gledati: (1) **Polača/Pridraga NE SMIJU pisati nevrijeme** (LibreWXR je tu davao 42–62 dBZ nad suhim, RainViewer 17); (2) prošlo nevrijeme prestaje unutar ~10 min, ne stoji do sljedećeg termina; (3) mjesto s jakom kišom piše „jaka kiša" i kad model tvrdi rosulju (Verona); (4) izvan pokrivenosti (Kijev, Ankara, Beograd, Sarajevo) radar mora pisati `nepokriveno` i pustiti model — NIKAD tvrditi suho; (5) ikone, ambijent i prvi stupac trake prate heroja. Tek nakon toga commit |
+| **Dekoder boja: crveni pojas ±5 dBZ** | Otvoreno, sitno | `dbzFromUniversalBlue` je kontinuiran (sidra izmjerena na LibreWXR-u); iznad 47 dBZ odstupa do ±5 od sidra. Nebitno za pragove 20/42, ali ako se pragovi pomaknu u crveno, treba mu gušća tablica. `dbzFromGrey` (LibreWXR shema 0) ostaje izvezen i testiran, sudac ga ne koristi |
 | **Brzina (10.9.): BROJKE i push** | **Marko potvrdio brzinu** („puno brže"); ostaje IZMJERITI pa pushati | Kod je commitan (2 commita), NIJE pushan. Ostaje dvoje: (1) oznake u konzoli Metroa — po dodiru na grad `[perf] search:tap → …` i `[perf] stack nakon prijelaza: [index:…]` (ako piše i `search`, stari kvar je živ), pa broj `home:content(N°)` oznaka = koliko se puta vidjela DRUGA brojka (cilj 1); (2) release build na starijem Androidu + `dumpsys meminfo` nakon 1/10/20 prebacivanja — traži se PLATO. Postupak u `docs/2026-09-10-perf-baseline.md`. Ta memorija je i JEDINI kriterij za MapLibre na `/map` (vidi odluke) |
 | **Provjera na uređaju — 10.9.: ostalo iz brzine** | **Čeka Marka, reload** | Pelud: „Nema peludi" na Helsinkiju (zeleno, skala s markerom na dnu), New York bez kartice. Ladica: otvoriti/zatvoriti (ambijent zaglavlja se pali samo otvorena), temperature u redovima. Karta doma: pregled ne treperi pri promjeni grada (kamera skače, radar je globalan okvir do 10 min star). Restart aplikacije: poznati grad iz diska bez mreže (persister). Upozorenja za strani grad: drugi put bez geokodiranja |
 | **Provjera na uređaju — 9.9. (VELIKI popis)** | **Čeka Marka, reload** | Sve je JS. **Radar:** LibreWXR je sad JEDINI, zove se „Radar", boje shema 2, pločica 256 px, atribucija „LibreWXR". **Kamere:** sekcija ispod karte, najbliža kamera, Polača→Tkon 13.3 km, Pridraga→Seline 16.3 km. **Nebo:** mjereni DHMZ opis do 25 km, „pretežno oblačno" ima svoj razred. **Ambijent:** 4 gustoće oblaka, količina oborine po jačini, noćne palete kiša/snijeg/grmljavina, djelomično oblačno sivlje. **Ikone:** kod 1 ima oblak, ikona uz opis na heroju. **Tražilica:** županija u podnaslovu, „Sv Filip i Jakov" radi. **Karta:** izlaz na prvi dodir i pri ponovnom ulasku. Detalji u zapisu `2026-09-09-kamere-nebo-radar-zamjena.md` |
@@ -109,7 +137,37 @@ zaslonu u 270° luk s točkom.
 
 ## Next Step
 
-### 0. Brzina (10.9.) — BROJKE PRIJE PUSHA
+### 0. Radar kao sudac — PROVJERA PRIJE COMMITA
+
+Sve je JS, dakle reload:
+
+```bash
+npx expo start --dev-client
+```
+
+Za svako mjesto konzola Metroa ispiše jednu liniju s odlukom:
+
+```
+[radar] Zadar: 17 dBZ (okvir −3 min), postaja 95, model 61 → 3 (radar)
+[radar] Kyiv: nepokriveno, postaja —, model 61 → 61 (model)
+```
+
+Što mora vrijediti, redom po važnosti:
+
+1. **Polača i Pridraga NE pišu nevrijeme.** To je bio najgori kvar —
+   LibreWXR je ondje davao 42–62 dBZ nad suhim terenom (zemljani odjek:
+   100 % pokrivenost, nepomičan uzorak kroz okvire), RainViewer 17. Ako
+   opet piše nevrijeme, sudac čita krivi izvor.
+2. **Prošlo nevrijeme prestaje** unutar ~10 min.
+3. **Jaka kiša se vidi** — ≥ 42 dBZ piše „jaka kiša" i kad model tvrdi
+   rosulju (Verona 10.9. je bila takav slučaj).
+4. **Izvan pokrivenosti radar šuti** — mora pisati `nepokriveno` i
+   pustiti model, nikad tvrditi suho.
+5. Ikone, ambijent i prvi stupac trake sati prate heroja (isti `code`).
+
+Ako prođe → commit; radar je ZASEBAN commit od brzine i peludi.
+
+### 0b. Brzina (10.9.) — BROJKE PRIJE PUSHA
 
 Brzina je potvrđena na dev buildu, ali NIJE izmjerena. Postupak i tablica
 su u `docs/2026-09-10-perf-baseline.md`; ukratko:
@@ -202,6 +260,13 @@ Sastaviti zahtjev za ponovnu uporabu informacija prema NZJZ Štampar
 
 | Odluka | Zašto |
 |---|---|
+| **Radar SUDI oborinu samo u krajnostima: < 20 dBZ obara, ≥ 42 podiže, između se ne dira** (`utils/radarJudge.ts`) | Izmjereno 10.9.2026. protiv mjerenja na TLU (Austrija 270 postaja s mm/10 min, Slovenija 20 s pojavom, Hrvatska 46 × 2 termina). **Obaranje:** od 269 postaja pod 20 dBZ samo 13 (5 %) je bilo mokro, i to rosulja 0.1 mm — „radar ne vidi ništa" pouzdano obara staru tvrdnju o oborini. **Podizanje:** nijedna od 290 suhih postaja nije prešla 37 dBZ, a 42 dBZ ≈ 11 mm/h fizički ne isparava do tla. **Između 20–42 radar NE ZNA:** Loibl/Tunnel 42 dBZ uz izmjerenih 0 mm, Zadar 19 dBZ uz „slaba kiša" — tu odlučuje postaja pa model, kao prije. Grmljavina se piše samo kad ju potvrdi drugi izvor (postaja ≤ 90 min ili model) — munje radar ne vidi |
+| **SUDI RainViewer, ne LibreWXR — iako je LibreWXR naš sloj na karti** | Izmjereno na istim točkama u istom trenutku: LibreWXR je 10–25 dBZ JAČI (javna instanca sirovih OPERA podataka bez filtriranja cluttera). Na pragu 27 dBZ ima 25 lažnih „pada" prema 5 kod RainViewera; nad Dalmacijom je davao 100 % pokrivenost s NEPOMIČNIM uzorkom kroz okvire — zemljani odjek, ne kiša (Markov nalaz: Polača i Pridraga „žuto/crveno" uz same oblake; RainViewer ondje 17). RainViewer nijednu suhu postaju nije prešao 37. LibreWXR ostaje sloj na karti (ima z=11 i nowcast); za SUD se čita RainViewer |
+| **Radarski dBZ se čita IZ BOJA, ne iz sive — i samo do z=7** (`api/radarSample.ts`) | LibreWXR shema 0 („Black and White") JEST siva dBZ skala (izmjereno: siva − 32, monotono, provjereno protiv sheme 2 na istim pikselima). RainViewer takvu shemu NEMA — njegova „0" je R kanal palete, pa vrijednosti izlaze besmislene (223, −32). Zato dekoder za RainViewer čita BOJE sheme 2 („Universal Blue") kroz kontinuirani gradijent, sa sidrima izmjerenima na LibreWXR-u. Uz to: RainViewer podaci staju na **z=7** — z=8 vraća pločicu s TEKSTOM „Zoom Level Not Supported" (izmjereno: ista za Zadar, Tokyo i Kairo), pa bijeli tekst bez zaštite ispada „tuča". Nepoznate boje daju `null`, ne broj |
+| **Prazna pločica NIJE „ne pada" — pokrivenost se čita iz `/v2/coverage`** | Prva verzija je imala bbox Europe i time bi za pola kontinenta rekla „suho": izmjereno da RainViewer NEMA radara nad Kijevom, Moskvom, Istanbulom, Ankarom, Athinom, Beogradom ni Sarajevom, a svi su unutar bboxa. Coverage pločica je dokumentirana („prozirno = pokriveno, crno = nije"), keš joj je dan u memoriji i smije na disk — mreža radara se ne mijenja. Bez pokrivenosti sudac ŠUTI i vraća se na model |
+| **PNG se dekodira ČISTIM JS-om (`fflate`), i mora podržati SVE dubine** | Nema nativnog modula za čitanje piksela (ni `expo-image-manipulator` ni Skia nisu u projektu), a dodati ga znači rebuild. `fflate` je 8 kB čistog JS-a, PNG unfilter je 60 redaka. **Zamka koju je mjerenje otkrilo:** pružatelji ne šalju uvijek 8-bit RGBA — gotovo prazne pločice dolaze kao 1-bitna paleta, one s malo boja kao 2/4-bitna (libpng bira najmanji zapis). Prva verzija je podržavala samo 8 bita i na pola Europe bacala „bit depth 4 nije podržan" — radar bi šutio točno tamo gdje je najlakše reći „ne pada". Dekoder se TESTIRA PROTIV SHARPA na pravim pločicama (`__fixtures__/radar/`, `expected.json` je libpng izlaz), ne protiv sebe |
+| **Prije usporedbe dvaju izvora provjeriti opisuju li ISTI TRENUTAK** | Prvo baždarenje je usporedilo radar u 13:20 s DHMZ tekstom od 12:00 i dalo 65 % slaganja uz besmislice (Zagreb 45 dBZ uz „potpuno oblačno"). Isti trenutak daje **96 %** (44/46). Uzrok je bio moj: `Termin 12` pročitao sam kao 13:00 (UTC), a to je 12:00 LOKALNO — tekst je star do 1 h 27 min, ne 27 min. Pouka je općenitija od radara |
+| **„Ima odjeka" NIJE „pada"** | 12 dBZ je ~0.1 mm/h — kapljice koje isparavaju prije tla (virga). Prva verzija sudca je svaki odjek zvala kišom i Zadar u 13:20 dobio „kišu" dok se kroz prozor vide samo oblaci. Zato je prag 20, ne „> 0" |
 | **`router.navigate()` na rutu koja je ISPOD u stacku je PREMJEŠTANJE, ne pop — do početne se ide `back()`/`dismissAll()`** (`search.tsx`, `DrawerContent.goHome`) | Pročitano u `expo-router/build/layouts/StackClient.js` (`stackRouterOverride`, case NAVIGATE): postojeća ruta se traži samo ako je TRENUTNA ili uz `pop: true` (koji `navigate` ne šalje); ali expo-router SVAKOM ekranu daje `getId` (`useScreens.js:107`), pa ulazi u granu koja rutu izvadi i gurne NA VRH s istim ključem — `[index, search]` → `[search, index]`. Tražilica je ostajala montirana ispod (20 redova × 4 pretplate crtalo se pri svakom odabiru), a RNS je premještaj animirao kao push već montiranog ekrana (vlastiti komentar expo-routera: „DANGEROUS … can cause React Native Screens to freeze"). Uz to `navigate` ide kroz `routingQueue` koji se prazni u `useEffect` korijena — TEK nakon cijelog render passa koji je `select()` pokrenuo. Stari trag: čišćenje polja pretrage „jer se povratkom zatekne stari upit" imalo je smisla samo ako se tražilica nikad nije odmontirala. Karta je 9.9. popravljena istim lijekom; ladica i tražilica su bile propuštene, a komentar u ladici („navigate POPA stack") bio je netočan |
 | **Skeleton pri promjeni grada je PREKRIVAČ izveden sinkrono, ne zamjena stabla iz efekta** (`index.tsx`: `shownPlaceId` kasni kadar za `place.id`) | Stari `switching` se palio u `useEffect` = nakon painta → prvi kadar novog grada crtao je heroja iz keša (stara satna traka), pa skeleton, pa heroja: „na milisekund kriva prognoza pa preskoči". I `return <HomeSkeleton/>` je ODMONTIRAO cijelo stablo — heroja, SVG slojeve, MapLibre kartu, 14 dana — i montirao ga kadar kasnije, pri svakoj promjeni. Sad je prvi render nakon promjene UVIJEK skeleton (izvedeno u renderu, bez efekta i bez painta između), a sadržaj ostaje montiran i prima novi grad pod prekrivačem. `belowFold` se više ne resetira po gradu (jednom, iza prijelaza kroz `runAfterInteractions`) |
 | **Jezgra paketa čeka DHMZ i pristranost KAD KEŠ POSTOJI; dodaci (AQI, more, pelud) ne diraju jezgru** (`useWeatherBundle`: `core` + `fresh`) | Osam upita je svaki za sebe sastavljalo paket i crtalo heroja s DRUGOM temperaturom (model → +delta → +bias). Poznati grad: prikazuje se keš dok se ne riješe i DHMZ i pristranost (u pravilu ~0 — memorija ili disk), pa jedan skok umjesto tri. Novi grad: NE čeka (nešto na ekranu vrijedi više od 1 °C točnosti; jedan skok pri prvom posjetu je cijena koja se plaća jednom). `memo(Hero)` radi jer `current`/`hours` reference dolaze iz jezgre, a `fetchedAt` ide zaokružen na minutu — inače bi ga svaki novi `Date.now()` probijao bez ijedne vidljive razlike |
@@ -304,7 +369,7 @@ Sastaviti zahtjev za ponovnu uporabu informacija prema NZJZ Štampar
 ```bash
 npx expo start --dev-client   # dev server; JS izmjene idu reloadom, BEZ rebuilda
 npm run typecheck             # tsc --noEmit
-npm test                      # jest, 450 testova u 36 skupina
+npm test                      # jest, 503 testa u 39 skupina
 node scripts/generate-widget-icons.mjs  # 20 ikona widgeta (traži sharp)
 npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 npx expo run:android          # nativni dev build
@@ -391,6 +456,19 @@ nad pragovima. **Štampar** (`api/stampar.ts`) je razvojni izvor: u
 (≤ 40 km), ključ po gradu, keš 6 h; kad vrati dane, zamjenjuje CAMS-ove.
 Ekran peludi i kartica čitaju `day.graded` i `day.source` (napomena).
 
+**Radar kao sudac za oborinu** (10.9.2026.): `api/radarSample.ts` dohvati
+RainViewer pločicu (shema 2, z=7), dekodira PNG čistim JS-om (`fflate`) i
+vrati najveći dBZ u krugu 5 km; `fetchRadarCoverage` čita `/v2/coverage`
+pločicu (prozirno = radar postoji). `hooks/useRadarEcho` to veže na
+`useRadarFrames` (RainViewer, provjera svakih 5 min): odjek po OKVIRU (ne
+ide na disk), pokrivenost po PLOČICI (dan u memoriji, smije na disk).
+`utils/radarJudge.ts` je čist sudac — `judgeCurrentCode` uzima kod postaje
+(+ starost), kod modela, naoblaku, temperaturu i odjek, pa vraća
+`{ code, source }`. `useWeatherBundle.core` ga zove, a rezultat ide u
+`current.code` I u prvi stupac trake (`withCurrentCode` u `api/weather.ts`
+— isto pravilo kao za temperaturu). Ikone, ambijent i tekstovi se ne
+diraju: čitaju `code` kao dosad. Pragovi i zašto — vidi odluke.
+
 **Brzina i keš** (10.9.2026.): do početne se s podekrana ide SAMO
 `router.back()`/`dismissAll()` — `navigate` premješta, ne popa (vidi
 odluke). `index.tsx`: skeleton je PREKRIVAČ (`switching` = `shownPlaceId
@@ -457,7 +535,10 @@ src/api/              openMeteo (+fetchCurrentBatch, pollenDaysFromHourly), dhmz
                       windStyle, bias, weather, client (+fetchText headers), types,
                       stampar (RAZVOJNI izvor peludi; __fixtures__/stampar-zagreb.html
                       je isječak prave stranice za test parsera),
-                      librewxr (JEDINI radar od 9.9. — nowcast +60 min,
+                      radarSample (SUDAC: RainViewer pločica → dBZ; PNG
+                      dekoder u čistom JS-u, coverage; __fixtures__/radar/
+                      su PRAVE pločice + expected.json iz sharpa),
+                      librewxr (radarski SLOJ na karti — nowcast +60 min,
                       blizanac rainviewera jer je oblik odgovora isti),
                       windyWebcams (web kamere; hasWindyKey, pickWebcams —
                       slike, ne video)
@@ -476,11 +557,14 @@ src/components/       Hero, HeroBackdrop, QuipLine (domaća rečenica NA
 src/components/backdrop/  RaysLayer, RainLayer, SnowLayer, CloudsLayer,
                       FogLayer, LightningLayer + shared.ts (IS_LOW_END, thin,
                       SPEED_BY_INTENSITY + DENSITY_BY_INTENSITY)
-src/hooks/            useWeatherBundle (+Štampar upit iza __DEV__),
+src/hooks/            useWeatherBundle (+Štampar iza __DEV__, radar sudac),
+                      useRadarEcho (odjek + pokrivenost nad mjestom),
                       useRefreshSavedCities, useWarnings, useNow, useRadarFrames,
                       useTimelineHours, useWindGrid, useWindStyle,
                       useLocation (+placeNameFrom), useBottomInset, useWebcams
-src/utils/            perf (perf oznake, no-op u produkciji), queryPersist
+src/utils/            radarJudge (sudac za current.code: < 20 dBZ obara,
+                      >= 42 podiže, između ne dira; pragovi izmjereni),
+                      perf (perf oznake, no-op u produkciji), queryPersist
                       (što smije na disk; testirano),
                       weatherCodes (+dhmzTextToCode, razred 3.5),
                       weatherLook (+PollenGraded, 10 vrsta peludi,
