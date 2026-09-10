@@ -23,9 +23,13 @@ import {
   debiasDaily,
   debiasHourly,
   observationDelta,
+  withCurrentCode,
 } from "@/api/weather";
 import { useLastWeather } from "@/store/lastWeather";
 import { mark } from "@/utils/perf";
+import { useRadarEcho } from "@/hooks/useRadarEcho";
+import { useRadarFrames } from "@/hooks/useRadarFrames";
+import { judgeCurrentCode, stationAgeMinutes } from "@/utils/radarJudge";
 import { dhmzTextToCode } from "@/utils/weatherCodes";
 import { useSettings } from "@/store/settings";
 import { pushWidget } from "@/widgets/widgetData";
@@ -127,6 +131,15 @@ export function useWeatherBundle(place: Place | null) {
     retry: 1,
   });
 
+  /*
+   * RADAR KAO SUDAC ZA OBORINU (10.9.2026.) — vidi `utils/radarJudge.ts`.
+   * Sudi RAINVIEWER (izmjereno: LibreWXR je 10–25 dBZ prejak i nefiltriran;
+   * on ostaje samo sloj na karti). Lista okvira svakih 5 min, uzorak nad
+   * mjestom po okviru, pokrivenost po pločici.
+   */
+  const rvFrames = useRadarFrames(!!place);
+  const radar = useRadarEcho(place, rvFrames);
+
   const save = useLastWeather((s) => s.save);
   const cached: WeatherBundle | undefined = useLastWeather((s) =>
     place ? s.byPlaceId[place.id] : undefined,
@@ -138,6 +151,7 @@ export function useWeatherBundle(place: Place | null) {
   useMarkOnData("q:forecast", forecast.dataUpdatedAt);
   useMarkOnData("q:dhmz", dhmz.dataUpdatedAt);
   useMarkOnData("q:bias", bias.dataUpdatedAt);
+  useMarkOnData("q:radar", radar.dataUpdatedAt);
 
   /*
    * Upit je RIJEŠEN kad je barem jednom dohvaćen (i s diska), pao, ili se
@@ -145,6 +159,7 @@ export function useWeatherBundle(place: Place | null) {
    */
   const dhmzSettled = dhmz.isFetched || dhmz.isError || dhmz.fetchStatus === "idle";
   const biasSettled = bias.isFetched || bias.isError || bias.fetchStatus === "idle";
+  const radarSettled = !radar.pending;
 
   /*
    * JEZGRA paketa (10.9.2026.): sve što ovisi o current + forecast + DHMZ +
@@ -171,7 +186,7 @@ export function useWeatherBundle(place: Place | null) {
      * na taj isti keš (identičan sadržaj — ništa se ne vidi) i vraća se s
      * pristranošću. Jedan skok, ne tri.
      */
-    if (hasCached && (!dhmzSettled || !biasSettled)) return undefined;
+    if (hasCached && (!dhmzSettled || !biasSettled || !radarSettled)) return undefined;
     const nearest = dhmz.data
       ? findNearestStation(place.lat, place.lon, dhmz.data)
       : null;
@@ -223,6 +238,34 @@ export function useWeatherBundle(place: Place | null) {
         ? dhmzTextToCode(dhmzObs.conditionText)
         : undefined;
 
+    /*
+     * RADAR PRESUĐUJE OBORINU (10.9.2026.). Postaja je i dalje sudac za
+     * naoblaku i maglu, ali je njezin tekst snimka TERMINA (svaka 3 h),
+     * pa je „grmljavina s oborinom" iz 12:00 stajala do 15:00 iako je
+     * jezgra prošla u 12:30. Radar je star 1–10 min i jedini zna pada li
+     * SADA; model za to ne zna (Crikvenica: kod 61 uz 0 mm i prazan
+     * radar). Pragovi i pravila u `radarJudge.ts`, izmjereni na 46
+     * postaja u istom trenutku (44/46).
+     */
+    const nowMs = Date.now();
+    const judged = judgeCurrentCode({
+      stationCode: measuredCode,
+      stationAgeMin: stationAgeMinutes(dhmzObs?.measuredAt, nowMs),
+      modelCode: debiasedCurrent.code,
+      cloudCover: debiasedCurrent.cloudCover,
+      temp: debiasedCurrent.temp + delta,
+      echo: radar.echo,
+      covered: radar.covered,
+      nowMs,
+    });
+    if (__DEV__) {
+      const age = radar.echo ? Math.round((nowMs / 1000 - radar.echo.frameTime) / 60) : null;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[radar] ${place.name}: ${radar.covered === false ? "nepokriveno" : radar.echo ? `${radar.echo.maxDbz ?? "—"} dBZ (okvir −${age} min)` : "bez radara"}, postaja ${measuredCode ?? "—"}, model ${debiasedCurrent.code} → ${judged.code} (${judged.source})`,
+      );
+    }
+
     return {
       // Isti `delta` kao za satnu krivulju — hero i prva ura moraju se
       // poklapati, pa se korekcija računa iz istog prosjeka postaja.
@@ -230,16 +273,17 @@ export function useWeatherBundle(place: Place | null) {
         ...debiasedCurrent,
         temp: debiasedCurrent.temp + delta,
         feelsLike: debiasedCurrent.feelsLike + delta,
-        // Mjereno nebo; bez mjerenja (predaleko, nepoznat opis) ostaje model.
-        code: measuredCode ?? debiasedCurrent.code,
+        // Presuđeno: radar za oborinu, postaja za nebo, model kao rezerva.
+        code: judged.code,
       },
-      hourly: correctHourly(debiasedHourly, delta),
-      hourlyAll: correctHourly(debiasedAll, delta),
+      // Prvi stupac trake (tekući sat) nosi isti kod kao heroj.
+      hourly: withCurrentCode(correctHourly(debiasedHourly, delta), judged.code, new Date(nowMs)),
+      hourlyAll: withCurrentCode(correctHourly(debiasedAll, delta), judged.code, new Date(nowMs)),
       daily: debiasDaily(forecast.data.daily, modelBias),
       dhmz: dhmzObs,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [place?.id, current.data, forecast.data, dhmz.data, bias.data, hasCached, dhmzSettled, biasSettled]);
+  }, [place?.id, current.data, forecast.data, dhmz.data, bias.data, radar.echo, radar.covered, hasCached, dhmzSettled, biasSettled, radarSettled]);
 
   useEffect(() => {
     if (core) mark("bundle:core");
@@ -329,10 +373,26 @@ export function useWeatherBundle(place: Place | null) {
     isError: hasError && !bundle,
     /** Prikazujemo starije podatke jer svježi dohvat nije uspio. */
     isStale: !fresh && !!cached && hasError,
-    isRefreshing: current.isRefetching || forecast.isRefetching,
+    isRefreshing: current.isRefetching || forecast.isRefetching || dhmz.isRefetching,
+    /*
+     * PULL-TO-REFRESH MORA OSVJEŽITI I SUDCE, NE SAMO MODEL (10.9.2026.).
+     *
+     * Dosad je povlačenje osvježavalo model, AQI i more — a NE DHMZ i NE
+     * radar. To su upravo dva izvora koja odlučuju što heroj piše
+     * (`judgeCurrentCode`): postaja mjeri nebo, radar sudi oborinu. Tko
+     * je povukao jer „vani je prošlo nevrijeme a app još piše grmljavina"
+     * dobio je novi model i staru presudu — dakle isti tekst, i
+     * povlačenje je izgledalo kao da ne radi.
+     *
+     * `dhmz.isRefetching` je i u `isRefreshing`: spinner mora stajati dok
+     * traje dohvat koji može promijeniti heroja, inače se zavrti i
+     * nestane prije nego što presuda dođe.
+     */
     refetch: () => {
       void current.refetch();
       void forecast.refetch();
+      void dhmz.refetch();
+      radar.refetch();
       void aqi.refetch();
       void seaTemp.refetch();
     },

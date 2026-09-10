@@ -30,6 +30,7 @@ import { LayerLegend } from "@/components/LayerLegend";
 import { MapPin } from "@/components/MapPin";
 import { MapTimeline } from "@/components/MapTimeline";
 import { WindBarbs } from "@/components/WindBarbs";
+import { IS_LOW_END } from "@/components/backdrop/shared";
 import { useLocation } from "@/hooks/useLocation";
 import { useLibreFrames, useRadarFrames } from "@/hooks/useRadarFrames";
 import { nowIndex, useTimelineHours } from "@/hooks/useTimelineHours";
@@ -48,6 +49,31 @@ import { ACCENT_CORAL, ACCENT_STEEL, weatherGradient } from "@/utils/weatherLook
 const FRAME_INTERVAL_MS = 600;
 /** Sati se listaju sporije od radarskih okvira — inače je nečitljivo. */
 const HOUR_INTERVAL_MS = 900;
+
+/*
+ * PREDUCITAVANJE UNAPRIJED DOK SVIRA (10.9.2026., Markov nalaz: "kad
+ * stisnem play treba da nadode").
+ *
+ * Okviri se mijenjaju svakih FRAME_INTERVAL_MS = 600 ms, a hladna LibreWXR
+ * plocica traje ~640 ms (izmjereno 9.9.: 0.64 s hladno, 0.09 s toplo -
+ * CDN se grije prvim prolazom). Sa susjedom montiranim SAMO jedan korak
+ * unaprijed sljedeci okvir ima 600 ms da dovuce 6-12 plocica koje traju
+ * 640 ms svaka - na prvom prolazu ne stize, pa animacija stuca dok se
+ * CDN ne ugrije. "Kad pustim play tek radi" je bio tocno taj uzrok.
+ *
+ * Zato se DOK SVIRA montira vise okvira unaprijed (opacity 0, isti trik
+ * kao susjed): 3 koraka = 1.8 s prednosti, dovoljno i za hladan CDN.
+ * Dok NE svira ostaje +-1 kao dosad - korisnik koji samo gleda radar ne
+ * placa nista. To je i odgovor na "bez da narusava optimizaciju": trosak
+ * postoji samo za vrijeme izricite radnje, i nestaje kad stane (okviri
+ * izvan prozora se odmontiraju).
+ *
+ * Cijena: +2 RasterSource-a s plocicama u GPU memoriji za vrijeme playa
+ * (~8 plocica x 39 kB po okviru na z=8). Na slabijim Androidima
+ * (IS_LOW_END, API < 33) prozor je 2 da se ne natrpa GPU. NEPROVJERENO
+ * na uredjaju: gledati stuca li prvi prolaz s hladnim CDN-om.
+ */
+const LOOKAHEAD_PLAYING = IS_LOW_END ? 2 : 3;
 
 /**
  * "2026-08-05T14:00" -> Date u LOKALNOJ zoni. `new Date(iso)` bi taj oblik
@@ -367,7 +393,11 @@ export default function MapScreen() {
     if (layer.timeline === "frames") {
       if (!host || frames.length === 0) return [];
       const n = frames.length;
-      const around = [...new Set([(index - 1 + n) % n, index, (index + 1) % n])];
+      // Dok svira: vise koraka unaprijed (vidi LOOKAHEAD_PLAYING); inace +-1.
+      const ahead = playing ? LOOKAHEAD_PLAYING : 1;
+      const idx = [(index - 1 + n) % n, index];
+      for (let k = 1; k <= ahead; k += 1) idx.push((index + k) % n);
+      const around = [...new Set(idx)];
       return around.flatMap((j) => {
         const frame = frames[j];
         const url = frame ? mapLayerTileUrl(layer, { host, frame }) : null;
@@ -382,7 +412,10 @@ export default function MapScreen() {
       return url ? [{ key: `${layer.id}-current`, url, active: true }] : [];
     }
     const last = hours.length - 1;
-    const around = [...new Set([Math.max(0, index - 1), index, Math.min(index + 1, last)])];
+    const ahead = playing ? LOOKAHEAD_PLAYING : 1;
+    const idx = [Math.max(0, index - 1), index];
+    for (let k = 1; k <= ahead; k += 1) idx.push(Math.min(index + k, last));
+    const around = [...new Set(idx)];
     return around.flatMap((j) => {
       const hour = hours[j];
       if (!hour) return [];
@@ -390,7 +423,7 @@ export default function MapScreen() {
       const url = mapLayerTileUrl(layer, undefined, at);
       return url ? [{ key: `${layer.id}-${at}`, url, active: j === index }] : [];
     });
-  }, [layer, host, frames, hours, index]);
+  }, [layer, host, frames, hours, index, playing]);
 
   // Oba radarska sloja imaju svoj upit; spinner/greška prate ODABRANI.
   const radarBusy = layer.timeline === "frames" && radarQuery.isPending;

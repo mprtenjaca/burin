@@ -75,7 +75,9 @@ export function placeNameFrom(
  * pozadinsku), dohvaća poziciju i reverse-geocodira ime mjesta.
  * Aplikacija mora biti potpuno upotrebljiva i kad je dozvola odbijena.
  */
-export function useLocation(enabled: boolean): GpsState & { request: () => void } {
+export function useLocation(
+  enabled: boolean,
+): GpsState & { request: () => void; permissionGranted: boolean | undefined } {
   const [state, setState] = useState<GpsState>({ status: "loading" });
   /*
    * Je li traženje UOPĆE pokrenuto — čuva efekt niže od udvajanja kad
@@ -84,6 +86,37 @@ export function useLocation(enabled: boolean): GpsState & { request: () => void 
    * ponovno crtanje ovdje ne treba.
    */
   const started = useRef(false);
+
+  /*
+   * JE LI DOZVOLA VEC DANA - provjera BEZ dijaloga (10.9.2026., Markov
+   * nalaz: "opet me pita na trazilici iako sam dopustio lokaciju").
+   *
+   * Trazilica GPS trazi TEK NA DODIR (odluka: ne dizati sustavni dijalog
+   * samo zato sto je netko otvorio trazilicu), pa je red do dodira pisao
+   * "Dopusti pristup lokaciji" - i onda kad je dozvola odavno dana.
+   * Sustavni dijalog se u tom slucaju NE pojavljuje (request vraca
+   * granted tiho), ali tekst reda TRAZI dozvolu, i to korisnik cita kao
+   * "opet me pita". Kvar je bio u rijeci, ne u dozvoli.
+   *
+   * getForegroundPermissionsAsync samo CITA stanje - nema dijaloga, nema
+   * GPS-a, nema mreze - pa smije na svako montiranje. Sucelje po tome
+   * bira rijec: dana -> "Moja lokacija", nije -> "Dopusti pristup".
+   * Dohvat pozicije i dalje ceka dodir; ovo ne mijenja koliko se trazi.
+   */
+  const [permissionGranted, setPermissionGranted] = useState<boolean | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    Location.getForegroundPermissionsAsync()
+      .then((p) => {
+        if (alive) setPermissionGranted(p.granted);
+      })
+      .catch(() => {
+        // nepoznato ostaje undefined -> sucelje se ponasa kao prije
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const request = useCallback(() => {
     started.current = true;
@@ -170,5 +203,5 @@ export function useLocation(enabled: boolean): GpsState & { request: () => void 
     request();
   }, [enabled, request]);
 
-  return { ...state, request };
+  return { ...state, request, permissionGranted };
 }

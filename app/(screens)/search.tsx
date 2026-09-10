@@ -12,7 +12,7 @@ import { useBottomInset } from "@/hooks/useBottomInset";
 import { useLocation } from "@/hooks/useLocation";
 import { t } from "@/i18n";
 import { useCities } from "@/store/cities";
-import { useLastWeather } from "@/store/lastWeather";
+import { latestGpsBundle, useLastWeather } from "@/store/lastWeather";
 import { useSearchHistory } from "@/store/searchHistory";
 import { useSettings } from "@/store/settings";
 import { useThemeColors } from "@/theme/useThemeColors";
@@ -178,6 +178,21 @@ export default function SearchScreen() {
    * lokaciju..." ne pokazuje prije njega.
    */
   const gps = useLocation(selected === null || gpsAsked);
+
+  /*
+   * ZADNJE POZNATO GPS MJESTO iz keša (10.9.2026., Markov nalaz: „svaki
+   * put mi na milisekund piše Tražim lokaciju pa prikaže moju").
+   *
+   * `useLocation` uvijek starta u `status: "loading"` — dozvola i pozicija
+   * se čitaju asinkrono, pa prvi kadar NIKAD ne zna mjesto. Red je zato
+   * pokazivao međustanje svaki put, iako je mjesto bilo poznato od prije.
+   *
+   * `lastWeather` čuva zadnji GPS paket na disku (`pruneBundles` ga
+   * izričito zadržava), pa se ime i koordinate znaju ODMAH, bez čekanja
+   * na GPS. Isti obrazac kao heroj offline: pokaži zadnje poznato, pa
+   * tiho zamijeni kad stigne svježe.
+   */
+  const lastGpsPlace = useLastWeather((st) => latestGpsBundle(st.byPlaceId)?.place);
 
   const history = useSearchHistory((s) => s.entries);
   const addHistory = useSearchHistory((s) => s.add);
@@ -391,8 +406,18 @@ export default function SearchScreen() {
       <View className="mt-1 gap-3">
         <Text className="px-1 font-grotesk-bold text-[13.5px] text-ink/55 dark:text-paper/55">{t.search.myLocation}</Text>
         <View className="rounded-2xl bg-white py-0.5 dark:bg-coal">
+          {/*
+            Tri stanja, u ovom redu:
+             1. GPS je stigao -> pravo mjesto;
+             2. GPS se jos trazi, ali ZNAMO zadnje (kes + dozvola dana) ->
+                pokazi zadnje poznato, bez ijednog medustanja. Dodir radi
+                jer `openMyLocation` ionako ceka svjezu poziciju;
+             3. nema ni jednog -> poziv na dozvolu / "Trazim lokaciju...".
+          */}
           {gps.status === "granted" ? (
             <PlaceRow place={gps.place} active={selected === null} showWeather onOpen={openMyLocation} action={<MapPin size={20} strokeWidth={2} color={ACCENT_UI} />} />
+          ) : lastGpsPlace && gps.permissionGranted !== false && gps.status !== "denied" ? (
+            <PlaceRow place={lastGpsPlace} active={selected === null} showWeather onOpen={openMyLocation} action={<MapPin size={20} strokeWidth={2} color={ACCENT_UI} />} />
           ) : (
             <Pressable
               className="flex-row items-center gap-3 px-4 py-4"
@@ -413,8 +438,29 @@ export default function SearchScreen() {
                 gps.request();
               }}
             >
-              <MapPin size={20} strokeWidth={2} color={fg} opacity={0.5} />
-              <Text className="font-grotesk-medium text-[16px] text-ink/75 dark:text-paper/75">{gpsAsked && gps.status === "loading" ? t.search.locatingNow : t.search.allowLocation}</Text>
+              {/*
+                Rijec prati STANJE DOZVOLE (10.9.2026.): kad je dana, red
+                je "Moja lokacija" s plavim pinom - isti kao red mjesta
+                iznad kad se lokacija zna - jer dodir tu ne trazi nista,
+                samo dohvaca poziciju. "Dopusti pristup lokaciji" ostaje
+                SAMO dok dozvole nema (ili je stanje jos nepoznato), jer
+                tada dodir stvarno dize sustavni dijalog. Prije je red uvijek
+                pisao "Dopusti", pa je korisnik s danom dozvolom citao da ga
+                app "opet pita". Vidi permissionGranted u useLocation.
+              */}
+              <MapPin
+                size={20}
+                strokeWidth={2}
+                color={gps.permissionGranted ? ACCENT_UI : fg}
+                opacity={gps.permissionGranted ? 1 : 0.5}
+              />
+              <Text className="font-grotesk-medium text-[16px] text-ink/75 dark:text-paper/75">
+                {gpsAsked && gps.status === "loading"
+                  ? t.search.locatingNow
+                  : gps.permissionGranted
+                    ? t.search.myLocation
+                    : t.search.allowLocation}
+              </Text>
             </Pressable>
           )}
         </View>
