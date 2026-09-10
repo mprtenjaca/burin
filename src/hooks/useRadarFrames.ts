@@ -5,11 +5,19 @@ import { fetchRadarFrames } from "@/api/rainviewer";
 
 const MIN = 60 * 1000;
 
-/** Okviri radara — keširano 5 min da se endpoint ne opterećuje. */
-export function useRadarFrames() {
+/**
+ * Okviri RainViewer radara — keširano 5 min da se endpoint ne opterećuje.
+ *
+ * Od 10.9.2026. ovo je i ULAZ SUDCA za oborinu (`useRadarEcho`): novi
+ * okvir svakih 10 min, provjera svakih 5 → heroj vidi promjenu najviše
+ * ~6–7 min iza stvarnog vremena. Sloj RainViewera na karti je i dalje
+ * zakomentiran; lista se traži samo dok ima mjesta (`enabled`).
+ */
+export function useRadarFrames(enabled = true) {
   return useQuery({
     queryKey: ["rainviewer-frames"],
     queryFn: fetchRadarFrames,
+    enabled,
     staleTime: 5 * MIN,
     refetchInterval: 5 * MIN,
   });

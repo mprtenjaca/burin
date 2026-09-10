@@ -137,7 +137,7 @@ export function mapCurrent(raw: OmRawCurrent): CurrentWeather {
 }
 
 /** Lokalni ISO punog sata za `now`, npr. "2026-08-04T10:00". */
-function currentHourIso(now: Date): string {
+export function currentHourIso(now: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:00`;
 }

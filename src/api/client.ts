@@ -44,6 +44,19 @@ export async function fetchJson<T>(
   return (await res.json()) as T;
 }
 
+/**
+ * Sirovi bajtovi (radarska PNG pločica). `arrayBuffer()` u RN-u postoji od
+ * davno (Blob-podržan); timeout isti kao za JSON.
+ */
+export async function fetchBytes(
+  url: string,
+  opts: { timeoutMs?: number } = {},
+): Promise<Uint8Array> {
+  const res = await fetchWithTimeout(url, opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  if (!res.ok) throw new FetchError(`HTTP ${res.status}: ${url}`, res.status);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
 export async function fetchText(
   url: string,
   opts: { timeoutMs?: number; headers?: Record<string, string> } = {},

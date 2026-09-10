@@ -23,12 +23,15 @@ export const QUERY_BUSTER = "1";
  *    spremljen bi nakon restarta vraćao 401 i prazne okvire;
  *  - `stampar-pollen` — razvojni HTML izvor, nikad u produkciji;
  *  - `librewxr-frames` — radarski okviri se mijenjaju svakih 10 min,
- *    stari su beskorisni, a pločice se ionako traže po okviru.
+ *    stari su beskorisni, a pločice se ionako traže po okviru;
+ *  - `radar-echo` — uzorak odjeka nad mjestom za JEDAN okvir; jučerašnji
+ *    ne govori ništa o danas, a ključ ionako nosi vrijeme okvira.
  */
 export const NOT_ON_DISK: ReadonlySet<string> = new Set([
   "windy-webcams",
   "stampar-pollen",
   "librewxr-frames",
+  "radar-echo",
 ]);
 
 /** Smije li upit s ovim ključem na disk. */

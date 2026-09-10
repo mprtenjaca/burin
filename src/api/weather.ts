@@ -3,6 +3,7 @@ import { dhmzTextToCode } from "@/utils/weatherCodes";
 import { biasSlotForHour, isZeroBias } from "./bias";
 import type { ModelBias } from "./bias";
 import type { CurrentWeather, DailyPoint, DhmzObservation, HourlyPoint, Place, WeatherBundle } from "./types";
+import { currentHourIso } from "./openMeteo";
 
 /*
  * Korekcija modela stvarnim mjerenjima (DHMZ). Dizajn:
@@ -268,4 +269,21 @@ export function buildBundle(args: {
     seaTemp: args.seaTemp,
     fetchedAt: Date.now(),
   };
+}
+
+/**
+ * PRVI SAT TRAKE NOSI ISTI KOD KAO HEROJ (10.9.2026.).
+ *
+ * Isto pravilo koje već vrijedi za temperaturu („hero i prvi sat u traci
+ * moraju se poklapati"): heroj sad piše ono što radar i postaja MJERE, a
+ * traka je iz modela — pa je prvi stupac znao crtati kišu dok heroj kaže
+ * oblačno. Stupac koji predstavlja tekući sat dobiva presuđeni kod;
+ * ostatak trake ostaje prognoza. Bez tekućeg sata u nizu (stari niz) se
+ * ne mijenja ništa.
+ */
+export function withCurrentCode(hourly: HourlyPoint[], code: number, now: Date): HourlyPoint[] {
+  const iso = currentHourIso(now);
+  const idx = hourly.findIndex((h) => h.time === iso);
+  if (idx < 0 || hourly[idx]!.code === code) return hourly;
+  return hourly.map((h, i) => (i === idx ? { ...h, code } : h));
 }

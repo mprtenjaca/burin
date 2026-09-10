@@ -1,0 +1,383 @@
+{
+  "frameTime": 1789034400,
+  "tiles": {
+    "zadar-z8-138-92": {
+      "bytes": 13658,
+      "width": 256,
+      "height": 256,
+      "fnv": 2269920256,
+      "samples": {
+        "zadar": [
+          78,
+          78,
+          78,
+          255
+        ],
+        "mid": [
+          43,
+          43,
+          43,
+          255
+        ],
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "p60_200": [
+          42,
+          42,
+          42,
+          255
+        ]
+      },
+      "maxGrey": 104,
+      "opaque": 55653
+    },
+    "zagreb-z8-139-91": {
+      "bytes": 4811,
+      "width": 256,
+      "height": 256,
+      "fnv": 3905266668,
+      "samples": {
+        "zadar": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "mid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "corner": [
+          64,
+          64,
+          64,
+          255
+        ],
+        "p60_200": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "maxGrey": 77,
+      "opaque": 17566
+    },
+    "kairo-z8-150-105": {
+      "bytes": 334,
+      "width": 256,
+      "height": 256,
+      "fnv": 4125924805,
+      "samples": {
+        "zadar": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "mid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "p60_200": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "maxGrey": -1,
+      "opaque": 0
+    },
+    "enc-bit4-type3-z8-127-85": {
+      "bytes": 306,
+      "width": 256,
+      "height": 256,
+      "fnv": 1207954966,
+      "samples": {
+        "zadar": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "mid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "p60_200": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "maxGrey": 53,
+      "opaque": 112
+    },
+    "enc-bit8-type3-z8-138-92": {
+      "bytes": 3861,
+      "width": 256,
+      "height": 256,
+      "fnv": 1271278774,
+      "samples": {
+        "zadar": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "mid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "p60_200": [
+          45,
+          45,
+          45,
+          255
+        ]
+      },
+      "maxGrey": 68,
+      "opaque": 16399
+    },
+    "enc-bit2-type3-z8-137-67": {
+      "bytes": 160,
+      "width": 256,
+      "height": 256,
+      "fnv": 3981836805,
+      "samples": {
+        "zadar": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "mid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "p60_200": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "maxGrey": 51,
+      "opaque": 76
+    },
+    "enc-bit1-type3-z8-137-68": {
+      "bytes": 144,
+      "width": 256,
+      "height": 256,
+      "fnv": 3077380754,
+      "samples": {
+        "zadar": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "mid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "p60_200": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "maxGrey": 46,
+      "opaque": 65
+    },
+    "rv-z7-verona-scheme2": {
+      "bytes": 22076,
+      "width": 256,
+      "height": 256,
+      "fnv": 2182038785,
+      "samples": {
+        "zadar": [
+          222,
+          208,
+          151,
+          190
+        ],
+        "mid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "p60_200": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "maxGrey": 255,
+      "opaque": 31462,
+      "note": "RainViewer z7, shema 2, bez glačanja; Verona 45.438,10.993"
+    },
+    "rv-z8-unsupported": {
+      "bytes": 1370,
+      "width": 256,
+      "height": 256,
+      "fnv": 3854112678,
+      "samples": {
+        "zadar": [
+          71,
+          112,
+          76,
+          0
+        ],
+        "mid": [
+          0,
+          0,
+          0,
+          140
+        ],
+        "corner": [
+          71,
+          112,
+          76,
+          0
+        ],
+        "p60_200": [
+          71,
+          112,
+          76,
+          0
+        ]
+      },
+      "maxGrey": 255,
+      "opaque": 13324,
+      "note": "RainViewer z8 = placeholder s tekstom; uzorak mora biti null"
+    },
+    "coverage-z7-zadar": {
+      "bytes": 914,
+      "width": 256,
+      "height": 256,
+      "fnv": 373595589,
+      "samples": {
+        "zadar": [
+          255,
+          255,
+          255,
+          0
+        ],
+        "mid": [
+          255,
+          255,
+          255,
+          0
+        ],
+        "corner": [
+          255,
+          255,
+          255,
+          0
+        ],
+        "p60_200": [
+          255,
+          255,
+          255,
+          0
+        ]
+      },
+      "maxGrey": -1,
+      "opaque": 0,
+      "note": "RainViewer coverage z7 69/46 (Dalmacija)"
+    },
+    "coverage-z7-kyiv": {
+      "bytes": 993,
+      "width": 256,
+      "height": 256,
+      "fnv": 1570436481,
+      "samples": {
+        "zadar": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "mid": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "corner": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "p60_200": [
+          0,
+          0,
+          0,
+          255
+        ]
+      },
+      "maxGrey": 0,
+      "opaque": 64923,
+      "note": "RainViewer coverage z7 74/43 (Kyiv)"
+    }
+  }
+}

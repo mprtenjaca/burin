@@ -13,10 +13,11 @@ describe("shouldPersistQuery", () => {
     }
   });
 
-  it("kamere (token), Štampar (razvoj) i radarski okviri (10 min) NE idu", () => {
+  it("kamere (token), Štampar (razvoj), radarski okviri i odjek (10 min) NE idu", () => {
     expect(shouldPersistQuery(["windy-webcams", "44.12", "15.23", "Zadar"])).toBe(false);
     expect(shouldPersistQuery(["stampar-pollen", 24])).toBe(false);
     expect(shouldPersistQuery(["librewxr-frames"])).toBe(false);
+    expect(shouldPersistQuery(["radar-echo", "zadar", 1789038000])).toBe(false);
   });
 
   it("prefiks je vlastiti, da GC ne dira tuđe ključeve u AsyncStorageu", () => {
