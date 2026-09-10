@@ -153,8 +153,19 @@ export default function DayScreen() {
         omotač nikad ne vidi ScrollView kao izravno dijete.
       */}
       <View collapsable={false}>
-      {/* Zaglavlje — vlastito, jer sheet nema navigacijski header. */}
-      <View className="flex-row items-start justify-between px-5 pb-1 pt-4">
+      {/*
+        Zaglavlje — vlastito, jer sheet nema navigacijski header.
+
+        pt-7 (28 px), ne pt-4 (10.9.2026., Markov nalaz nakon koncentricnog
+        radijusa: "odmakni ime dana i X od gore, preblizu je"). Sheet na
+        iOS 26 nosi sustavski radijus koncentrican s ekranom (~40 pt na
+        iPhoneu 13), pa gornji luk ulazi dublje u karticu nego s 24; uz to
+        grabber sjedi u prvih ~15 pt. Naslov i X su s 16 px paddinga
+        sjedali u taj luk. 28 ih spusta ispod grabbera i izvan zakrivljenog
+        pojasa; Android (radijus 28, bez grabbera) dobiva isti razmak da
+        sheet na obje platforme pocinje istom visinom.
+      */}
+      <View className="flex-row items-start justify-between px-5 pb-1 pt-7">
         <View className="flex-1 gap-0.5">
           <Text className="font-grotesk-bold text-[26px] leading-8 text-ink dark:text-paper">
             {title}

@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { Stack } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
-import { Pressable, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
 
 import { t } from "@/i18n";
 import { colors } from "@/theme/colors";
@@ -78,6 +78,33 @@ export default function ScreensLayout() {
         dan gledaš — vidi `day.tsx`. Bez headera: sheet crta vlastiti
         naslov i „X". Detenti 3/4 i puni; na Androidu Material bottom
         sheet (RNS 4.26), grabber je iOS.
+
+        RADIJUS: iOS SUSTAVSKI (-1), Android 28 (10.9.2026.).
+
+        Markov nalaz u tri kruga: s 24 su donji kutevi "ulazili u ekran";
+        s 34 je bilo "puno oblje, ima prostora, al nije ujednaceno ko
+        ostali rubovi - dolje lijevo i dolje desno". Uzrok, procitan u
+        RNSScreen.mm: RNS ne dira nijedan kut posebno (nema
+        maskedCorners), samo UIModalPresentationFormSheet +
+        preferredCornerRadius. Dakle sva cetiri kuta su bila 34 - ali
+        DONJI kutevi jedini sjede uz FIZICKE kutove ekrana, pa se samo
+        tamo vidi da luk kartice nije KONCENTRICAN s lukom ekrana
+        (iPhone 13 = 47.3 pt). Gornji plutaju usred ekrana i nemaju s
+        cim se usporediti - zato smetaju samo donja dva.
+
+        Koncentricni radijus = radijus ekrana - odmak sheeta, i OVISI O
+        UREDJAJU (iPhone 13 = 47, 16 Pro = 62). Tvrda brojka bi bila
+        tocna samo na jednom mobitelu. Na iOS 26 (plutajuci sheet na
+        manjem detentu - "novi flow") sustavski automatic radijus JEST
+        koncentrican s ekranom, to je poanta tog dizajna. RNS -1 ->
+        UISheetPresentationControllerAutomaticDimension
+        (setCornerRadiusForSheet: "radius < 0 ? Automatic : radius").
+
+        ANDROID NE SMIJE dobiti -1: Screen.kt (onSheetCornerRadiusChange)
+        radi max(toDIP(radius), 0) -> 0 -> RAVNI gornji kutevi. Tamo je
+        Material bottom sheet prilijepljen za rub, zaobljuje SAMO
+        setTopLeftCorner/setTopRightCorner, i M3 standard je 28. Prop
+        za margine sheeta ne postoji ni na jednoj platformi.
       */}
       <Stack.Screen
         name="day"
@@ -87,7 +114,7 @@ export default function ScreensLayout() {
           sheetAllowedDetents: [0.75, 1],
           sheetInitialDetentIndex: 0,
           sheetGrabberVisible: true,
-          sheetCornerRadius: 24,
+          sheetCornerRadius: Platform.select({ ios: -1, default: 28 }),
           gestureEnabled: true,
         }}
       />
