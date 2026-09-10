@@ -745,6 +745,21 @@ const POLLEN_THRESHOLDS: Record<PollenSpecies, [number, number, number]> = {
 /** Boje razreda peludi: ista ljestvica kao UV (zeleno→ljubičasto bez ekstrema). */
 export const POLLEN_COLORS = ["#7BC96F", "#F5E12E", "#F58A2E", "#E63946"] as const;
 
+/**
+ * ZELENA ZA „NEMA PELUDI" NA SVIJETLOJ PODLOZI (9.9.2026.).
+ *
+ * `POLLEN_COLORS[0]` je boja SEGMENTA skale — na tamnoj kartici drži
+ * 8.64:1 i tamo se koristi kakva je, ali kao TEKST na bijeloj kartici
+ * daje **2.01:1**. Izmjereno renderom: naslov „Nema peludi" se gubio
+ * dok je „Visoka" u narančastoj odmah do njega bio čitak.
+ *
+ * Ovo je isti obrazac koji projekt već ima s `ACCENT_UI`/`ACCENT_STEEL`:
+ * jedna rola, dva tona po podlozi. Ton ostaje zelen (skala govori
+ * „zeleno = dobro"), samo potamnjen do **5.12:1** — u ligi
+ * `ACCENT_UI` (5.03), boje kojoj svijetla tema već vjeruje.
+ */
+export const POLLEN_NONE_GREEN_LIGHT = "#2F7D32";
+
 function pollenGrade(species: PollenSpecies, value: number): PollenGrade {
   if (value < 0.5) return 0;
   const [low, moderate, high] = POLLEN_THRESHOLDS[species];
@@ -757,9 +772,33 @@ function pollenGrade(species: PollenSpecies, value: number): PollenGrade {
 export type PollenInfo = {
   /** Najviši razred među vrstama — ukupna ocjena kartice. */
   grade: PollenGrade;
+  /** Boja ocjene na TAMNOJ podlozi (i na skali). */
   color?: string;
+  /**
+   * Boja ocjene na SVIJETLOJ podlozi. Razlikuje se samo na razredu 0
+   * („Nema peludi"): zelena skale je kao tekst na bijelom 2.01:1.
+   */
+  colorLight?: string;
   /** Aktivne vrste, najjača prva; `fraction` 0–1 za trakicu. */
   species: { key: PollenSpecies; grade: PollenGrade; fraction: number }[];
+  /**
+   * IMA LI IZVOR IKAKAV PODATAK (9.9.2026., Markov nalaz na Helsinkiju).
+   *
+   * Razlikuje dva prazna stanja koja su prije davala isto, pa se kartica
+   * u oba slučaja skrivala i korisnik nije znao je li zrak čist ili je
+   * aplikacija pokvarena:
+   *
+   *   `true`  — Helsinki u rujnu: CAMS daje sve vrste, sve su pod pragom.
+   *             Kartica se PRIKAZUJE i piše „Nema peludi" (zeleno).
+   *   `false` — New York: CAMS je EUROPSKI model i izvan Europe ne vraća
+   *             ništa. Kartice nema — „nema peludi" bila bi tvrdnja koju
+   *             ne možemo potkrijepiti.
+   *
+   * Ne treba mu novo polje u API-ju: `pollenDaysFromHourly` preskače
+   * vrstu kojoj su svi sati `null`, pa je prazan `levels` „ne znamo", a
+   * `levels` s nulama „znamo, i nema peludi".
+   */
+  hasData: boolean;
 };
 
 export type PollenSpeciesInfo = {
@@ -824,8 +863,10 @@ export function pollenSpecies(levels: PollenLevels, graded?: PollenGraded): Poll
 
 /**
  * Ocjena peludi za bento karticu. Vrste ispod praga detekcije se
- * izostavljaju; kad su sve na nuli, `grade` je 0 i kartica se uopće ne
- * prikazuje (zimi nema prazne kartice).
+ * izostavljaju iz `species`, ali od 9.9.2026. to NE znači da kartice
+ * nema: kad podaci postoje a sve je pod pragom, `grade` je 0, `color`
+ * zelen i `hasData` točan — kartica piše „Nema peludi". Kartica se
+ * skriva SAMO kad podataka nema (`hasData: false`) — vidi `PollenInfo`.
  */
 export function pollenInfo(levels: PollenLevels, graded?: PollenGraded): PollenInfo {
   const species = pollenSpecies(levels, graded).filter((s) => s.grade > 0);
@@ -833,10 +874,30 @@ export function pollenInfo(levels: PollenLevels, graded?: PollenGraded): PollenI
     (max, s) => (s.grade > max ? s.grade : max),
     0,
   );
+  /*
+   * Podatak postoji ako je izvor uopće javio ijednu vrstu — brojkom
+   * (`levels`) ili gotovim razredom (`graded`, peludomjer). Nula JE
+   * podatak; odsutnost ključa nije. Peludomjer koji javi „nema peludi"
+   * bez ove druge grane ispao bi kao „nemamo podataka".
+   */
+  const hasData = Object.keys(levels).length > 0 || Object.keys(graded ?? {}).length > 0;
   return {
     grade,
-    color: grade > 0 ? POLLEN_COLORS[grade - 1] : undefined,
+    /*
+     * Na razredu 0 uz podatke: zelena PRVOG segmenta skale, ista koju
+     * marker tada pokriva — tekst i točkica govore istu stvar (isto
+     * načelo kao `gradeFraction`). Bez podataka boje nema, jer nema ni
+     * kartice.
+     */
+    color: grade > 0 ? POLLEN_COLORS[grade - 1] : hasData ? POLLEN_COLORS[0] : undefined,
+    /*
+     * Ista rola na SVIJETLOJ podlozi: zelena skale je ondje 2.01:1 kao
+     * tekst. Kartica bira po temi — vidi POLLEN_NONE_GREEN_LIGHT.
+     * Za razrede 1-4 je isto kao color (te boje na bijelom drže).
+     */
+    colorLight: grade > 0 ? POLLEN_COLORS[grade - 1] : hasData ? POLLEN_NONE_GREEN_LIGHT : undefined,
     species,
+    hasData,
   };
 }
 

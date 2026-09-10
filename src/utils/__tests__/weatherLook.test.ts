@@ -8,6 +8,8 @@ import {
   heroAccent,
   moonPhase,
   moonShadowOffset,
+  POLLEN_COLORS,
+  POLLEN_NONE_GREEN_LIGHT,
   pollenInfo,
   pollenSpecies,
   precipIntensity,
@@ -508,11 +510,64 @@ describe("readableOn", () => {
 });
 
 describe("pollenInfo", () => {
-  it("sve na nuli: razred 0, bez vrsta — kartica se ne prikazuje", () => {
-    const info = pollenInfo({ grass: 0, ragweed: 0.2 });
+  /*
+   * DVA RAZLIČITA PRAZNA STANJA (9.9.2026., Markov nalaz na Helsinkiju:
+   * "za Graz radi, Helsinki nema ništa pod tom sekcijom").
+   *
+   * Prije je oboje davalo isto — razred 0 bez boje, pa se kartica nije
+   * prikazivala i korisnik nije znao je li zrak čist ili je aplikacija
+   * pokvarena. Razlika JE u podacima i ne treba joj novo polje u API-ju:
+   *
+   *   Helsinki  levels = { alder: 0, ..., ragweed: 0.4 }  ključevi POSTOJE
+   *   New York  levels = {}                               ključeva NEMA
+   *
+   * `pollenDaysFromHourly` preskače vrstu kojoj su svi sati `null`, a
+   * izvan Europe CAMS ne daje ništa — pa je prazan objekt "ne znamo", a
+   * objekt s nulama "znamo, i nema peludi".
+   */
+  it("Helsinki 9.9.2026.: podaci postoje, sve pod pragom — NEMA PELUDI, kartica se prikazuje", () => {
+    // Pravi dnevni prosjeci s Open-Metea, izmjereno 9.9.2026.
+    const info = pollenInfo({ alder: 0, birch: 0, grass: 0, mugwort: 0, olive: 0.4, ragweed: 0.4 });
+    expect(info.grade).toBe(0);
+    expect(info.species).toHaveLength(0);
+    // Zelena kao prvi segment skale: "nema peludi" je dobra vijest, ne siva.
+    expect(info.color).toBe(POLLEN_COLORS[0]);
+    // Na SVIJETLOJ kartici je ta zelena 2.01:1 — tamo ide potamnjena.
+    expect(info.colorLight).toBe(POLLEN_NONE_GREEN_LIGHT);
+    expect(info.hasData).toBe(true);
+  });
+
+  it("New York: CAMS je europski model — bez podataka, kartice nema", () => {
+    const info = pollenInfo({});
     expect(info.grade).toBe(0);
     expect(info.species).toHaveLength(0);
     expect(info.color).toBeUndefined();
+    expect(info.colorLight).toBeUndefined();
+    expect(info.hasData).toBe(false);
+  });
+
+  it("peludomjer bez ijedne aktivne vrste je i dalje PODATAK", () => {
+    /*
+     * Štampar (razvojni izvor) daje GOTOV razred, ne koncentraciju — pa
+     * `levels` može biti prazan a podatak ipak postoji. Bez ove grane bi
+     * peludomjer koji javi "nema peludi" ispao kao "nemamo podataka".
+     */
+    const info = pollenInfo({}, { ragweed: { grade: 0, fraction: 0 } });
+    expect(info.hasData).toBe(true);
+    expect(info.color).toBe(POLLEN_COLORS[0]);
+  });
+
+  it("aktivan razred ima ISTU boju u obje teme — samo „nema peludi\" se razlikuje", () => {
+    /*
+     * Žuta/narančasta/crvena na bijelom drže (koraljna 4.17:1), pa se za
+     * razrede 1–4 ne razdvajaju. Kad bi se, kartica bi u svijetloj temi
+     * odjednom imala DRUGU paletu od skale ispod nje.
+     */
+    for (const value of [1, 3, 12.5, 200]) {
+      const info = pollenInfo({ ragweed: value });
+      expect(info.grade).toBeGreaterThan(0);
+      expect(info.colorLight).toBe(info.color);
+    }
   });
 
   it("Zadar 6.9.2026. (ambrozija 12.5): VISOKA, kao mjerenje ZZJZ-a", () => {

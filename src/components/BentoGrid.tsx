@@ -487,10 +487,21 @@ export function BentoGrid({
       {/*
         Pelud (CAMS preko Open-Metea, isti upit kao AQI): ukupna ocjena +
         do 3 najjače vrste s trakicama. Alergičaru je bitno KOJA pelud —
-        ambrozija i trave nisu ista stvar. Sve na nuli = kartice nema
-        (zimi ekran ne nosi praznu karticu).
+        ambrozija i trave nisu ista stvar.
+
+        KARTICA SE PRIKAZUJE I KAD PELUDI NEMA (9.9.2026., Markov nalaz
+        na Helsinkiju: „za Graz radi, Helsinki nema ništa pod tom
+        sekcijom"). Prije je uvjet bio `grade > 0` pa je mjesto bez
+        aktivne peludi ostajalo bez kartice — a to je za alergičara
+        upravo ona vijest koju traži. Sad je uvjet `hasData`:
+
+          Helsinki  podaci su tu, sve pod pragom  →  „Nema peludi"
+          New York  CAMS je europski, ništa       →  kartice nema
+
+        Posljedica koja je NAMJERNA: i hrvatska zima sad ima karticu
+        („Nema peludi") gdje je prije nije bilo.
       */}
-      {dust !== undefined && dust.grade > 0 && (
+      {dust !== undefined && dust.hasData && (
         <Card
           label={t.pollen.title}
           wide
@@ -519,10 +530,24 @@ export function BentoGrid({
         >
           <View className="gap-3 py-1">
             <View className="flex-row items-baseline justify-between">
-              <Text className="font-grotesk-bold text-[20px]" style={{ color: dust.color }}>
+              {/*
+                Boja po PODLOZI, ne jedna za oba: zelena "Nema peludi" je
+                na bijeloj kartici 2.01:1 (izmjereno renderom). Isti
+                obrazac kao ACCENT_UI/ACCENT_STEEL.
+              */}
+              <Text className="font-grotesk-bold text-[20px]" style={{ color: dark ? dust.color : dust.colorLight }}>
                 {pollenGradeLabels[dust.grade]}
               </Text>
-              <Text className="font-grotesk-medium text-[12.5px] text-ink/65 dark:text-paper/65">{speciesLabel(dust.species[0]!.key)}</Text>
+              {/*
+                Desno stoji NAJJAČA vrsta — a kad nijedna nije aktivna,
+                dan na koji se tvrdnja odnosi. Nije kozmetika: bez ovoga
+                bi `dust.species[0]!` na praznom popisu srušio ekran, a
+                red bez desne strane izgubi ravnotežu. Pelud je pitanje
+                „danas ili sutra", pa je dan pravi ispun.
+              */}
+              <Text className="font-grotesk-medium text-[12.5px] text-ink/65 dark:text-paper/65">
+                {dust.species.length > 0 ? speciesLabel(dust.species[0]!.key) : t.pollen.today}
+              </Text>
             </View>
 
             {/*
@@ -547,6 +572,22 @@ export function BentoGrid({
                 </View>
               </View>
             ))}
+
+            {/*
+              Bez aktivne vrste: JEDNA skala s markerom na dnu. Bez nje je
+              kartica samo redak teksta i ne čita se kao kartica; s njom se
+              vidi LJESTVICA — da razredi iznad postoje i da smo na dnu.
+              Skala je u ovoj aplikaciji referenca, ne ukras (isto kao UV i
+              AQI, koji je nose i na najboljoj vrijednosti).
+            */}
+            {dust.species.length === 0 && (
+              <View className="h-[5px] flex-row rounded-full">
+                {POLLEN_COLORS.map((c, i) => (
+                  <View key={c} className={`flex-1 ${i === 0 ? "rounded-l-full" : ""} ${i === POLLEN_COLORS.length - 1 ? "rounded-r-full" : ""}`} style={{ backgroundColor: c }} />
+                ))}
+                <ScaleMarker fraction={0} />
+              </View>
+            )}
           </View>
         </Card>
       )}
