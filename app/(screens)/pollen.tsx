@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import type { PollenDay } from "@/api/openMeteo";
-import { ScaleMarker } from "@/components/BentoGrid";
+import { PollenSegments } from "@/components/BentoGrid";
 import { Hairline } from "@/components/Section";
 import { useBottomInset } from "@/hooks/useBottomInset";
 import { t } from "@/i18n";
@@ -147,18 +147,7 @@ export default function PollenScreen() {
                     )}
                   </Text>
                 </View>
-                <View className="h-[5px] flex-row rounded-full">
-                  {POLLEN_COLORS.map((c, j) => (
-                    <View
-                      key={c}
-                      className={`flex-1 ${j === 0 ? "rounded-l-full" : ""} ${
-                        j === POLLEN_COLORS.length - 1 ? "rounded-r-full" : ""
-                      }`}
-                      style={{ backgroundColor: c, opacity: s.grade > 0 ? 1 : 0.35 }}
-                    />
-                  ))}
-                  {s.grade > 0 && <ScaleMarker fraction={s.fraction} />}
-                </View>
+                <PollenSegments grade={s.grade} />
 
                 {/*
                   Sljedeći dani ispod skale, u retku: "danas VISOKA ·

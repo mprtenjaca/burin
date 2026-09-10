@@ -54,6 +54,90 @@ export function ScaleMarker({ fraction }: { fraction: number }) {
 }
 
 /**
+ * PELUDNA SKALA U SEGMENTIMA (10.9.2026., Markov zahtjev „da vidimo kako
+ * izgleda").
+ *
+ * Razlika od stare skale: ona je bila JEDNA neprekinuta traka od cetiri
+ * spojene boje s tockom na sebi, pa je izgledala kao ljestvica po kojoj
+ * tocka putuje — a peludni razredi NISU kontinuirani, nego cetiri
+ * odvojena stupnja (niska · umjerena · visoka · vrlo visoka).
+ *
+ * Segmenti to i pokazuju: cetiri odvojena polja s prazninom izmedu.
+ *
+ * KUMULATIVNO (Markov ispravak 10.9.: „ako je umjereno, oznaci i ovu
+ * prijasnju, ne posivi ju — ono kao povecava se"): upaljena su SVA polja
+ * DO razreda, kao na mjeracu signala. Prva izvedba je palila samo jedno
+ * polje, pa se razred cinio kao POLOZAJ, a ne kao KOLICINA — a razredi su
+ * poredani, pa „visoka" stvarno JEST prosla nisku i umjerenu.
+ *
+ * Odbaceno: rastuca visina polja (4-6-8-10 px). Renderirano i usporedeno
+ * — druga poruka uz boju i duljinu cini prazno stanje slicnim grafu, a
+ * ljestvica se cita i bez toga.
+ *
+ * DEBLJINA nosi razliku, ne boja (Markov ispravak 10.9.: „podebljaj
+ * aktivne, izmedu te i zasivljenih ne vidi se dovoljno razlika").
+ * Upaljeno polje je 10 px, ugašeno 4 px — upaljena se citaju kao pune
+ * trake, ugašena kao tanke crte, i razlika prezivi svaku boju.
+ *
+ * Zašto samo opacity NIJE bio dosta, izmjereno: ŽUTA (#F5E12E) na
+ * BIJELOJ kartici daje kontrast 1.10 na opacity 0.3 i tek 1.17 na 0.5 —
+ * sama je po sebi blizu bijeloj, pa se prigušivanjem ne da odvojiti.
+ * Isto ogranicenje imala je i stara neprekinuta skala. Debljina je
+ * geometrija i ne ovisi o boji, zato rješava ono što opacity ne može.
+ *
+ * Ugašena polja ostaju vidljiva (0.25) da se vidi koliko stupnjeva
+ * postoji iznad trenutnog. Kad podataka nema (`grade === 0`), sva su
+ * tanka i nijedno nije upaljeno.
+ */
+export function GradeSegments({ colors, grade }: { colors: readonly string[]; grade: number }) {
+  return (
+    // Visina je najviseg polja; svako se centrira u njoj (`items-center`)
+    // pa traka ostane u istoj osi bez obzira koliko ih je upaljeno.
+    <View className="h-2.5 flex-row items-center gap-1">
+      {colors.map((c, j) => {
+        const on = grade > 0 && j <= grade - 1;
+        return (
+          <View
+            key={c}
+            className="flex-1 rounded-full"
+            style={{
+              backgroundColor: c,
+              // Upaljena su SVA polja do razreda (kumulativno).
+              opacity: on ? 1 : 0.25,
+              // DEBLJINA je glavni znak, ne samo boja — vidi komentar.
+              height: on ? 10 : 4,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+/** Peludna skala: cetiri razreda (niska → vrlo visoka). */
+export function PollenSegments({ grade }: { grade: number }) {
+  return <GradeSegments colors={POLLEN_COLORS} grade={grade} />;
+}
+
+/**
+ * Skala kvalitete zraka: PET razreda (Markov zahtjev 10.9. — „da tako
+ * napravimo i kvalitetu zraka").
+ *
+ * Segmenti ovdje ne gube NIŠTA, i to je izmjereno: europski AQI razredi
+ * su jednako široki (≤ 20 dobra · 40 dobra-ish · 60 umjerena · 80 loša ·
+ * 100 vrlo loša), pa polje u koje je marker padao (`aqi/100` × 5) i
+ * razred iz `aqiInfo` daju ISTI broj za svaku vrijednost — provjereno na
+ * 11 vrijednosti kroz cijeli raspon. Kod peludi to nije bio slucaj
+ * (razredi su nejednaki, zato postoji `gradeFraction`).
+ *
+ * Šesti razred („izuzetno loša", > 100) dijeli boju s petim i ostaje
+ * peto polje puno — dalje od punog nema kamo.
+ */
+export function AqiSegments({ grade }: { grade: number }) {
+  return <GradeSegments colors={AQI_COLORS} grade={grade} />;
+}
+
+/**
  * Jedna bento kartica: mali naslov (normalna slova — verzal s razmakom je
  * maknut 6.8.2026. kao generički), sadržaj, caption na dnu. `inverted` je
  * crna kartica (u tamnoj temi bijela) — rezervirana za UV.
@@ -564,12 +648,7 @@ export function BentoGrid({
                     {pollenGradeLabels[s.grade]}
                   </Text>
                 </View>
-                <View className="h-[5px] flex-row rounded-full">
-                  {POLLEN_COLORS.map((c, i) => (
-                    <View key={c} className={`flex-1 ${i === 0 ? "rounded-l-full" : ""} ${i === POLLEN_COLORS.length - 1 ? "rounded-r-full" : ""}`} style={{ backgroundColor: c }} />
-                  ))}
-                  <ScaleMarker fraction={s.fraction} />
-                </View>
+                <PollenSegments grade={s.grade} />
               </View>
             ))}
 
@@ -581,18 +660,13 @@ export function BentoGrid({
               AQI, koji je nose i na najboljoj vrijednosti).
             */}
             {dust.species.length === 0 && (
-              <View className="h-[5px] flex-row rounded-full">
-                {POLLEN_COLORS.map((c, i) => (
-                  <View key={c} className={`flex-1 ${i === 0 ? "rounded-l-full" : ""} ${i === POLLEN_COLORS.length - 1 ? "rounded-r-full" : ""}`} style={{ backgroundColor: c }} />
-                ))}
-                <ScaleMarker fraction={0} />
-              </View>
+              <PollenSegments grade={0} />
             )}
           </View>
         </Card>
       )}
 
-      {/* Kvaliteta zraka: ocjena u boji + skala s markerom (stari AqiRow). */}
+      {/* Kvaliteta zraka: ocjena u boji + skala u segmentima (kao pelud). */}
       {air !== undefined && aqi !== undefined && (
         <Card label={t.home.airQuality} wide fixedHeight={false}>
           <View className="gap-2.5 py-1">
@@ -602,12 +676,7 @@ export function BentoGrid({
               </Text>
               <Text className="font-grotesk-medium text-[12.5px] text-ink/65 dark:text-paper/65">AQI {Math.round(aqi)}</Text>
             </View>
-            <View className="h-[5px] flex-row rounded-full">
-              {AQI_COLORS.map((c, i) => (
-                <View key={c} className={`flex-1 ${i === 0 ? "rounded-l-full" : ""} ${i === AQI_COLORS.length - 1 ? "rounded-r-full" : ""}`} style={{ backgroundColor: c }} />
-              ))}
-              <ScaleMarker fraction={air.fraction} />
-            </View>
+            <AqiSegments grade={air.grade} />
           </View>
         </Card>
       )}
