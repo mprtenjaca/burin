@@ -136,10 +136,18 @@ export const hr = {
   },
 
   /**
-   * Nazivi vremena po DHMZ terminologiji (provjereno 6.8.2026.).
-   * "Rosulja" je službeni meteorološki termin za vrlo sitnu kišu (ne
-   * "lagana kiša"); "grmljavinsko nevrijeme" je izraz koji DHMZ koristi
-   * u najavama, a "grmljavina" je samo zvuk.
+   * Nazivi vremena po DHMZ terminologiji (revidirano 10.9.2026.).
+   *
+   * Zapis od 6.8. je tvrdio da je „rosulja" službeni termin i da je
+   * „grmljavinsko nevrijeme" DHMZ-ov izraz dok je „grmljavina samo
+   * zvuk". Oboje je 10.9. ISPRAVLJENO prema PRAVOM feedu postaja, koji
+   * je ono što aplikacija prikazuje:
+   *  - „rosulja" se u feedu NE POJAVLJUJE ni jednom (10 opisa na 39
+   *    postaja); za sitnu oborinu DHMZ piše „slaba kiša";
+   *  - opisi grmljavine su „grmljavina bez oborina" i „grmljavina s
+   *    oborinom" — dakle gola „grmljavina", bez „nevremena".
+   * „Nevrijeme" je iz NAJAVA i upozorenja (drugi proizvod, drugi jezik);
+   * mjerenje se ne opisuje riječima najave.
    */
   conditions: {
     clear: "Vedro",
@@ -160,9 +168,25 @@ export const hr = {
     mostlyCloudy: "Pretežno oblačno",
     overcast: "Oblačno",
     fog: "Magla",
-    drizzle: "Rosulja",
-    drizzleHeavy: "Jaka rosulja",
-    freezingDrizzle: "Ledena rosulja",
+    /*
+     * SITNA OBORINA NOSI IME PUNE (Markov odabir 10.9.2026.).
+     *
+     * „Rosulja" je izbačena jer ju DHMZ u živom feedu ne koristi ni
+     * jednom (10 opisa na 39 postaja). Marko je zatim odabrao da 51/53
+     * budu „Slaba kiša", 55 „Kiša", 56/57 „Ledena kiša" — dakle ISTI
+     * nazivi kao 61/63/66.
+     *
+     * Kolizija je SVJESNA i nije bez cijene: WMO razlikuje rosulju
+     * (< 1 mm/h) od kiše (61 < 2.5, 63 do 7.6 mm/h), a ovdje se ta
+     * razlika ne izgovara. Ostaje ipak vidljiva — ikona je
+     * `CloudDrizzle` prema `CloudRain`, a ambijent ima svoju gustoću po
+     * jačini. Odluka je da korisniku ime pojave znači više od WMO
+     * stupnja: „sitna kiša" je zvučalo strano, a alergičar na točnost
+     * mm/h ionako gleda brojku oborine.
+     */
+    drizzle: "Slaba kiša",
+    drizzleHeavy: "Kiša",
+    freezingDrizzle: "Ledena kiša",
     rainLight: "Slaba kiša",
     rain: "Kiša",
     rainHeavy: "Jaka kiša",
@@ -170,12 +194,43 @@ export const hr = {
     snowLight: "Slab snijeg",
     snow: "Snijeg",
     snowHeavy: "Jak snijeg",
-    snowGrains: "Snježna zrnca",
-    showersLight: "Slabi pljuskovi",
+    /*
+     * 77 („snow grains") = „Slab snijeg", ne „Snježna zrnca" (Markov
+     * odabir: „zrnca zvuči čudno"). Pojava je po definiciji slaba —
+     * sitna tvrda zrnca nikad ne daju veliku količinu — pa naziv 71 tu
+     * ne laže. Zato je 77 ujedno prebačen u `light` u
+     * `precipIntensity`: prije je bio `moderate`, pa bi tekst govorio
+     * slabije nego što ambijent crta.
+     */
+    snowGrains: "Slab snijeg",
+    /*
+     * PLJUSKOVI su po WMO-u oborina iz konvektivnog oblaka — kratki i
+     * MJESTIMIČNI. „Mjestimice" je zato dio pojave, ne ukras (Markovo
+     * pitanje 10.9.: „ima li nešto i sa mjestimice, ono nestabilno").
+     * Stoji samo na 80 (slabi) jer tada i jest zakrpasto; na 81/82 je
+     * pojava već sigurna pa se ne ublažava.
+     */
+    showersLight: "Mjestimice pljuskovi",
     showers: "Pljuskovi",
     showersHeavy: "Jaki pljuskovi",
     snowShowers: "Snježni pljuskovi",
-    thunderstorm: "Grmljavinsko nevrijeme",
+    /*
+     * 95 = „Grmljavina", NE „grmljavinsko nevrijeme" (10.9.2026.).
+     *
+     * WMO 95 je izrijekom „thunderstorm, SLIGHT OR MODERATE, without
+     * hail" — dakle obična grmljavina. „Nevrijeme" obećava silovitu
+     * pojavu i zato ostaje samo na 96/99, gdje WMO ima tuču.
+     *
+     * Dva razloga, oba mjerena:
+     *  - DHMZ svoj opis zove samo „grmljavina" („grmljavina bez
+     *    oborina"), a njegov je jezik ovdje mjerilo;
+     *  - sudac (`radarJudge`) piše 95 i kad SAMO radar vidi jezgru
+     *    >= 55 dBZ, bez ijedne potvrđene munje. Tada „nevrijeme" tvrdi
+     *    više nego što itko zna — a upravo je pretežak tekst bio
+     *    Markov nalaz 10.9. („piše grmljavinsko nevrijeme sat i pol
+     *    nakon što je prošlo").
+     */
+    thunderstorm: "Grmljavina",
     thunderstormHail: "Nevrijeme s tučom",
   },
 

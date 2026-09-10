@@ -128,7 +128,7 @@ export const en: Dict = {
    * en-GB blok Meteoalarma — tako se ime vremena u heroju i tekst
    * upozorenja ispod njega ne razilaze.
    *
-   * "Drizzle" je pravi parnjak "rosulji" (vrlo sitna kiša), a ne "light
+   * "Drizzle" je pravi parnjak hrvatskoj „sitnoj kiši", a ne "light
    * rain", koji je zaseban WMO kod. "Thunderstorm" pokriva ono što HR
    * zove "grmljavinsko nevrijeme".
    */
@@ -150,7 +150,12 @@ export const en: Dict = {
     snow: "Snow",
     snowHeavy: "Heavy snow",
     snowGrains: "Snow grains",
-    showersLight: "Light showers",
+    /*
+     * "Scattered" prati HR „Mjestimice pljuskovi" — WMO 80 je konvektivna,
+     * dakle mjestimična oborina. Met Office isti pojam zove "scattered
+     * showers". Na 81/82 pojava je sigurna pa se ne ublažava.
+     */
+    showersLight: "Scattered showers",
     showers: "Showers",
     showersHeavy: "Heavy showers",
     snowShowers: "Snow showers",

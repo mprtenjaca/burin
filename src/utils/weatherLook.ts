@@ -272,10 +272,17 @@ export type BackdropEffect =
  */
 export type PrecipIntensity = "light" | "moderate" | "heavy";
 
-/** WMO: 51/53/56/61/66/71/73/80 su slabiji, 65/67/75/82/95+ najjači. */
+/** WMO: 51/53/56/61/66/71/73/77/80 su slabiji, 65/67/75/82/95+ najjači. */
 export function precipIntensity(code: number): PrecipIntensity {
-  // Slaba rosulja, ledena rosulja, slaba kiša/snijeg, slabi pljuskovi.
-  if ([51, 53, 56, 61, 66, 71, 73, 80].includes(code)) return "light";
+  /*
+   * Sitna oborina, slaba kiša/snijeg, slabi pljuskovi.
+   *
+   * 77 („snow grains") je dodan 10.9.2026. kad je preimenovan u „Slab
+   * snijeg": pojava je po definiciji slaba (sitna tvrda zrnca nikad ne
+   * daju veliku količinu), a dok je bio `moderate` ambijent ga je crtao
+   * gušće nego što mu ime kaže. Tekst i slika moraju govoriti isto.
+   */
+  if ([51, 53, 56, 61, 66, 71, 73, 77, 80].includes(code)) return "light";
   // Jaka kiša/snijeg, jaki pljuskovi, grmljavina s tučom.
   if ([65, 67, 75, 82, 96, 99].includes(code)) return "heavy";
   return "moderate";
@@ -314,6 +321,7 @@ const FX_SLEET: BackdropEffect[] = ["rain", "snow"];
 const FX_RAYS: BackdropEffect[] = ["rays"];
 const FX_RAYS_CLOUDS: BackdropEffect[] = ["rays", "clouds"];
 const FX_STARS: BackdropEffect[] = ["stars"];
+const FX_STARS_CLOUDS: BackdropEffect[] = ["stars", "clouds"];
 const FX_THUNDER: BackdropEffect[] = ["clouds", "rain", "lightning"];
 const FX_RAIN: BackdropEffect[] = ["rain"];
 const FX_SNOW: BackdropEffect[] = ["snow"];
@@ -373,7 +381,17 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
      * jedan krug.
      */
     case "nightClear":
-      return FX_STARS;
+      /*
+       * PRETEZNO VEDRO NOCU = zvijezde + mjesec + RIJETKI oblaci
+       * (10.9.2026., Markov zahtjev "ostalo sto fali po noci").
+       *
+       * Danju je 0 = zrake, 1 = zrake + rijetki oblaci; nocu su 0 i 1
+       * dosad bili ISTO - samo zvijezde - pa je "pretezno vedro" nocu
+       * bilo cisto vedro. Isti propust koji je 8.8. ispravljen za dan,
+       * samo nikad prenesen na noc. Zvijezde idu PRVE (iza oblaka);
+       * HeroBackdrop ih uz oblake prorjeduje kao i zrake.
+       */
+      return code === 1 ? FX_STARS_CLOUDS : FX_STARS;
     /*
      * GRMLJAVINA DOBIVA I OBLAKE (Markov ispravak 8.8.2026.).
      *
@@ -394,7 +412,19 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
     case "snow":
     case "nightSnow":
       return FX_SNOW;
-    // Oblačno i obje noćne palete: mekane mrlje, bez sunca i oborine.
+    /*
+     * DJELOMICNO OBLACNO NOCU = mjesec + zvijezde + oblaci (10.9.2026.).
+     *
+     * Danju 2 = zrake + oblaci; nocu je 2 padalo u istu granu kao
+     * oblacno (3.5 i 3) i dobivalo SAMO oblake - razlika je bila jedino
+     * u gustoci, a nebo iza oblaka prazno. Mjesec je nocni parnjak
+     * sunca: ako se danju kroz oblake vidi sunce, nocu se vidi mjesec.
+     * Paleta ostaje nightCloudy (tamnija od vedre noci) - zvijezde su
+     * bijele pa se na njoj vide.
+     */
+    case "nightCloudy":
+      return code === 2 ? FX_STARS_CLOUDS : FX_CLOUDS;
+    // Oblačno danju i sve ostalo: mekane mrlje, bez sunca i oborine.
     default:
       return FX_CLOUDS;
   }
@@ -932,7 +962,7 @@ export const AQI_COLORS = [
  * Ocjena kvalitete zraka: EEA europski AQI (isti pragovi kao stari AqiRow).
  * `fraction` je položaj markera na skali 0–1 (skala pokriva 0–100+).
  */
-export function aqiInfo(aqi: number): { label: string; color: string; fraction: number } {
+export function aqiInfo(aqi: number): { label: string; color: string; fraction: number; grade: number } {
   const classes: { max: number; label: string; color: string }[] = [
     { max: 20, label: t.aqi.good, color: AQI_COLORS[0] },
     { max: 40, label: t.aqi.fair, color: AQI_COLORS[1] },
@@ -940,8 +970,19 @@ export function aqiInfo(aqi: number): { label: string; color: string; fraction: 
     { max: 80, label: t.aqi.poor, color: AQI_COLORS[3] },
     { max: 100, label: t.aqi.veryPoor, color: AQI_COLORS[4] },
   ];
+  const idx = classes.findIndex((c) => aqi <= c.max);
   const cls =
-    classes.find((c) => aqi <= c.max) ??
+    classes[idx] ??
     { max: Infinity, label: t.aqi.extremelyPoor, color: AQI_COLORS[4] };
-  return { label: cls.label, color: cls.color, fraction: Math.min(1, aqi / 100) };
+  /*
+   * `grade` je 1–5 za skalu u segmentima (10.9.2026.). Iznad 100
+   * („izuzetno loša") ostaje 5 — peto polje je već puno, dalje nema kamo,
+   * a boju ionako dijeli s petim razredom.
+   */
+  return {
+    label: cls.label,
+    color: cls.color,
+    fraction: Math.min(1, aqi / 100),
+    grade: idx < 0 ? classes.length : idx + 1,
+  };
 }

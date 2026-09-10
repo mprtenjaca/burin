@@ -202,12 +202,36 @@ describe("backdropEffects", () => {
    */
   it("VEDRA noć dobiva zvijezde, ne oblake", () => {
     expect(backdropEffects(0, false)).toEqual(["stars"]);
-    expect(backdropEffects(1, false)).toEqual(["stars"]);
   });
 
-  it("oblačna noć i dalje dobiva oblake — po tome se razlikuje", () => {
-    expect(backdropEffects(2, false)).toEqual(["clouds"]);
+  /*
+   * NOC PRATI STUPNJEVE DANA (10.9.2026., Markov zahtjev "ostalo sto
+   * fali po noci"). Danju je 0 = zrake, 1 = zrake + rijetki oblaci,
+   * 2 = zrake + oblaci. Nocu su 0 i 1 dijelili cist zvjezdani ambijent,
+   * a 2 je padao u istu granu kao oblacno (samo oblaci, nebo iza prazno)
+   * - dakle cetiri stupnja naoblake imala su nocu dva izgleda.
+   *
+   * Mjesec je nocni parnjak sunca i zivi u StarsLayeru, pa "stars" uz
+   * "clouds" znaci mjesec+zvijezde IZA oblaka (zvijezde su prve u nizu).
+   */
+  it("pretežno vedra i djelomično oblačna NOĆ dobivaju mjesec IZA oblaka", () => {
+    expect(backdropEffects(1, false)).toEqual(["stars", "clouds"]);
+    expect(backdropEffects(2, false)).toEqual(["stars", "clouds"]);
+  });
+
+  it("puna naoblaka noću je bez mjeseca — po tome se razlikuje od 1 i 2", () => {
+    expect(backdropEffects(3.5, false)).toEqual(["clouds"]);
     expect(backdropEffects(3, false)).toEqual(["clouds"]);
+  });
+
+  /*
+   * Grmljavina nocu mora imati ISTI ambijent kao danju (oblak+kisa+
+   * bljesak) - razlika je u PALETI (nightThunder), ne u slojevima. Ovo
+   * cuva da nocna grana ne ispadne iz FX_THUNDER pri buducim izmjenama.
+   */
+  it("grmljavina noću nosi iste slojeve kao danju", () => {
+    expect(backdropEffects(95, false)).toEqual(["clouds", "rain", "lightning"]);
+    expect(backdropEffects(95, false)).toEqual(backdropEffects(95, true));
   });
 
   it("magla ima vlastiti sloj, oblačno svoj", () => {
@@ -428,6 +452,27 @@ describe("aqiInfo", () => {
 
   it("vrijednosti iznad skale se stežu na 1", () => {
     expect(aqiInfo(400).fraction).toBe(1);
+  });
+
+  /*
+   * `grade` (1–5) je ulaz za skalu u SEGMENTIMA (10.9.2026.). EEA razredi
+   * su jednako široki (20 svaki), pa segmenti ne gube nista što je stara
+   * neprekinuta skala imala.
+   *
+   * USPUT NAĐENO: stari marker je NA GRANICI padao u SLJEDEĆE polje —
+   * AQI 20 je razred 1 (`aqi <= 20`), ali `20/100 × 5 = 1.0` se ukotvi u
+   * polje 2; isto na 60 i 80. Segmenti tu grešku ne mogu imati jer citaju
+   * `grade`, a ne položaj. Zato test provjerava granice IZRIJEKOM.
+   */
+  it("grade 1-5 prati EEA razrede, i na samoj granici", () => {
+    for (const [aqi, expected] of [[5, 1], [20, 1], [21, 2], [39, 2], [40, 2], [45, 3], [60, 3], [61, 4], [80, 4], [85, 5], [100, 5]] as const) {
+      expect(aqiInfo(aqi).grade).toBe(expected);
+    }
+  });
+
+  it("iznad skale ostaje na petom razredu, ne izlazi iz njega", () => {
+    expect(aqiInfo(150).grade).toBe(5);
+    expect(aqiInfo(400).grade).toBe(5);
   });
 });
 

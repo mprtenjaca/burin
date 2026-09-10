@@ -74,3 +74,60 @@ describe("rječnici", () => {
     expect(en.dayNames[4]).toBe("Thursday");
   });
 });
+
+/*
+ * NAZIV VREMENA NE SMIJE TVRDITI VIŠE OD KODA (10.9.2026.).
+ *
+ * Prva verzija ovog bloka zabranjivala je da DVA razreda dijele naziv.
+ * Marko je 10.9. svjesno odabrao suprotno: 51/53 = „Slaba kiša" (kao
+ * 61), 55 = „Kiša" (kao 63), 56/57 = „Ledena kiša" (kao 66/67), 77 =
+ * „Slab snijeg" (kao 71) — jer su „sitna kiša" i „zrnca" zvučali strano.
+ * Razlika ostaje u IKONI (`CloudDrizzle` vs `CloudRain`) i u gustoći
+ * ambijenta, pa se vidi iako se ne izgovara.
+ *
+ * Zato test više ne traži jedinstvenost, nego ono što je stvarno štetno:
+ * naziv NE SMIJE tvrditi JAČU pojavu od one koju kod nosi. Sitna oborina
+ * smije se zvati „Slaba kiša" (isto ili slabije), ali nikad „Jaka kiša".
+ */
+describe("nazivi vremena ne tvrde više od koda", () => {
+  const dicts = { hr, en };
+  /** Rang jačine po nazivu: 0 = slabo, 2 = jako. -1 = nije stupnjevano. */
+  const rank = (label: string): number => {
+    const l = label.toLowerCase();
+    if (/\b(jak|jaka|jaki|heavy)\b/.test(l)) return 2;
+    if (/\b(slab|slaba|slabi|light|scattered|mjestimice)\b/.test(l)) return 0;
+    return 1;
+  };
+
+  for (const [lang, dict] of Object.entries(dicts)) {
+    const c = dict.conditions as Record<string, string>;
+
+    it(`${lang}: sitna oborina se ne izdaje za JAČU pojavu`, () => {
+      /*
+       * 51/53 ne smiju zvucati JAKO. Ne usporeduje se s 61 jer rang mjeri
+       * PRIDJEV, a engleski "Drizzle" pridjeva nema (rang 1) dok je
+       * "Light rain" rang 0 - to ne znaci da rosulja zvuci jace, nego da
+       * je neutralna. Stvarno stetno bi bilo da nosi "jaka".
+       */
+      expect(rank(c.drizzle!)).toBeLessThan(2);
+      // 55 je najjaca SITNA oborina, ali nikad JACA od 65 (jaka kisa).
+      // Jednakost je dopustena: en ima "Heavy drizzle" i "Heavy rain" -
+      // isti pridjev, razlicita pojava (pojavu razlikuje sama rijec).
+      expect(rank(c.drizzleHeavy!)).toBeLessThanOrEqual(rank(c.rainHeavy!));
+      // 77 (zrnca, po definiciji slabo) ne smije zvucati jace od 73
+      expect(rank(c.snowGrains!)).toBeLessThanOrEqual(rank(c.snow!));
+    });
+
+    it(`${lang}: stupnjevi unutar iste pojave rastu`, () => {
+            expect(rank(c.rainLight!)).toBeLessThan(rank(c.rainHeavy!));
+      expect(rank(c.snowLight!)).toBeLessThan(rank(c.snowHeavy!));
+      expect(rank(c.showersLight!)).toBeLessThan(rank(c.showersHeavy!));
+    });
+
+    it(`${lang}: 95 ne obećava nevrijeme, 96/99 ga smije`, () => {
+      // WMO 95 je "slight or moderate" - "nevrijeme"/"severe" tu ne stoji
+      expect(c.thunderstorm!.toLowerCase()).not.toContain("nevrijeme");
+      expect(c.thunderstorm!.toLowerCase()).not.toContain("severe");
+    });
+  }
+});

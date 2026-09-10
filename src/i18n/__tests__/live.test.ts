@@ -67,7 +67,7 @@ describe("zamjena jezika stvarno prolazi kroz cijeli lanac", () => {
 
   it("imena vremena prate jezik", () => {
     setActiveLanguage("hr");
-    expect(codeToCondition(95, true).label).toBe("Grmljavinsko nevrijeme");
+    expect(codeToCondition(95, true).label).toBe("Grmljavina");
     setActiveLanguage("en");
     expect(codeToCondition(95, true).label).toBe("Thunderstorm");
   });
