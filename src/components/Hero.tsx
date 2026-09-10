@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Animated, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line } from "react-native-svg";
@@ -50,7 +51,7 @@ function LongArrow({ up, color }: { up: boolean; color: string }) {
  * "cijeli ekran" završavao na pola. Visina dolazi izmjerena iz viewporta
  * (onLayout na ScrollViewu), ne iz useWindowDimensions.
  */
-export function Hero({
+function HeroView({
   height,
   width,
   placeName,
@@ -389,3 +390,13 @@ export function Hero({
     </View>
   );
 }
+
+/**
+ * `memo` (10.9.2026.): heroj se crta iznova samo kad mu se promijeni prop,
+ * ne pri svakom renderu početne. Dolazak AQI-ja, mora ili peludi mijenja
+ * paket, ali NE `current`/`hours` — to su reference iz JEZGRE u
+ * `useWeatherBundle` — pa heroj, i svi SVG slojevi ambijenta pod njim,
+ * miruju. `fetchedAt` zato stiže zaokružen na minutu, a `stops` je
+ * referenca iz tablice paleta (`weatherGradient`), ne novi niz.
+ */
+export const Hero = memo(HeroView);

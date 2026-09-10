@@ -821,3 +821,25 @@ describe("kiša noću (nightRain)", () => {
     expect(backdropEffects(63, false)).toEqual(["rain"]);
   });
 });
+
+describe("backdropEffects — stabilne reference", () => {
+  /*
+   * `memo(HeroBackdrop)` prima ovaj niz kao prop i uspoređuje ga po
+   * referenci. Do 10.9.2026. je svaki poziv vraćao novi literal, pa memo
+   * nikad nije pogađao i svaki render heroja crtao je sve SVG slojeve
+   * ambijenta iznova. Ovdje se čuva da isti ulaz daje ISTI niz.
+   */
+  it("isti ulaz daje isti niz (po referenci), i za dan i za noć", () => {
+    for (const code of [0, 1, 2, 3, 45, 61, 71, 85, 95]) {
+      for (const isDay of [true, false]) {
+        expect(backdropEffects(code, isDay)).toBe(backdropEffects(code, isDay));
+      }
+    }
+  });
+
+  it("različit ulaz i dalje daje različit sadržaj", () => {
+    expect(backdropEffects(0, true)).not.toBe(backdropEffects(3, true));
+    expect(backdropEffects(0, true)).toEqual(["rays"]);
+    expect(backdropEffects(3, true)).toEqual(["clouds"]);
+  });
+});

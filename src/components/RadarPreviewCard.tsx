@@ -1,11 +1,13 @@
 import {
   Camera,
+  type CameraRef,
   Layer,
   Map as MapLibreMap,
   Marker,
   RasterSource,
 } from "@maplibre/maplibre-react-native";
 import { router } from "expo-router";
+import { useEffect, useRef } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 
 import {
@@ -17,6 +19,7 @@ import {
 } from "@/api/mapLayers";
 import { useLibreFrames } from "@/hooks/useRadarFrames";
 import { t } from "@/i18n";
+import { mark } from "@/utils/perf";
 import { weatherGradient } from "@/utils/weatherLook";
 
 import { MapPin } from "./MapPin";
@@ -29,6 +32,14 @@ const PREVIEW_ZOOM = 7;
  * Statični pregled zadnjeg radarskog okvira oko lokacije; dodir otvara
  * puni ekran karte. Radarske pločice i granice rastezanja dolaze iz istog
  * `MAP_LAYERS` unosa kao na punoj karti — jedan izvor istine.
+ *
+ * JEDNA KARTA, MONTIRANA JEDNOM (10.9.2026., Markov odabir). Do tada je
+ * početna pri SVAKOJ promjeni grada rušila i iznova gradila MapLibre
+ * kartu — GL kontekst, stil, pločice — jer se cijelo stablo ispod
+ * pregiba odmontiravalo (skeleton je zamjenjivao ekran, a `belowFold`
+ * se resetirao). Sad kartica preživi promjenu grada i samo POMAKNE
+ * kameru (`cameraRef.easeTo`, bez animacije); `initialViewState`
+ * vrijedi samo za prvi mount.
  */
 export function RadarPreviewCard({
   lat,
@@ -54,6 +65,16 @@ export function RadarPreviewCard({
    * jedan upit, keširan 10 min, dijeli ga s punom kartom.
    */
   const { data } = useLibreFrames(true);
+
+  /*
+   * Kamera prati mjesto bez ponovnog montiranja karte. `easeTo` s
+   * `duration: 0` = trenutan skok; kad karta još nije spremna (prvi
+   * kadar), ref je `null` i vrijedi `initialViewState`.
+   */
+  const cameraRef = useRef<CameraRef>(null);
+  useEffect(() => {
+    cameraRef.current?.easeTo({ center: [lon, lat], zoom: PREVIEW_ZOOM, duration: 0 });
+  }, [lat, lon]);
   const lastPast = data?.frames.filter((f) => !f.isNowcast).at(-1);
   const radar = mapLayerById("radar_plus");
   const tileUrl =
@@ -88,8 +109,10 @@ export function RadarPreviewCard({
             doubleTapHoldZoom={false}
             touchRotate={false}
             touchPitch={false}
+            // Perf oznaka (no-op u produkciji): kad je karta prvi put spremna.
+            onDidFinishLoadingMap={() => mark("map:loaded")}
           >
-            <Camera initialViewState={{ center: [lon, lat], zoom: PREVIEW_ZOOM }} />
+            <Camera ref={cameraRef} initialViewState={{ center: [lon, lat], zoom: PREVIEW_ZOOM }} />
             {tileUrl && (
               <RasterSource
                 id="radar-preview"

@@ -301,11 +301,29 @@ const SLEET_CODES = [56, 57, 66, 67];
  *
  * Čista funkcija — testira se.
  */
+/*
+ * STABILNE REFERENCE (10.9.2026.): `backdropEffects` je vraćao NOVI niz
+ * pri svakom pozivu, pa `memo(HeroBackdrop)` — koji te nizove dobiva kao
+ * prop — nikad nije pogađao: svaki render heroja (svake minute preko
+ * `useNow`, pri svakom dolasku podatka) crtao je iznova sve SVG slojeve
+ * ambijenta, i na početnoj i u zaglavlju ladice. Isti ulaz sad daje ISTI
+ * niz. Nizovi se ne mutiraju nigdje (test čuva referencu).
+ */
+const FX_FOG: BackdropEffect[] = ["fog"];
+const FX_SLEET: BackdropEffect[] = ["rain", "snow"];
+const FX_RAYS: BackdropEffect[] = ["rays"];
+const FX_RAYS_CLOUDS: BackdropEffect[] = ["rays", "clouds"];
+const FX_STARS: BackdropEffect[] = ["stars"];
+const FX_THUNDER: BackdropEffect[] = ["clouds", "rain", "lightning"];
+const FX_RAIN: BackdropEffect[] = ["rain"];
+const FX_SNOW: BackdropEffect[] = ["snow"];
+const FX_CLOUDS: BackdropEffect[] = ["clouds"];
+
 export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] {
   // Magla ima vlastiti sloj — s oblačnim je dijelila kod, a izgleda
   // posve drukčije (gusto i valjajuće, ne rijetko i plovuće).
-  if (FOG_CODES.includes(code)) return ["fog"];
-  if (SLEET_CODES.includes(code)) return ["rain", "snow"];
+  if (FOG_CODES.includes(code)) return FX_FOG;
+  if (SLEET_CODES.includes(code)) return FX_SLEET;
 
   const key = paletteKey(code, isDay);
   switch (key) {
@@ -331,7 +349,7 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
      * u BROJU slojeva, a rjeđe od `sparse` CloudsLayer ne poznaje.
      */
     case "sunDay":
-      return code === 1 ? ["rays", "clouds"] : ["rays"];
+      return code === 1 ? FX_RAYS_CLOUDS : FX_RAYS;
     /*
      * DJELOMIČNO OBLAČNO = zrake + oblaci (popravak 6.8.2026.).
      *
@@ -341,7 +359,7 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
      * Oblaci ovdje dolaze u manjoj gustoći (vidi `density` u CloudsLayer).
      */
     case "partlyDay":
-      return ["rays", "clouds"];
+      return FX_RAYS_CLOUDS;
     /*
      * VEDRA NOĆ = zvijezde + mjesec (popravak 6.8.2026.).
      *
@@ -355,7 +373,7 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
      * jedan krug.
      */
     case "nightClear":
-      return ["stars"];
+      return FX_STARS;
     /*
      * GRMLJAVINA DOBIVA I OBLAKE (Markov ispravak 8.8.2026.).
      *
@@ -368,17 +386,17 @@ export function backdropEffects(code: number, isDay: boolean): BackdropEffect[] 
      */
     case "thunder":
     case "nightThunder":
-      return ["clouds", "rain", "lightning"];
+      return FX_THUNDER;
     // Noćne oborine: isti ambijent, druga podloga (vidi `night*` palete).
     case "rain":
     case "nightRain":
-      return ["rain"];
+      return FX_RAIN;
     case "snow":
     case "nightSnow":
-      return ["snow"];
+      return FX_SNOW;
     // Oblačno i obje noćne palete: mekane mrlje, bez sunca i oborine.
     default:
-      return ["clouds"];
+      return FX_CLOUDS;
   }
 }
 

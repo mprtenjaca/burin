@@ -18,7 +18,9 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 import type { CurrentWeather, WeatherBundle } from "@/api/types";
-import { useLastWeather } from "@/store/lastWeather";
+import { useCities } from "@/store/cities";
+import { pruneBundles, useLastWeather } from "@/store/lastWeather";
+import { useSearchHistory } from "@/store/searchHistory";
 
 /**
  * OSVJEŽAVANJE KEŠIRANIH TEMPERATURA (8.8.2026.).
@@ -104,5 +106,48 @@ describe("refreshCurrent", () => {
 
     useLastWeather.getState().refreshCurrent({ nepoznat: current(9) });
     expect(useLastWeather.getState().byPlaceId).toBe(before);
+  });
+});
+
+/**
+ * OBREZIVANJE KEŠA (10.9.2026.).
+ *
+ * `byPlaceId` se do tada nikad nije praznio, a `persist` stringificira sve
+ * gradove pri svakom `save` na JS threadu — usred prebacivanja grada.
+ * Ostaje samo što sučelje još može pokazati: spremljeni, povijest,
+ * odabrani, najnoviji GPS paket.
+ */
+describe("pruneBundles", () => {
+  it("zadržava samo zadane ključeve", () => {
+    const all = { zg: bundle("zg", 20), st: bundle("st", 30), ri: bundle("ri", 25) };
+    const kept = pruneBundles(all, ["zg", "ri"]);
+    expect(Object.keys(kept).sort()).toEqual(["ri", "zg"]);
+  });
+
+  it("uvijek zadržava NAJNOVIJI GPS paket, iako nije među ključevima", () => {
+    const gpsOld = { ...bundle("gps-1", 10), fetchedAt: 1000 } as WeatherBundle;
+    (gpsOld.place as { isGps?: boolean }).isGps = true;
+    const gpsNew = { ...bundle("gps-2", 11), fetchedAt: 2000 } as WeatherBundle;
+    (gpsNew.place as { isGps?: boolean }).isGps = true;
+    const kept = pruneBundles({ "gps-1": gpsOld, "gps-2": gpsNew, zg: bundle("zg", 20) }, ["zg"]);
+    expect(Object.keys(kept).sort()).toEqual(["gps-2", "zg"]);
+  });
+
+  it("bez viška vraća ISTI objekt — pretplatnici se ne bude uzalud", () => {
+    const all = { zg: bundle("zg", 20) };
+    expect(pruneBundles(all, ["zg"])).toBe(all);
+  });
+});
+
+describe("save obrezuje po ostalim storeovima", () => {
+  it("izbacuje grad kojeg nema ni među spremljenima, ni u povijesti, ni kao odabranog", () => {
+    useCities.setState({ saved: [bundle("zg", 20).place], selected: null });
+    useSearchHistory.setState({ entries: [bundle("st", 30).place] });
+    useLastWeather.setState({ byPlaceId: { zg: bundle("zg", 20), st: bundle("st", 30), zaboravljen: bundle("zaboravljen", 1) } });
+
+    useLastWeather.getState().save(bundle("ri", 25));
+
+    // `ri` je upravo spremljen pa ostaje i prije nego uđe u povijest.
+    expect(Object.keys(useLastWeather.getState().byPlaceId).sort()).toEqual(["ri", "st", "zg"]);
   });
 });

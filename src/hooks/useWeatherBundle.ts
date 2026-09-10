@@ -25,6 +25,7 @@ import {
   observationDelta,
 } from "@/api/weather";
 import { useLastWeather } from "@/store/lastWeather";
+import { mark } from "@/utils/perf";
 import { dhmzTextToCode } from "@/utils/weatherCodes";
 import { useSettings } from "@/store/settings";
 import { pushWidget } from "@/widgets/widgetData";
@@ -121,6 +122,8 @@ export function useWeatherBundle(place: Place | null) {
     queryFn: fetchDhmzObservations,
     enabled: !!place,
     staleTime: 10 * MIN,
+    // Jedan feed za SVA mjesta — vrijedi ga držati dulje od zadanog sata.
+    gcTime: 24 * 60 * MIN,
     retry: 1,
   });
 
@@ -128,9 +131,47 @@ export function useWeatherBundle(place: Place | null) {
   const cached: WeatherBundle | undefined = useLastWeather((s) =>
     place ? s.byPlaceId[place.id] : undefined,
   );
+  const hasCached = cached !== undefined;
 
-  const fresh = useMemo(() => {
+  // Perf oznake dolaska upita (no-op u produkciji) — vidi `utils/perf.ts`.
+  useMarkOnData("q:current", current.dataUpdatedAt);
+  useMarkOnData("q:forecast", forecast.dataUpdatedAt);
+  useMarkOnData("q:dhmz", dhmz.dataUpdatedAt);
+  useMarkOnData("q:bias", bias.dataUpdatedAt);
+
+  /*
+   * Upit je RIJEŠEN kad je barem jednom dohvaćen (i s diska), pao, ili se
+   * uopće ne dohvaća — čekati na njega ima smisla samo dok stvarno radi.
+   */
+  const dhmzSettled = dhmz.isFetched || dhmz.isError || dhmz.fetchStatus === "idle";
+  const biasSettled = bias.isFetched || bias.isError || bias.fetchStatus === "idle";
+
+  /*
+   * JEZGRA paketa (10.9.2026.): sve što ovisi o current + forecast + DHMZ +
+   * pristranosti. ODVOJENA od dodataka (AQI, more, pelud) da njihov
+   * dolazak ne ponavlja debias/korekciju nad ~400 točaka i, važnije, ne
+   * mijenja REFERENCE `current`/`hourly` — na njima počiva `memo(Hero)`,
+   * pa heroj i svi SVG slojevi pod njim miruju kad stigne AQI.
+   */
+  const core = useMemo(() => {
     if (!place || !current.data || !forecast.data) return undefined;
+    /*
+     * BEZ KAPANJA (10.9.2026., Markov nalaz „na milisekund kriva prognoza
+     * pa preskoči"). Dosad je svaki od osam upita, kad stigne, iznova
+     * sastavljao paket i crtao heroja s DRUGOM temperaturom: model, pa
+     * +mjerenje (delta), pa +pristranost. Kad za mjesto VEĆ postoji keš,
+     * svježi paket zato čeka da se riješe i DHMZ i pristranost; do tada
+     * se prikazuje keš. Oba su u pravilu već u memoriji ili na disku, pa
+     * je čekanje ~0. Za mjesto BEZ keša se NE čeka: nešto na ekranu
+     * vrijedi više od 1 °C točnosti, a jedan skok pri PRVOM posjetu je
+     * cijena koju plaćamo jednom.
+     *
+     * Nuspojava koja je namjerna: prvi `save` novog grada pretvori ga u
+     * „grad s kešom", pa ako pristranost još putuje, jezgra na tren pada
+     * na taj isti keš (identičan sadržaj — ništa se ne vidi) i vraća se s
+     * pristranošću. Jedan skok, ne tri.
+     */
+    if (hasCached && (!dhmzSettled || !biasSettled)) return undefined;
     const nearest = dhmz.data
       ? findNearestStation(place.lat, place.lon, dhmz.data)
       : null;
@@ -182,15 +223,7 @@ export function useWeatherBundle(place: Place | null) {
         ? dhmzTextToCode(dhmzObs.conditionText)
         : undefined;
 
-    /*
-     * Izvor peludi: peludomjer ako je stigao i nije prazan, inače CAMS.
-     * `stampar.data` je `undefined` u produkciji (upit onemogućen) i `[]`
-     * kad stranica ne da ništa upotrebljivo — oboje pada na CAMS.
-     */
-    const pollenDays = stampar.data?.length ? stampar.data : aqi.data?.pollenDays;
-
-    return buildBundle({
-      place,
+    return {
       // Isti `delta` kao za satnu krivulju — hero i prva ura moraju se
       // poklapati, pa se korekcija računa iz istog prosjeka postaja.
       current: {
@@ -204,12 +237,33 @@ export function useWeatherBundle(place: Place | null) {
       hourlyAll: correctHourly(debiasedAll, delta),
       daily: debiasDaily(forecast.data.daily, modelBias),
       dhmz: dhmzObs,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [place?.id, current.data, forecast.data, dhmz.data, bias.data, hasCached, dhmzSettled, biasSettled]);
+
+  useEffect(() => {
+    if (core) mark("bundle:core");
+  }, [core]);
+
+  /*
+   * DODACI na jezgru: AQI, pelud, more. Svaki smije stići kad stigne —
+   * paket dobije novu referencu, ali jezgra (i heroj) ostaje ista.
+   */
+  const fresh = useMemo(() => {
+    if (!place || !core) return undefined;
+    /*
+     * Izvor peludi: peludomjer ako je stigao i nije prazan, inače CAMS.
+     * `stampar.data` je `undefined` u produkciji (upit onemogućen) i `[]`
+     * kad stranica ne da ništa upotrebljivo — oboje pada na CAMS.
+     * Peludomjer POBJEĐUJE nad modelom kad ga ima (samo u razvoju, samo
+     * blizu pokrivenog grada); korisnik nikad ne vidi rupu.
+     */
+    const pollenDays = stampar.data?.length ? stampar.data : aqi.data?.pollenDays;
+
+    return buildBundle({
+      place,
+      ...core,
       aqi: aqi.data?.aqi,
-      /*
-       * Peludomjer POBJEĐUJE nad modelom kad ga ima (samo u razvoju, samo
-       * blizu pokrivenog grada). Prazan odgovor (stranica u kvaru, nepoznat
-       * oblik) pada na CAMS — korisnik nikad ne vidi rupu.
-       */
       pollen: pollenDays?.[0]?.levels,
       pollenDays,
       // Upit vraća null za kopnena mjesta (react-query brani undefined);
@@ -217,16 +271,7 @@ export function useWeatherBundle(place: Place | null) {
       seaTemp: seaTemp.data ?? undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    place?.id,
-    current.data,
-    forecast.data,
-    aqi.data,
-    stampar.data,
-    dhmz.data,
-    seaTemp.data,
-    bias.data,
-  ]);
+  }, [place?.id, core, aqi.data, stampar.data, seaTemp.data]);
 
   /*
    * Jedinice za widget. Čitaju se OVDJE, a ne u `widgetData`, jer su to
@@ -292,4 +337,11 @@ export function useWeatherBundle(place: Place | null) {
       void seaTemp.refetch();
     },
   };
+}
+
+/** Perf oznaka pri svakom novom podatku upita — no-op u produkciji. */
+function useMarkOnData(label: string, dataUpdatedAt: number): void {
+  useEffect(() => {
+    if (dataUpdatedAt) mark(label);
+  }, [label, dataUpdatedAt]);
 }

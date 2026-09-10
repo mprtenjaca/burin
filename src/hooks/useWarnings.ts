@@ -3,12 +3,10 @@ import { useMemo } from "react";
 
 import type { MeteoWarning } from "@/api/meteoalarm";
 import { fetchMeteoalarmWarnings, warningsForPlace } from "@/api/meteoalarm";
-import {
-  feedNameForCountry,
-  geocodeRegion,
-} from "@/api/meteoalarmEurope";
+import { feedNameForCountry } from "@/api/meteoalarmEurope";
 import type { Place } from "@/api/types";
 import { useLanguage } from "@/i18n/useLanguage";
+import { geocodeRegionCached } from "@/store/geocodeCache";
 import { regionsForPlace } from "@/utils/emmaRegions";
 import { haversineKm } from "@/utils/geo";
 
@@ -92,8 +90,13 @@ export function useWarnings(place: Place | null): MeteoWarning[] {
       }
 
       const names = [...byArea.keys()].slice(0, MAX_GEOCODED);
+      /*
+       * Kroz TRAJNI keš (10.9.2026.): regije se ne miču, pa se ime →
+       * koordinate pamti na disku i nakon prvog posjeta zemlji ovdje
+       * više nema mrežnih poziva (do tada ih je bilo do 12 po mjestu).
+       */
       const hits = await Promise.all(
-        names.map((n) => geocodeRegion(n, country!)),
+        names.map((n) => geocodeRegionCached(n, country!)),
       );
 
       const out: MeteoWarning[] = [];

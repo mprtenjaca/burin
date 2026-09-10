@@ -69,9 +69,15 @@ const ARCHIVE_LAG_DAYS = 6;
 /** Najmanji broj usporedivih sati da naučenom vjerujemo. */
 const MIN_SAMPLES = 30;
 
-type HourlyTemps = { hourly?: { time: string[]; temperature_2m: (number | null)[] } };
-
-type DailyTemps = {
+/**
+ * JEDAN odgovor nosi i satne i dnevne temperature (10.9.2026.). Do tada su
+ * se sati i dnevni ekstremi tražili ZASEBNIM pozivima — četiri zahtjeva po
+ * mjestu umjesto dva — iako Open-Meteo oba niza daje iz istog upita.
+ * Novi grad je time gubio dva od svojih ~15 zahtjeva, a arhivski API je
+ * najsporiji od svih (1–3 s), pa je i kvota i vrijeme.
+ */
+type TempsResponse = {
+  hourly?: { time: string[]; temperature_2m: (number | null)[] };
   daily?: {
     time: string[];
     temperature_2m_min: (number | null)[];
@@ -142,24 +148,17 @@ export async function learnModelBias(
     const start = new Date(end.getTime() - LEARN_DAYS * 86_400_000);
     const pastDays = LEARN_DAYS + ARCHIVE_LAG_DAYS;
 
-    const [archive, model, archiveDaily, modelDaily] = await Promise.all([
-      fetchJson<HourlyTemps>(
+    // Dva poziva, ne četiri: sati i dnevni ekstremi iz istog odgovora.
+    const [archive, model] = await Promise.all([
+      fetchJson<TempsResponse>(
         `${ARCHIVE_BASE}?latitude=${lat}&longitude=${lon}&start_date=${isoDate(start)}` +
-          `&end_date=${isoDate(end)}&hourly=temperature_2m&timezone=auto`,
+          `&end_date=${isoDate(end)}&hourly=temperature_2m` +
+          `&daily=temperature_2m_min,temperature_2m_max&timezone=auto`,
       ),
-      fetchJson<HourlyTemps>(
+      fetchJson<TempsResponse>(
         `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}` +
-          `&hourly=temperature_2m&past_days=${pastDays}` +
-          `&forecast_days=1&timezone=auto${MODEL_PARAM}`,
-      ),
-      fetchJson<DailyTemps>(
-        `${ARCHIVE_BASE}?latitude=${lat}&longitude=${lon}&start_date=${isoDate(start)}` +
-          `&end_date=${isoDate(end)}&daily=temperature_2m_min,temperature_2m_max&timezone=auto`,
-      ),
-      fetchJson<DailyTemps>(
-        `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}` +
-          `&daily=temperature_2m_min,temperature_2m_max&past_days=${pastDays}` +
-          `&forecast_days=1&timezone=auto${MODEL_PARAM}`,
+          `&hourly=temperature_2m&daily=temperature_2m_min,temperature_2m_max` +
+          `&past_days=${pastDays}&forecast_days=1&timezone=auto${MODEL_PARAM}`,
       ),
     ]);
 
@@ -194,10 +193,10 @@ export async function learnModelBias(
     // Promašaj dnevnog minimuma/maksimuma — vjerniji stvarnoj greški nego
     // prosjek sati, jer se vrhovi krivulje ne poravnaju s prosjekom.
     const extremeBias = (key: "temperature_2m_min" | "temperature_2m_max") => {
-      const truthDays = archiveDaily.daily?.time ?? [];
-      const truthVals = archiveDaily.daily?.[key] ?? [];
-      const modelDays = modelDaily.daily?.time ?? [];
-      const modelVals = modelDaily.daily?.[key] ?? [];
+      const truthDays = archive.daily?.time ?? [];
+      const truthVals = archive.daily?.[key] ?? [];
+      const modelDays = model.daily?.time ?? [];
+      const modelVals = model.daily?.[key] ?? [];
       if (truthDays.length === 0 || modelDays.length === 0) return undefined;
 
       const byDate = new Map<string, number>();

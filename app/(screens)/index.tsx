@@ -1,7 +1,7 @@
 import { router, useNavigation } from "expo-router";
 import { Menu, Search, type LucideIcon } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Animated, InteractionManager, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { hasWindyKey } from "@/api/windyWebcams";
@@ -25,6 +25,7 @@ import { useCities } from "@/store/cities";
 import { useSettings } from "@/store/settings";
 import { colors } from "@/theme/colors";
 import { useThemeColors } from "@/theme/useThemeColors";
+import { mark } from "@/utils/perf";
 import { ACCENT_UI, readableOn, weatherGradient } from "@/utils/weatherLook";
 
 /**
@@ -38,11 +39,19 @@ import { ACCENT_UI, readableOn, weatherGradient } from "@/utils/weatherLook";
  *
  * Tip je strukturalan, kao `DrawerNav` u `DrawerContent`: `useNavigation`
  * iz expo-routera je generički i ne zna da je roditelj ladica.
+ *
+ * `addListener`/`getState` (10.9.2026.) služe SAMO perf oznakama: početak
+ * i kraj prijelaza native-stacka te sadržaj stacka nakon njega — dokaz da
+ * povratak s tražilice zaista POPA (`[index]`), a ne premješta ekrane.
  */
-type DrawerNav = { openDrawer: () => void };
+type HomeNav = {
+  openDrawer: () => void;
+  addListener: (event: "transitionStart" | "transitionEnd", cb: () => void) => () => void;
+  getState: () => { routes: { name: string; key: string }[] } | undefined;
+};
 
 export default function HomeScreen() {
-  const navigation = useNavigation() as unknown as DrawerNav;
+  const navigation = useNavigation() as unknown as HomeNav;
   const { dark } = useThemeColors();
   const window = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -51,8 +60,10 @@ export default function HomeScreen() {
   const selected = useCities((s) => s.selected);
   const gps = useLocation(selected === null);
   const place = selected ?? (gps.status === "granted" ? gps.place : null);
+  // Perf oznaka: početna počinje crtati (novo) mjesto. No-op u produkciji.
+  mark("home:render", place?.id);
 
-  const { bundle, isLoading, isError, isStale, isRefreshing, refetch } = useWeatherBundle(place);
+  const { bundle, isError, isStale, isRefreshing, refetch } = useWeatherBundle(place);
   const warnings = useWarnings(place);
   /*
    * Kamere se traže za MJESTO IZ BUNDLEA, ne za `place`: „Moja lokacija"
@@ -90,44 +101,84 @@ export default function HomeScreen() {
   }, [place?.id]);
 
   /*
-   * Sadržaj ISPOD PREGIBA se montira tek nakon prvog kadra (dorada
-   * 6.8.2026.): bento kartice, lista 14 dana i pregled karte (MapLibre!)
-   * najskuplji su dio ekrana. Dok su se crtali odmah, prijelaz s
-   * tražilice na početnu trajao je pola sekunde i više — hero je čekao
-   * njih, iako se vidi prvi.
+   * Sadržaj ISPOD PREGIBA se montira tek IZA PRIJELAZA i samo JEDNOM
+   * (dorada 6.8.2026., prerađeno 10.9.2026.): bento kartice, lista 14
+   * dana i pregled karte (MapLibre!) najskuplji su dio ekrana, pa heroj
+   * ne smije čekati njih — vidi se prvi.
    *
-   * Sada se hero pojavi ODMAH, a ostatak dolazi u sljedećem kadru.
-   * Resetira se pri promjeni mjesta, pa svaki novi grad ide istim putem.
+   * Do 10.9. se ovo RESETIRALO pri svakoj promjeni mjesta, pa se sve to
+   * — uključivo GL kontekst karte — rušilo i gradilo iznova za svaki
+   * grad. Sad se montira jednom, kad prvi paket stigne i prijelaz
+   * završi (`runAfterInteractions` čeka kraj animacije native-stacka,
+   * isti obrazac kao `pushWidget`), i dalje samo prima nove propove:
+   * karta pomiče kameru, lista mijenja dane.
    */
   const [belowFold, setBelowFold] = useState(false);
+  const hasBundle = bundle !== undefined;
   useEffect(() => {
-    setBelowFold(false);
-    const id = requestAnimationFrame(() => setBelowFold(true));
-    return () => cancelAnimationFrame(id);
-  }, [place?.id]);
+    if (!hasBundle || belowFold) return;
+    const task = InteractionManager.runAfterInteractions(() => {
+      setBelowFold(true);
+      mark("belowFold:mounted");
+    });
+    return () => task.cancel();
+  }, [hasBundle, belowFold]);
 
   /*
-   * PRIJELAZ pri promjeni mjesta (dorada 6.8.2026.): jedan kadar
-   * skeletona i za gradove koji već imaju keširane podatke.
+   * SKELETON PRI PROMJENI MJESTA — SINKRONO, KAO PREKRIVAČ (dorada
+   * 6.8.2026., prerađeno 10.9.2026. po Markovu nalazu „na milisekund
+   * kriva prognoza pa preskoči na novu").
    *
-   * Zašto: bez toga `bundle` odmah vrati keš, pa React sinkrono crta
-   * CIJELI ekran (hero + gradijent + animirani sloj) prije nego se išta
-   * vidi — to je bilo ono "dulje treba da skoči na naslovnu, i bez
-   * skeletona". Ovako je odziv trenutan i uvijek isti, bez obzira ima
-   * li grad keš.
+   * Stara izvedba je `switching` palila u `useEffect`, dakle NAKON prvog
+   * painta: prvi kadar novog grada crtao je heroja iz keša (stara satna
+   * traka, svjež `current`), pa tek onda skeleton, pa opet heroja. Uz to
+   * je `return <HomeSkeleton/>` ODMONTIRAO cijelo stablo — heroja, SVG
+   * slojeve ambijenta, MapLibre kartu, 14 dana — i montirao ga iznova
+   * kadar kasnije, pri SVAKOJ promjeni grada.
+   *
+   * Sad `shownPlaceId` kasni točno jedan kadar za `place.id`, pa je prvi
+   * render nakon promjene UVIJEK `switching` — izvedeno u renderu, bez
+   * efekta i bez painta između. Skeleton je PREKRIVAČ iznad sadržaja
+   * (vidi dno JSX-a), a sadržaj ostaje montiran i pod njim već prima
+   * novi grad. Prvo otvaranje nije promjena (početno stanje = trenutno
+   * mjesto), pa skeletona tada nema — kao ni prije.
    */
-  const [switching, setSwitching] = useState(false);
-  const firstPlace = useRef(true);
+  const [shownPlaceId, setShownPlaceId] = useState(place?.id);
   useEffect(() => {
-    // Prvo otvaranje aplikacije ne treba dodatni kadar.
-    if (firstPlace.current) {
-      firstPlace.current = false;
-      return;
-    }
-    setSwitching(true);
-    const id = requestAnimationFrame(() => setSwitching(false));
+    if (shownPlaceId === place?.id) return;
+    const id = requestAnimationFrame(() => setShownPlaceId(place?.id));
     return () => cancelAnimationFrame(id);
+  }, [place?.id, shownPlaceId]);
+  const switching = shownPlaceId !== place?.id;
+
+  /*
+   * PERF OZNAKE (10.9.2026., `src/utils/perf.ts`) — no-op u produkciji.
+   * `home:content` nosi temperaturu koju je taj kadar prikazao: broj
+   * takvih oznaka nakon jednog dodira = koliko je puta korisnik vidio
+   * DRUGU brojku (cilj: jednom). „stack nakon prijelaza" je dokaz da je
+   * tražilica zaista odmontirana (`[index]`), a ne ostavljena ispod.
+   */
+  useLayoutEffect(() => {
+    mark("home:commit");
   }, [place?.id]);
+  useLayoutEffect(() => {
+    if (bundle && !switching) mark("home:content", `${Math.round(bundle.current.temp)}°`);
+  }, [bundle, switching]);
+  useEffect(() => {
+    const offStart = navigation.addListener("transitionStart", () => mark("home:transitionStart"));
+    const offEnd = navigation.addListener("transitionEnd", () => {
+      mark("home:transitionEnd");
+      if (__DEV__) {
+        const routes = navigation.getState()?.routes.map((r) => `${r.name}:${r.key.slice(-5)}`) ?? [];
+        // eslint-disable-next-line no-console
+        console.log(`[perf] stack nakon prijelaza: [${routes.join(", ")}]`);
+      }
+    });
+    return () => {
+      offStart();
+      offEnd();
+    };
+  }, [navigation]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const buttonBg = scrollY.interpolate({
@@ -169,9 +220,14 @@ export default function HomeScreen() {
   if (selected === null && gps.status === "denied") {
     return <View className="flex-1 bg-mist dark:bg-night" />;
   }
-  // Skeleton i pri prijelazu na drugi grad, ne samo kad podataka nema.
-  if (isLoading || switching) return <HomeSkeleton />;
-  if (isError || !bundle) {
+  /*
+   * Bez paketa: skeleton dok se čeka (novi grad), greška tek kad nema ni
+   * keša ni odgovora (`isError` iz hooka već znači „greška BEZ ičega za
+   * prikaz"). Promjena grada s kešom NE prolazi ovuda — sadržaj ostaje
+   * montiran, a skeleton ga samo prekrije (vidi `switching`).
+   */
+  if (!bundle) {
+    if (!isError) return <HomeSkeleton />;
     return (
       <View className="flex-1 justify-center bg-mist dark:bg-night">
         <ErrorView onRetry={refetch} />
@@ -279,7 +335,12 @@ export default function HomeScreen() {
           windUnit={windUnit}
           hours={bundle.hourly}
           warnings={warnings}
-          fetchedAt={bundle.fetchedAt}
+          /*
+           * Zaokruženo na minutu: prikaz je ionako „HH:mm", a svaki novi
+           * paket (i dolazak AQI-ja ili mora) nosi novi `Date.now()` koji
+           * bi inače probijao `memo(Hero)` bez ikakve vidljive razlike.
+           */
+          fetchedAt={Math.floor(bundle.fetchedAt / 60_000) * 60_000}
           isStale={isStale}
           stops={stops}
           pageBg={pageBg}
@@ -393,6 +454,18 @@ export default function HomeScreen() {
         </Animated.View>
         <TopButton onPress={() => navigation.openDrawer()} label={t.drawer.cities} bgOpacity={buttonBg} dark={dark} Icon={Menu} skyColor={stops[0]} />
       </View>
+
+      {/*
+        Skeleton kao PREKRIVAČ za jedan kadar pri promjeni grada (vidi
+        `switching`): sadržaj pod njim je već novi grad, samo se ne vidi
+        dok se boje i brojke ne preslože. Zadnji brat = iznad svega,
+        uključivo fiksnih gumba.
+      */}
+      {switching && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <HomeSkeleton />
+        </View>
+      )}
     </View>
   );
 }

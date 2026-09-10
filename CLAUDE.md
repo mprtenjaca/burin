@@ -17,6 +17,34 @@ razvojni izvor iza `__DEV__`** (pravna odluka — vidi Recent Decisions).
 Karta dobila dugmad dana i klizač po danu. Repo je od danas na GitHubu
 (`origin/master`) — pushati nakon zelenih provjera.
 
+**10.9.2026. — BRZINA I MEMORIJA.** Marko na dev buildu: „puno brže
+učitavanje gradova". Nalaz je bio: novi grad iz tražilice zamrzne
+tražilicu 2–3 s, poznati na tren pokaže krivu prognozu — na SVA TRI
+uređaja (dakle JS put, ne hardver).
+
+Uzrok nađen ČITANJEM expo-routera iz `node_modules`:
+`router.navigate("/")` na rutu koja je ISPOD u stacku NIJE pop nego
+**premještanje** — tražilica je ostajala montirana ispod, a RNS je
+animirao „push" već montiranog ekrana (grana koju sam expo-router
+komentira kao „DANGEROUS … can cause React Native Screens to freeze").
+Uz to je skeleton pri promjeni grada ODMONTIRAVAO cijelo stablo
+(uključivo MapLibre kartu), a paket se sastavljao iznova za svaki od
+osam upita kako stižu.
+
+Popravci: `back()`/`dismissAll()`; skeleton kao PREKRIVAČ izveden
+sinkrono; jezgra paketa čeka DHMZ + pristranost kad keš postoji;
+`memo(Hero)` + `backdropEffects` stabilne reference; karta na početnoj
+montirana JEDNOM (kamera se pomiče); ladica s uskim selektorima i
+ambijentom samo dok je otvorena; **per-query keš na disku**
+(`@tanstack/query-persist-client-core`), `gcTime` 60 min, `lastWeather`
+obrezan; bias 4→2 zahtjeva; trajni keš geokodiranja regija. Novi grad je
+s ~15–25 na ~11–13 zahtjeva.
+
+Perf OZNAKE u `utils/perf.ts` (dev-only) + baseline predložak
+`docs/2026-09-10-perf-baseline.md`. Testovi 450/36. **Commitano u dva
+dijela (pelud `5e425bc`, brzina), ali NIJE pushano** — čeka brojke s
+uređaja, koje odlučuju i o MapLibreu na `/map` (vidi odluke).
+
 **9.9.2026. — NOVI RADAR, WEB KAMERE, MJERENO NEBO.** Velik dan, 16
 commita, dva zapisa (`2026-09-09-radar-plus-librewxr.md` i
 `2026-09-09-kamere-nebo-radar-zamjena.md`).
@@ -55,6 +83,8 @@ zaslonu u 270° luk s točkom.
 
 | Što | Status | Bilješka |
 |---|---|---|
+| **Brzina (10.9.): BROJKE i push** | **Marko potvrdio brzinu** („puno brže"); ostaje IZMJERITI pa pushati | Kod je commitan (2 commita), NIJE pushan. Ostaje dvoje: (1) oznake u konzoli Metroa — po dodiru na grad `[perf] search:tap → …` i `[perf] stack nakon prijelaza: [index:…]` (ako piše i `search`, stari kvar je živ), pa broj `home:content(N°)` oznaka = koliko se puta vidjela DRUGA brojka (cilj 1); (2) release build na starijem Androidu + `dumpsys meminfo` nakon 1/10/20 prebacivanja — traži se PLATO. Postupak u `docs/2026-09-10-perf-baseline.md`. Ta memorija je i JEDINI kriterij za MapLibre na `/map` (vidi odluke) |
+| **Provjera na uređaju — 10.9.: ostalo iz brzine** | **Čeka Marka, reload** | Pelud: „Nema peludi" na Helsinkiju (zeleno, skala s markerom na dnu), New York bez kartice. Ladica: otvoriti/zatvoriti (ambijent zaglavlja se pali samo otvorena), temperature u redovima. Karta doma: pregled ne treperi pri promjeni grada (kamera skače, radar je globalan okvir do 10 min star). Restart aplikacije: poznati grad iz diska bez mreže (persister). Upozorenja za strani grad: drugi put bez geokodiranja |
 | **Provjera na uređaju — 9.9. (VELIKI popis)** | **Čeka Marka, reload** | Sve je JS. **Radar:** LibreWXR je sad JEDINI, zove se „Radar", boje shema 2, pločica 256 px, atribucija „LibreWXR". **Kamere:** sekcija ispod karte, najbliža kamera, Polača→Tkon 13.3 km, Pridraga→Seline 16.3 km. **Nebo:** mjereni DHMZ opis do 25 km, „pretežno oblačno" ima svoj razred. **Ambijent:** 4 gustoće oblaka, količina oborine po jačini, noćne palete kiša/snijeg/grmljavina, djelomično oblačno sivlje. **Ikone:** kod 1 ima oblak, ikona uz opis na heroju. **Tražilica:** županija u podnaslovu, „Sv Filip i Jakov" radi. **Karta:** izlaz na prvi dodir i pri ponovnom ulasku. Detalji u zapisu `2026-09-09-kamere-nebo-radar-zamjena.md` |
 | **Kamere: „ista obala prije otoka"** | Otvoreno, Markova odluka | Za Polaču je najbliži **Tkon 4.2 km zrakom, ali preko kanala na Pašmanu**; Pakoštane su na istoj obali (6.2 km). Pravilo „najbliža" to ne razlikuje, a Windy ne daje podatak o kopnu/otoku. Odlučiti je li bitno nakon što se vidi slika |
 | **Provjera na uređaju — 8.9.: splash, ikone, GPS** | **Čeka Marka** | Splash traži REBUILD (nativni resurs, reload ga ne pokazuje); ikone u zaglavlju po nebu; GPS na prvi dodir u tražilici |
@@ -64,7 +94,7 @@ zaslonu u 270° luk s točkom.
 | **TestFlight (prvi upload)** | **Sljedeći korak, 1 build** | Production build je ZASEBAN od dev builda (dev ne može na TestFlight; production ima ZAPEČEN JS). `--auto-submit` je upload, ne treći build. Upute u Next Step |
 | **Zahtjev Štamparu za ponovnu uporabu** | Otvoreno, Markova odluka | Jedini pravno čist put do mjerene peludi u produkciji. Štamparovi uvjeti se pozivaju na Pravilnik o ponovnoj uporabi informacija javnog sektora i traže zahtjev; kontakt `info@stampar.hr`. Do tada Štampar ostaje SAMO u razvoju |
 | Pelud: CAMS pragovi ostalih vrsta | Otvoreno, čeka sezonu | Ambrozija baždarena na 2 grada × 3 dana (5/6). Breza/joha/maslina/trave NISU mjerene — nije sezona; na proljeće očekivati isti pomak kao kod ambrozije. Treći grad bi rekao je li omjer CAMS/mjerenje regionalan |
-| **Sporo na starijim Androidima + veličina aplikacije** | **Otvoreno, za istražiti** (Markov nalaz 6.9.2026.) | Aplikacija je jako spora na starijim uređajima. Prvo IZMJERITI gdje odlazi vrijeme, ne nagađati. Sumnjivci redom: (1) ambijentalne animacije — `IS_LOW_END`/`thin` već prorjeđuju ispod API 33, ali prag i granica nisu mjereni na pravom starom uređaju; (2) `HeroBackdrop` SVG slojevi (RaysLayer ima najviše elemenata); (3) MapLibre GL; (4) veličina bundlea — `index.hbc` je **6.9 MB**, APK 276 MB u debug/dev inačici (dev build nosi Metro + dev alate; production je bitno manji — izmjeriti pravi `--profile production` APK/AAB prije zaključka). Alati: `npx expo export --platform android` pa `source-map-explorer`, Android Studio Profiler, `IS_LOW_END` prag |
+| **Sporo na starijim Androidima + veličina aplikacije** | **Otvoreno — ALAT SPREMAN** (Markov nalaz 6.9.2026.; 10.9. perf oznake, baseline predložak i release build lokalno) | Aplikacija je jako spora na starijim uređajima. Prvo IZMJERITI gdje odlazi vrijeme, ne nagađati. Sumnjivci redom: (1) ambijentalne animacije — `IS_LOW_END`/`thin` već prorjeđuju ispod API 33, ali prag i granica nisu mjereni na pravom starom uređaju; (2) `HeroBackdrop` SVG slojevi (RaysLayer ima najviše elemenata); (3) MapLibre GL; (4) veličina bundlea — `index.hbc` je **6.9 MB**, APK 276 MB u debug/dev inačici (dev build nosi Metro + dev alate; production je bitno manji — izmjeriti pravi `--profile production` APK/AAB prije zaključka). Alati: `npx expo export --platform android` pa `source-map-explorer`, Android Studio Profiler, `IS_LOW_END` prag |
 | Karta: korak klizača 3 h na temp/naoblaci | Otvoreno, ideja | OWM pločice se mijenjaju svaka 3 h (izmjereno: 9 slika u 24 h), pa dvije trećine pomaka klizača ne mijenjaju sliku. Vjetar (Open-Meteo) je satni i ostao bi na 1 h |
 | Engleski jezik | Čeka provjeru na uređaju | Dani (Thu), smjer vjetra **N/NE/E**, upozorenja en-GB, regije, pelud (sve vrste + note), karta (`-24h / Now / Tomorrow`). Test parnosti ključeva i dijakritika prolaze |
 | Smjer strujnica vjetra na karti | Otvoreno | TRI izvedbe odbačene (Recent Decisions — ne pokušavati). Preostaje vlastita sličica strelice (`icon-image` u `buildWindStyle`) |
@@ -78,6 +108,28 @@ zaslonu u 270° luk s točkom.
 | **Rainbow.ai: radar +4 h u budućnost** | Otvoreno, treba ključ | Jedini izvor koji nudi 4 h (LibreWXR daje 1 h jer je optical-flow ekstrapolacija). Uvjeti su čisti (izričito dopuštaju distribuciju kroz aplikaciju). ALI: pločice traže ključ (401 bez njega, pa se pokrivenost nad HR ne može provjeriti unaprijed), a kvota od **30 000 pločica/mj je ~2 korisnika** — jedna sesija s play-om ≈ 450 pločica. Za testiranje da, za javno izdanje ne |
 
 ## Next Step
+
+### 0. Brzina (10.9.) — BROJKE PRIJE PUSHA
+
+Brzina je potvrđena na dev buildu, ali NIJE izmjerena. Postupak i tablica
+su u `docs/2026-09-10-perf-baseline.md`; ukratko:
+
+1. **Oznake u konzoli Metroa** (reload, bez builda). Mora vrijediti:
+   `[perf] stack nakon prijelaza: [index:…]` **bez** `search`; po dodiru
+   na poznati grad JEDNA `home:content(N°)` oznaka nakon skeletona; novi
+   grad — skeleton odmah.
+2. **Memorija na starijem Androidu**, release build (bez Metra i dev
+   Reacta — jedini mjerodavan za korisnike):
+
+   ```bash
+   npx expo run:android --variant release --device
+   adb shell dumpsys meminfo com.markop.burin
+   ```
+
+   nakon 1, 10 i 20 prebacivanja grada — traži se PLATO, ne rast. Isti
+   bundle ID zamjenjuje dev build; vratiti ga s `npx eas-cli build:list`.
+
+Kad prođe: `git push origin master`.
 
 ### 1. Provjera na uređaju (sve je JS — reload, bez builda)
 
@@ -150,6 +202,15 @@ Sastaviti zahtjev za ponovnu uporabu informacija prema NZJZ Štampar
 
 | Odluka | Zašto |
 |---|---|
+| **`router.navigate()` na rutu koja je ISPOD u stacku je PREMJEŠTANJE, ne pop — do početne se ide `back()`/`dismissAll()`** (`search.tsx`, `DrawerContent.goHome`) | Pročitano u `expo-router/build/layouts/StackClient.js` (`stackRouterOverride`, case NAVIGATE): postojeća ruta se traži samo ako je TRENUTNA ili uz `pop: true` (koji `navigate` ne šalje); ali expo-router SVAKOM ekranu daje `getId` (`useScreens.js:107`), pa ulazi u granu koja rutu izvadi i gurne NA VRH s istim ključem — `[index, search]` → `[search, index]`. Tražilica je ostajala montirana ispod (20 redova × 4 pretplate crtalo se pri svakom odabiru), a RNS je premještaj animirao kao push već montiranog ekrana (vlastiti komentar expo-routera: „DANGEROUS … can cause React Native Screens to freeze"). Uz to `navigate` ide kroz `routingQueue` koji se prazni u `useEffect` korijena — TEK nakon cijelog render passa koji je `select()` pokrenuo. Stari trag: čišćenje polja pretrage „jer se povratkom zatekne stari upit" imalo je smisla samo ako se tražilica nikad nije odmontirala. Karta je 9.9. popravljena istim lijekom; ladica i tražilica su bile propuštene, a komentar u ladici („navigate POPA stack") bio je netočan |
+| **Skeleton pri promjeni grada je PREKRIVAČ izveden sinkrono, ne zamjena stabla iz efekta** (`index.tsx`: `shownPlaceId` kasni kadar za `place.id`) | Stari `switching` se palio u `useEffect` = nakon painta → prvi kadar novog grada crtao je heroja iz keša (stara satna traka), pa skeleton, pa heroja: „na milisekund kriva prognoza pa preskoči". I `return <HomeSkeleton/>` je ODMONTIRAO cijelo stablo — heroja, SVG slojeve, MapLibre kartu, 14 dana — i montirao ga kadar kasnije, pri svakoj promjeni. Sad je prvi render nakon promjene UVIJEK skeleton (izvedeno u renderu, bez efekta i bez painta između), a sadržaj ostaje montiran i prima novi grad pod prekrivačem. `belowFold` se više ne resetira po gradu (jednom, iza prijelaza kroz `runAfterInteractions`) |
+| **Jezgra paketa čeka DHMZ i pristranost KAD KEŠ POSTOJI; dodaci (AQI, more, pelud) ne diraju jezgru** (`useWeatherBundle`: `core` + `fresh`) | Osam upita je svaki za sebe sastavljalo paket i crtalo heroja s DRUGOM temperaturom (model → +delta → +bias). Poznati grad: prikazuje se keš dok se ne riješe i DHMZ i pristranost (u pravilu ~0 — memorija ili disk), pa jedan skok umjesto tri. Novi grad: NE čeka (nešto na ekranu vrijedi više od 1 °C točnosti; jedan skok pri prvom posjetu je cijena koja se plaća jednom). `memo(Hero)` radi jer `current`/`hours` reference dolaze iz jezgre, a `fetchedAt` ide zaokružen na minutu — inače bi ga svaki novi `Date.now()` probijao bez ijedne vidljive razlike |
+| **Keš upita na DISKU je PO UPITU (`experimental_createQueryPersister`), ne `persistQueryClient`; `gcTime` 60 min; `lastWeather` OSTAJE i obrezuje se** | `persistQueryClient` serijalizira CIJELI keš pri svakoj promjeni — obrazac zbog kojeg je `hourlyAll` već izbačen s diska. Per-query: zapis po upitu, lijeno čitanje pri prvoj uporabi, poštuje `staleTime` (svjež zapis = bez refetcha = bez treperenja), a GC u memoriji ne dira disk → `gcTime` s 24 h na 60 min (RAM omeđen, disk pamti dan); `persisterGc` jednom po pokretanju iza prijelaza. Isključeno s diska (`utils/queryPersist.ts`, testirano): kamere (token istječe za 10 min → spremljen URL vraća 401), Štampar (razvojni HTML), radarski okviri (mijenjaju se svakih 10 min). `lastWeather` ostaje PRODUKTNI keš (widget handler ga čita izravno, ladica/tražilica temperature, offline `isStale`) i sad se OBREZUJE u `save` na spremljene ∪ povijest ∪ odabrani ∪ najnoviji GPS — dosad je rastao zauvijek, a `persist` stringificirao SVE gradove pri svakom upisu. MMKV (30× brži, sinkroni) svjesno odgođen: nativni je modul, dakle tek uz sljedeći rebuild i samo ako mjerenje pokaže da su AsyncStorage čitanja uska. `react-query` podignut na 5.102.8 da s persisterom dijeli JEDAN `query-core` |
+| **`backdropEffects` vraća STABILNE reference; ladica čita uske selektore i ambijent crta samo OTVORENA; `RainLayer` ne alocira u renderu** | `memo(HeroBackdrop)` nikad nije pogađao jer je svaki poziv vraćao novi niz — svaki render heroja (svake minute preko `useNow`, pri svakom dolasku podatka) crtao je sve SVG slojeve ambijenta iznova, i na početnoj i u ladici. Ladica je bila pretplaćena na CIJELI `byPlaceId`, pa se 500 linija s animiranim ambijentom crtalo pri svakom upisu u keš, za bilo koji grad; a petlje zaglavlja vrtjele su se i dok je bila zatvorena. Sad `useDrawerStatus` iz `expo-router/drawer` (ne iz `@react-navigation/*` — taj uvoz expo-router odbija) i `CityRight` s brojčanim selektorima, isti obrazac kao `PlaceRow` u tražilici. `useRefreshSavedCities` više nema pretplata (`getState()` u trenutku pokretanja), pa korijen aplikacije ne crta pri svakom odabiru grada |
+| **Karta na početnoj: JEDNA MapLibre instanca, kamera se pomiče (`cameraRef.easeTo`, duration 0)** (`RadarPreviewCard`) — Markov odabir | Posljedica prekrivača i `belowFold` bez reseta: karta preživi promjenu grada; do tada se GL kontekst, stil i pločice rušilo i gradilo za svaki grad. `initialViewState` vrijedi samo za prvi mount. Radarski okvir je i dalje GLOBALAN (`["librewxr-frames"]`, LibreWXR pokriva Europu) — pregled crta zadnji prošli okvir, isti za Zadar i Helsinki, star najviše ~10 min; pri promjeni grada se traže samo pločice tog okvira za novi kadar |
+| **MapLibre na `/map` se NE odmontira dok ekran nije fokusiran — i to je odluka BEZ mjerenja** | Štedjelo bi jedan GL kontekst dok se gleda početna, ali svaki ponovni ulazak u kartu postao bi hladan start (300–600 ms): sigurna regresija brzine za nesigurni dobitak memorije. Zamjena poznatog za nepoznato se ne radi na procjenu, a uređaj 10.9. nije bio priključen (`adb devices` prazan) pa `dumpsys meminfo` NIJE izmjeren. Kriterij je zapisan: ako memorija nakon 20 prebacivanja i posjeta karti RASTE bez platoa → karta se odmontira; ako je plato → ostaje kako je |
+| **Bias 4 → 2 zahtjeva; geokodiranje regija u TRAJNOM kešu** (`bias.ts`, `store/geocodeCache.ts` + `useWarnings`) | Sati i dnevni ekstremi dolaze iz ISTOG Open-Meteo odgovora, a arhivski API je najsporiji od svih (1–3 s) — dva poziva umjesto četiri po mjestu. Regije se ne miču: ime → koordinate (i promašaj `null`, jer ime koje geokoder ne zna neće znati ni sutra) pamti se na disku pod ključem `DE:goslar`; nakon prvog posjeta zemlji nema do 12 geokodiranja po mjestu. Keš je u `store/`, ne u `api/`, da `meteoalarmEurope.ts` ostane čist modul bez AsyncStoragea (njegovi testovi ga uvoze izravno) |
+| **Perf se mjeri OZNAKAMA, ne dojmom** (`utils/perf.ts`, `__DEV__` ili `EXPO_PUBLIC_PERF=1`) | Pet neizmjerenih popravaka 9.9. palo je na uređaju. `mark()` bilježi lanac od `search:tap` do `home:content(N°)` i `map:loaded`; broj `home:content` oznaka po dodiru = koliko je puta korisnik vidio DRUGU brojku (cilj: jedan), a `[perf] stack nakon prijelaza` dokazuje da je povratak pravi pop. Za brojke koje vrijede za korisnike treba RELEASE build lokalno (`npx expo run:android --variant release --device`): dev build nosi Metro network inspector i razvojni React |
 | **RainViewer je ukinuo nowcast 1.1.2026. — ne može se kupiti; zamjena je LibreWXR** (`api/librewxr.ts`) | Ukinuti su i satelit, sve sheme boja osim jedne, zoom spušten na z=7. Pretplate NEMA — RainViewer više ne prodaje API pristup (ono što se plaća je njihova mobilna app). Zato je `radar.nowcast` prazan: ostatak strukture, ne nešto što ključ otvara. LibreWXR ima ISTI oblik odgovora (pa `librewxr.ts` je blizanac `rainviewer.ts` i nijedan potrošač nije trebao izmjenu), CC-BY-4.0 (slobodno uz atribuciju — drukčije od Plive), Europu preko OPERA mreže, i NEMA kvotu (provjereno: bez rate-limit zaglavlja, 30 pločica u nizu = 30× 200) |
 | **Radar+ je TOČNIJI od starog radara: 9/12 vs 3/12** (DHMZ, 9.9.2026.) | RainViewer nije vidio NI JEDNU od pet postaja gdje je kiša stvarno padala (Krapina, Rab, Senj, Puntijarka, Zavižan) — ne koristi OPERA mrežu na kojoj su hrvatski radari. **Metodološka pouka:** prva verzija provjere gledala je samo velike gradove i zaključila da OBA lažu; postaje se biraju po tome GDJE PADA, ne po veličini |
 | **Stari radar je „brži" jer nosi 39× MANJE podataka, ne zato što je bolji** | Markovo pitanje. Izmjereno (z=8 nad Zadrom): RainViewer **1 kB / 10 boja**, Radar+ **39 kB / 1415 boja**. Od z=8 RainViewer pada na 1 kB — to je onaj zid (podaci staju na z=7). Latencija je 44 vs 131 ms, dakle ne osjeti se; osjeti se ukupan broj bajtova × pločica × 3 okvira. Radar+ je čak NA CDN-u (`cf-cache-status: HIT`), RainViewer nije. Više podataka je upravo ono zbog čega je točniji — ne popravlja se smanjivanjem |
@@ -243,7 +304,7 @@ Sastaviti zahtjev za ponovnu uporabu informacija prema NZJZ Štampar
 ```bash
 npx expo start --dev-client   # dev server; JS izmjene idu reloadom, BEZ rebuilda
 npm run typecheck             # tsc --noEmit
-npm test                      # jest, 437 testova u 35 skupina
+npm test                      # jest, 450 testova u 36 skupina
 node scripts/generate-widget-icons.mjs  # 20 ikona widgeta (traži sharp)
 npx expo export --platform android   # puni Metro/Babel/NativeWind pipeline
 npx expo run:android          # nativni dev build
@@ -330,6 +391,18 @@ nad pragovima. **Štampar** (`api/stampar.ts`) je razvojni izvor: u
 (≤ 40 km), ključ po gradu, keš 6 h; kad vrati dane, zamjenjuje CAMS-ove.
 Ekran peludi i kartica čitaju `day.graded` i `day.source` (napomena).
 
+**Brzina i keš** (10.9.2026.): do početne se s podekrana ide SAMO
+`router.back()`/`dismissAll()` — `navigate` premješta, ne popa (vidi
+odluke). `index.tsx`: skeleton je PREKRIVAČ (`switching` = `shownPlaceId
+!== place.id`, izvedeno u renderu), sadržaj ostaje montiran; `belowFold`
+jednom, iza prijelaza. `useWeatherBundle`: `core` (current + forecast +
+dhmz + bias; čeka DHMZ i bias kad keš postoji) → `fresh` (+ AQI, more,
+pelud), pa dodaci ne mijenjaju reference jezgre; `memo(Hero)`. Disk:
+`experimental_createQueryPersister` u `_layout.tsx` (pravila i test u
+`utils/queryPersist.ts`), `gcTime` 60 min, `persisterGc` pri pokretanju;
+`lastWeather` je produktni keš, obrezan u `save` (`pruneBundles`). Perf
+oznake `utils/perf.ts` (dev-only) od `search:tap` do `home:content`.
+
 **Web kamere** (9.9.2026.): `windyWebcams.ts` → `useWebcams(lat, lon, name)`
 → `WebcamCard` u sekciji ispod karte, i `app/(screens)/cameras.tsx` za
 popis (otvara se SAMO kad mjesto ima više od jedne vlastite kamere).
@@ -388,7 +461,9 @@ src/api/              openMeteo (+fetchCurrentBatch, pollenDaysFromHourly), dhmz
                       blizanac rainviewera jer je oblik odgovora isti),
                       windyWebcams (web kamere; hasWindyKey, pickWebcams —
                       slike, ne video)
-src/store/            settings, cities, lastWeather (+refreshCurrent),
+src/store/            settings, cities, lastWeather (+refreshCurrent,
+                      pruneBundles, latestGpsBundle), geocodeCache (trajni
+                      keš geokodiranja regija za Meteoalarm),
                       searchHistory, mapTimeline, dayDetails (memorijski
                       izvor za sheet detalja dana, bez persista)
 src/components/       Hero, HeroBackdrop, QuipLine (domaća rečenica NA
@@ -405,7 +480,9 @@ src/hooks/            useWeatherBundle (+Štampar upit iza __DEV__),
                       useRefreshSavedCities, useWarnings, useNow, useRadarFrames,
                       useTimelineHours, useWindGrid, useWindStyle,
                       useLocation (+placeNameFrom), useBottomInset, useWebcams
-src/utils/            weatherCodes (+dhmzTextToCode, razred 3.5),
+src/utils/            perf (perf oznake, no-op u produkciji), queryPersist
+                      (što smije na disk; testirano),
+                      weatherCodes (+dhmzTextToCode, razred 3.5),
                       weatherLook (+PollenGraded, 10 vrsta peludi,
                       cloudDensity, noćne palete),
                       emmaRegions, quips (domaće rečenice o danu — dalmatinski,

@@ -17,6 +17,7 @@ import { useSearchHistory } from "@/store/searchHistory";
 import { useSettings } from "@/store/settings";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { convertTemp, tempUnitSuffix, placeSubtitle } from "@/utils/format";
+import { mark } from "@/utils/perf";
 import { codeToCondition } from "@/utils/weatherCodes";
 import { ACCENT_UI } from "@/utils/weatherLook";
 
@@ -223,27 +224,50 @@ export default function SearchScreen() {
   }, [query, attempt]);
 
   /*
-   * ODZIV PRVO, posao poslije (dorada 6.8.2026.).
+   * ODZIV PRVO, posao poslije (dorada 6.8.2026.; povratak popravljen
+   * 10.9.2026.).
    *
    * Redoslijed je bitan i naučen na uređaju:
    *  1. `select` MORA prvi — dok se ne promijeni mjesto, početna bi se
    *     nacrtala sa starim gradom pa tek onda preskočila na novi.
-   *  2. navigacija odmah za njim, u istom kadru.
-   *  3. čišćenje polja TEK NAKON prijelaza: `setQuery("")` ponovno
-   *     pokreće debounce efekt (koji zove `setResults`), a to su bili
-   *     dodatni re-renderi cijele liste usred navigacije.
+   *  2. povratak odmah za njim, u istom kadru.
+   *
+   * POVRATAK JE `back()`, NE `navigate("/")` (10.9.2026., Markov nalaz:
+   * „na novom gradu tražilica stoji zamrznuta 2–3 s pa tek onda ode na
+   * početnu"; potvrđeno čitanjem expo-routera iz `node_modules`).
+   *
+   * expo-routerov `navigate` na rutu koja je ISPOD u stacku NIJE pop.
+   * `stackRouterOverride` (StackClient.js, `case 'NAVIGATE'`) postojeću
+   * rutu traži samo ako je trenutna ili uz `pop: true` (koji `navigate`
+   * ne šalje); ali expo-router SVAKOM ekranu daje `getId`, pa ulazi u
+   * granu koja rutu IZVADI iz niza i gurne je NA VRH s istim ključem —
+   * stack `[index, search]` postajao je `[search, index]`. Početna se
+   * time „gurala" preko tražilice koja je OSTAJALA montirana ispod
+   * (zauvijek: 20 redova × 4 pretplate crtalo se pri svakom odabiru i
+   * upisu u keš), a RNS je premještaj već montiranog ekrana animirao kao
+   * push — grana koju sam expo-router komentira kao „DANGEROUS … can
+   * cause React Native Screens to freeze". Odatle zamrzavanje, i odatle
+   * je nekad trebalo čišćenje polja pri odlasku: tražilica se nikad nije
+   * odmontirala, pa je pamtila stari upit.
+   *
+   * `back()` je pravi GO_BACK: tražilica se odmontira (polje se čisti
+   * samo od sebe), početna ostaje ISTA instanca. Isti lijek kojim je 9.9.
+   * popravljen izlaz s karte. Tražilica je uvijek točno jedan sloj iznad
+   * početne (ladica prije nje radi `dismissAll`); rezerva `navigate("/")`
+   * pokriva jedini slučaj bez povijesti — `router.replace("/search")`
+   * kad nema ni grada ni dozvole za GPS.
    */
+  const goHome = () => {
+    if (router.canGoBack()) router.back();
+    else router.navigate("/");
+  };
+
   const open = (place: Place) => {
+    mark("search:tap", place.name);
     select(place);
     // Svako otvaranje ide u povijest (bez duplikata, s granicom).
     addHistory(place);
-    router.navigate("/");
-    // Polje se čisti pri odlasku: inače se povratkom na tražilicu
-    // zatekne stari upit i piše se preko njega.
-    setTimeout(() => {
-      setQuery("");
-      setResults([]);
-    }, 250);
+    goHome();
   };
 
   const isSaved = (id: string) => saved.some((p) => p.id === id);
@@ -254,8 +278,9 @@ export default function SearchScreen() {
    * traži, nego stanje "gdje sam".
    */
   const openMyLocation = () => {
+    mark("search:tap", "gps");
     select(null);
-    router.navigate("/");
+    goHome();
   };
 
   // Androidova navigacijska traka leži preko dna (edge-to-edge) — vidi hook.

@@ -25,6 +25,13 @@ import { useSearchHistory } from "@/store/searchHistory";
  * zajedničkog keša, pokreće se jednom po pokretanju i nema svog
  * korisničkog sučelja. Hook u korijenu je jednostavniji od upita koji
  * nitko ne čita.
+ *
+ * BEZ PRETPLATA NA STOREOVE (10.9.2026.). Do tada je hook čitao `saved`,
+ * `selected` i `history` selektorima, pa se KORIJEN aplikacije crtao
+ * iznova pri svakom odabiru grada, a efekt se vrtio ispočetka i svaki
+ * put iznova pretplaćivao na `AppState`. Sve se sad čita `getState()`-om
+ * u trenutku kad `run` stvarno kreće — pokretanje i povratak u
+ * aplikaciju — jer je jedino tada i bitno što je u popisima.
  */
 
 /**
@@ -38,17 +45,6 @@ import { useSearchHistory } from "@/store/searchHistory";
 const STALE_MS = 10 * 60 * 1000;
 
 export function useRefreshSavedCities(): void {
-  const saved = useCities((s) => s.saved);
-  const selected = useCities((s) => s.selected);
-  /*
-   * I POVIJEST pretrage (dorada 8.8.2026.): tražilica uz svako mjesto iz
-   * povijesti pokazuje istu temperaturu iz keša kao i uz spremljene, pa
-   * bez ovoga povijest ostaje na starim brojkama dok spremljeni žive.
-   * Store je ionako ograničen na 12 unosa — batch ostaje malen.
-   */
-  const history = useSearchHistory((s) => s.entries);
-  const refreshCurrent = useLastWeather((s) => s.refreshCurrent);
-
   /*
    * Zadnji pokušaj se pamti u refu, ne u stanju: služi samo kao brava
    * protiv ponavljanja i njegova promjena ne smije izazvati render.
@@ -60,6 +56,15 @@ export function useRefreshSavedCities(): void {
       const now = Date.now();
       if (now - lastRun.current < STALE_MS) return;
 
+      const { saved, selected } = useCities.getState();
+      /*
+       * I POVIJEST pretrage (dorada 8.8.2026.): tražilica uz svako mjesto
+       * iz povijesti pokazuje istu temperaturu iz keša kao i uz
+       * spremljene. Store je ograničen na 12 unosa — batch ostaje malen.
+       */
+      const history = useSearchHistory.getState().entries;
+      const cached = useLastWeather.getState().byPlaceId;
+
       /*
        * Kandidati: spremljeni + odabrani (u ladici je na vrhu i kad nije
        * spremljen) + povijest pretrage. Duplikati se miču po `id`-u.
@@ -70,7 +75,6 @@ export function useRefreshSavedCities(): void {
        * ekran). Mjesto koje nikad nije otvoreno ni ne pokazuje
        * temperaturu u popisu, pa za njega nema što osvježiti.
        */
-      const cached = useLastWeather.getState().byPlaceId;
       const seen = new Set<string>();
       const places: Place[] = [];
       for (const p of [...saved, ...(selected ? [selected] : []), ...history]) {
@@ -93,7 +97,7 @@ export function useRefreshSavedCities(): void {
         if (place && current) updates[place.id] = current;
       });
 
-      if (Object.keys(updates).length > 0) refreshCurrent(updates);
+      if (Object.keys(updates).length > 0) useLastWeather.getState().refreshCurrent(updates);
     };
 
     void run();
@@ -107,11 +111,5 @@ export function useRefreshSavedCities(): void {
       if (state === "active") void run();
     });
     return () => sub.remove();
-    /*
-     * `byPlaceId` se namjerno čita kroz `getState()` a NE kroz selektor:
-     * upis koji `refreshCurrent` napravi promijenio bi ovisnost i vrtio
-     * efekt u krug. `history` u ovisnostima je bezopasan — mijenja se na
-     * otvaranje mjesta, a `lastRun` brana ionako guši ponavljanja.
-     */
-  }, [saved, selected, history, refreshCurrent]);
+  }, []);
 }

@@ -1,4 +1,5 @@
 import { router, usePathname } from "expo-router";
+import { useDrawerStatus } from "expo-router/drawer";
 import { BookmarkPlus, ChevronRight, Cloudy, Info, MapPin, Radar, Satellite, Search, Settings, Thermometer, TriangleAlert, Wind } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import type { ReactNode } from "react";
@@ -13,7 +14,7 @@ import type { Place, WeatherBundle } from "@/api/types";
 import { useBottomInset } from "@/hooks/useBottomInset";
 import { t } from "@/i18n";
 import { useCities } from "@/store/cities";
-import { useLastWeather } from "@/store/lastWeather";
+import { latestGpsBundle, useLastWeather } from "@/store/lastWeather";
 import { useMapTimeline } from "@/store/mapTimeline";
 import { useSettings } from "@/store/settings";
 import { colors } from "@/theme/colors";
@@ -151,6 +152,14 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
   const insets = useSafeAreaInsets();
   const { dark } = useThemeColors();
   const [size, setSize] = useState({ w: 0, h: 0 });
+  /*
+   * Animirani ambijent zaglavlja postoji SAMO dok je ladica otvorena
+   * (10.9.2026.). Ladica je uvijek montirana, pa su se petlje oblaka,
+   * kiše ili zvijezda vrtjele i dok je bila zatvorena — nevidljive, a
+   * plaćene na UI threadu. `useDrawerStatus` je iz `expo-router/drawer`,
+   * ne iz `@react-navigation/*` (taj uvoz expo-router odbija).
+   */
+  const open = useDrawerStatus() === "open";
 
   if (!bundle) {
     return (
@@ -213,10 +222,11 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
             <Rect x="0" y="0" width={size.w} height={size.h + FADE_H} fill="url(#drawer-bg)" />
           </Svg>
 
-          {backdropEffects(bundle.current.code, bundle.current.isDay).map((name) => {
-            const Layer = BACKDROP_LAYERS[name];
-            return <Layer key={name} width={size.w} height={size.h + FADE_H} intensity={precipIntensity(bundle.current.code)} />;
-          })}
+          {open &&
+            backdropEffects(bundle.current.code, bundle.current.isDay).map((name) => {
+              const Layer = BACKDROP_LAYERS[name];
+              return <Layer key={name} width={size.w} height={size.h + FADE_H} intensity={precipIntensity(bundle.current.code)} />;
+            })}
 
           {/* Rep: ambijent i boja se gase prema stavkama. */}
           <Svg width={size.w} height={FADE_H} style={{ position: "absolute", top: size.h }}>
@@ -292,6 +302,37 @@ function Header({ bundle, tempUnit }: { bundle?: WeatherBundle; tempUnit: TempUn
  * s TRENUTNOM temperaturom i ikonom (iz burin:last-weather — bez ijednog
  * novog upita), slojevi karte s izravnim ulazom, pa aplikacija.
  */
+/**
+ * Temperatura + ikona vremena za grad, ako je ikad dohvaćen.
+ *
+ * Uz njih ide i značka vjetra (6.8.2026.): priobalju je bura glavni
+ * podatak, pa se jak vjetar vidi u samoj listi. Značke nema ispod
+ * 10 m/s, pa u mirnom vremenu red izgleda isto kao prije.
+ *
+ * ZASEBNA KOMPONENTA S BROJČANIM SELEKTORIMA (10.9.2026.) — isti obrazac
+ * kao `PlaceRow` u tražilici: `byPlaceId[id]` bi pri svakom upisu u store
+ * dao novu referencu i crtao sve redove; četiri broja se uspoređuju po
+ * vrijednosti, pa se red crta samo kad se NJEGOV grad promijeni.
+ */
+function CityRight({ place }: { place: Place }) {
+  const { fg, dark } = useThemeColors();
+  const tempUnit = useSettings((s) => s.tempUnit);
+  const temp = useLastWeather((s) => s.byPlaceId[place.id]?.current.temp);
+  const code = useLastWeather((s) => s.byPlaceId[place.id]?.current.code);
+  const isDay = useLastWeather((s) => s.byPlaceId[place.id]?.current.isDay);
+  const windGusts = useLastWeather((s) => s.byPlaceId[place.id]?.current.windGusts);
+  if (temp === undefined || code === undefined) return null;
+  const { Icon } = codeToCondition(code, isDay ?? true);
+  return (
+    <View className="flex-row items-center gap-1.5">
+      {/* Gradovi su BIJELE kartice — bijela vjetrulja bi bila nevidljiva. */}
+      {windGusts !== undefined && <WindFlag speedKmh={windGusts} size={20} tone={dark ? "dark" : "card"} />}
+      <Icon size={18} strokeWidth={2} color={fg} opacity={0.6} />
+      <Text className="font-grotesk-bold text-[17px] text-ink dark:text-paper">{Math.round(convertTemp(temp, tempUnit))}°</Text>
+    </View>
+  );
+}
+
 export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
   // Androidova navigacijska traka leži preko dna (edge-to-edge) — vidi hook.
   const bottomInset = useBottomInset();
@@ -304,7 +345,6 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
 
   /** Grad koji se trenutno gleda, a nije među spremljenima. */
   const unsavedSelected = selected && !saved.some((c) => c.id === selected.id) ? selected : null;
-  const byPlaceId = useLastWeather((s) => s.byPlaceId);
   const tempUnit = useSettings((s) => s.tempUnit);
 
   const mapLayer = useMapTimeline((s) => s.layer);
@@ -316,12 +356,17 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
    * Zaglavlje pokazuje mjesto s heroja. Za "Moja lokacija" (selected je
    * null) se NE pokreće GPS iz ladice — uzima se najsvježiji GPS paket iz
    * pohrane; dok ga nema, zaglavlje je samo naslov.
+   *
+   * USKI SELEKTOR (10.9.2026.): do tada je ladica bila pretplaćena na
+   * CIJELI `byPlaceId`, pa se svih 500 linija — zaglavlje s animiranim
+   * ambijentom i šest redova s vjetruljom i ikonom — crtalo iznova pri
+   * SVAKOM upisu u keš, za bilo koji grad. Sad se čita samo paket koji
+   * zaglavlje stvarno pokazuje; zustand uspoređuje referencu, pa upis za
+   * drugi grad ladicu ne dira. Redovi imaju svoje selektore (`CityRight`).
    */
-  const headerBundle = selected
-    ? byPlaceId[selected.id]
-    : Object.values(byPlaceId)
-        .filter((b) => b.place.isGps)
-        .sort((a, b) => b.fetchedAt - a.fetchedAt)[0];
+  const headerBundle = useLastWeather((s) =>
+    selected ? s.byPlaceId[selected.id] : latestGpsBundle(s.byPlaceId),
+  );
 
   /*
    * `select` PRVI, pa zatvaranje i navigacija (dorada 6.8.2026.).
@@ -339,8 +384,21 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
   const goHome = (place: Place | null) => {
     select(place);
     navigation.closeDrawer();
-    // `navigate` na postojeći korijen POPA stack do početne — ne gomila.
-    router.navigate("/");
+    /*
+     * DO POČETNE SE IDE ODBACIVANJEM SLOJEVA, NE `navigate("/")`
+     * (10.9.2026.). Raniji komentar ovdje — „navigate na postojeći
+     * korijen POPA stack" — bio je NETOČAN: expo-routerov `navigate`
+     * rutu koja je ispod PREMJEŠTA na vrh s istim ključem, a podekran
+     * ostaje montiran ispod nje (vidi `open` u tražilici, gdje je to
+     * i izmjereno kao zamrzavanje). `dismissAll` je pravi pop do
+     * korijena — isti poziv koji `go` niže već koristi; `back()`
+     * pokriva kartu (Drawer sestra, izvan stacka), a `navigate` ostaje
+     * samo kao rezerva bez ikakve povijesti (tada je početna već
+     * trenutna ruta pa je bezopasan).
+     */
+    if (router.canDismiss()) router.dismissAll();
+    else if (router.canGoBack()) router.back();
+    else router.navigate("/");
   };
 
   const go = (path: "/search" | "/settings" | "/sources" | "/warnings") => {
@@ -386,26 +444,8 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
    */
   const cityAccent = ACCENT_UI;
 
-  /**
-   * Temperatura + ikona vremena za grad, ako je ikad dohvaćen.
-   *
-   * Uz njih ide i značka vjetra (6.8.2026.): priobalju je bura glavni
-   * podatak, pa se jak vjetar vidi u samoj listi. Značke nema ispod
-   * 10 m/s, pa u mirnom vremenu red izgleda isto kao prije.
-   */
-  const cityRight = (place: Place): ReactNode => {
-    const bundle = byPlaceId[place.id];
-    if (!bundle) return undefined;
-    const { Icon } = codeToCondition(bundle.current.code, bundle.current.isDay);
-    return (
-      <View className="flex-row items-center gap-1.5">
-        {/* Gradovi su BIJELE kartice — bijela vjetrulja bi bila nevidljiva. */}
-        <WindFlag speedKmh={bundle.current.windGusts} size={20} tone={dark ? "dark" : "card"} />
-        <Icon size={18} strokeWidth={2} color={fg} opacity={0.6} />
-        <Text className="font-grotesk-bold text-[17px] text-ink dark:text-paper">{Math.round(convertTemp(bundle.current.temp, tempUnit))}°</Text>
-      </View>
-    );
-  };
+  // Desna strana reda grada je zasebna komponenta `CityRight` (gore) — sa
+  // svojim uskim selektorima, da upis u keš crta samo pogođeni red.
 
   return (
     <ScrollView
@@ -439,7 +479,7 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
             active={onHome}
             right={
               <View className="flex-row items-center gap-3">
-                {cityRight(unsavedSelected)}
+                <CityRight place={unsavedSelected} />
                 {/*
                   Pravi padding + ikona bez dodira — isti popravak kao u
                   tražilici (8.8.2026.): SVG zna progutati dodir, a sama
@@ -466,7 +506,7 @@ export function DrawerContent({ navigation }: { navigation: DrawerNav }) {
           .reverse()
           .slice(0, 6)
           .map((city) => (
-            <Item key={city.id} label={city.name} card accent={cityAccent} active={onHome && selected?.id === city.id} right={cityRight(city)} onPress={() => goHome(city)} />
+            <Item key={city.id} label={city.name} card accent={cityAccent} active={onHome && selected?.id === city.id} right={<CityRight place={city} />} onPress={() => goHome(city)} />
           ))}
         {/*
           Više od 6 spremljenih: "Vidi više" otvara tražilicu s punom

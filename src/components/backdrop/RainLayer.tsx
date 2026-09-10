@@ -216,6 +216,13 @@ export const RainLayer = memo(function RainLayer({
     return () => loop.stop();
   }, [ambient, ambientMs]);
 
+  /*
+   * Bez `scrollY` (zaglavlje ladice, pregledi) pomak je nula — JEDNA
+   * vrijednost po montiranju, ne `new Animated.Value` u svakom renderu
+   * (do 10.9.2026. su se alocirale dvije po renderu).
+   */
+  const still = useRef(new Animated.Value(0)).current;
+
   const H = height || 1;
   const introY = intro.interpolate({ inputRange: [0, 1], outputRange: [0, -H * 0.4] });
   const introX = intro.interpolate({
@@ -224,10 +231,10 @@ export const RainLayer = memo(function RainLayer({
   });
   const scrollShiftY = scrollY
     ? scrollY.interpolate({ inputRange: [0, H], outputRange: [0, -H * 0.55] })
-    : new Animated.Value(0);
+    : still;
   const scrollShiftX = scrollY
     ? scrollY.interpolate({ inputRange: [0, H], outputRange: [0, H * 0.55 * SLOPE] })
-    : new Animated.Value(0);
+    : still;
 
   // Ambijent ide NIZ dijagonalu; komponenta po y = period / |(1, SLOPE)|.
   const ambientY = ambient.interpolate({

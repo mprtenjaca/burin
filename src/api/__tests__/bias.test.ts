@@ -75,6 +75,26 @@ describe("shrunkBias (prigušenje po dosljednosti)", () => {
 describe("learnModelBias — referentni model", () => {
   beforeEach(() => fetchJson.mockReset());
 
+  /*
+   * DVA zahtjeva, ne četiri (10.9.2026.): sati i dnevni ekstremi dolaze iz
+   * istog odgovora, pa se i traže jednim pozivom po izvoru. Novi grad je
+   * time lakši za dva zahtjeva, a arhivski API je najsporiji od svih.
+   */
+  it("uči iz DVA poziva — po jednom na arhivu i na model — s satnim I dnevnim nizom", async () => {
+    fetchJson.mockResolvedValue({});
+    await learnModelBias(44.296, 15.4387);
+
+    const urls = fetchJson.mock.calls.map((c) => String(c[0]));
+    expect(urls).toHaveLength(2);
+    for (const url of urls) {
+      expect(url).toContain("hourly=temperature_2m");
+      expect(url).toContain("daily=temperature_2m_min,temperature_2m_max");
+    }
+    expect(urls.filter((u) => u.includes("archive-api.open-meteo.com"))).toHaveLength(1);
+    expect(urls.filter((u) => u.includes("api.open-meteo.com/v1/forecast"))).toHaveLength(1);
+  });
+
+
   /**
    * Regresija (5.8.2026.): forecast pozivi su bili bez `&models=`, pa su
    * vraćali `best_match` dok je aplikacija prikazivala ECMWF. Učila se

@@ -3,11 +3,20 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import type { CurrentWeather, WeatherBundle } from "@/api/types";
+import { useCities } from "@/store/cities";
+import { useSearchHistory } from "@/store/searchHistory";
 
 /**
  * Zadnji uspješno dohvaćeni podaci po mjestu — za offline prikaz
- * ("Podaci od HH:mm") i kao zajednička pohrana koju će čitati budući
- * Android widget (v1.1, react-native-android-widget).
+ * ("Podaci od HH:mm") i kao zajednička pohrana koju čita Android widget
+ * (react-native-android-widget, handler čita AsyncStorage izravno).
+ *
+ * ULOGA UZ PERSISTER (10.9.2026.): react-query od danas ima vlastiti keš na
+ * disku po upitu (`experimental_createQueryPersister` u `_layout.tsx`) —
+ * to je TRANSPORTNI keš (sirovi odgovori). Ovo ostaje PRODUKTNI keš:
+ * „zadnji dobar paket po gradu", s korekcijama primijenjenima, koji čitaju
+ * ladica, tražilica, widget i offline prikaz. Ne dupliraju logiku —
+ * persister je proziran omot oko `queryFn`.
  */
 type LastWeatherState = {
   byPlaceId: Record<string, WeatherBundle>;
@@ -48,13 +57,65 @@ function slimForDisk(bundle: WeatherBundle): WeatherBundle {
   return { ...bundle, hourlyAll: [] };
 }
 
+/** Najsvježiji GPS paket iz pohrane — zaglavlje ladice na „Mojoj lokaciji". */
+export function latestGpsBundle(
+  byPlaceId: Record<string, WeatherBundle>,
+): WeatherBundle | undefined {
+  let best: WeatherBundle | undefined;
+  for (const b of Object.values(byPlaceId)) {
+    if (b.place.isGps && (!best || b.fetchedAt > best.fetchedAt)) best = b;
+  }
+  return best;
+}
+
+/**
+ * OBREZIVANJE keša (10.9.2026.). Do tada se `byPlaceId` NIKAD nije
+ * praznio: svaki grad ikad otvoren ostajao je zauvijek, a `persist`
+ * stringificira SVE gradove pri svakom `save` — na JS threadu, usred
+ * prebacivanja grada. Rast je bio neomeđen (mjeseci korištenja = deseci
+ * gradova = stotine kB po upisu).
+ *
+ * Zadržava se samo ono što netko još čita: spremljeni gradovi, povijest
+ * pretrage (≤ 12), trenutno odabrani i najnoviji GPS paket (zaglavlje
+ * ladice na „Mojoj lokaciji"). Sve ostalo je bilo nedohvatljivo iz
+ * sučelja — ni ladica ni tražilica ga ne pokazuju.
+ *
+ * Čista funkcija, izvezena radi testa; `save` joj daje ključeve iz
+ * ostalih storeova. Kad nema što izbaciti, vraća ISTI objekt (bez
+ * uzaludnog buđenja pretplatnika).
+ */
+export function pruneBundles(
+  byPlaceId: Record<string, WeatherBundle>,
+  keepIds: Iterable<string>,
+): Record<string, WeatherBundle> {
+  const keep = new Set(keepIds);
+  const gps = latestGpsBundle(byPlaceId);
+  if (gps) keep.add(gps.place.id);
+  const ids = Object.keys(byPlaceId);
+  if (ids.every((id) => keep.has(id))) return byPlaceId;
+  const next: Record<string, WeatherBundle> = {};
+  for (const id of ids) if (keep.has(id)) next[id] = byPlaceId[id]!;
+  return next;
+}
+
+/** Ključevi koje sučelje još može pokazati — vidi `pruneBundles`. */
+function keepIdsNow(): string[] {
+  const { saved, selected } = useCities.getState();
+  const history = useSearchHistory.getState().entries;
+  return [...saved, ...history, ...(selected ? [selected] : [])].map((p) => p.id);
+}
+
 export const useLastWeather = create<LastWeatherState>()(
   persist(
     (set) => ({
       byPlaceId: {},
       save: (bundle) =>
         set((s) => ({
-          byPlaceId: { ...s.byPlaceId, [bundle.place.id]: bundle },
+          byPlaceId: pruneBundles(
+            { ...s.byPlaceId, [bundle.place.id]: bundle },
+            // Upravo spremljeni grad ostaje i kad još nije ni u povijesti.
+            [...keepIdsNow(), bundle.place.id],
+          ),
         })),
       refreshCurrent: (updates) =>
         set((s) => {
