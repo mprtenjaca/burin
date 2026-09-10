@@ -91,9 +91,24 @@ const WIDGET_DARK_PALETTES: Record<string, [string, string, string]> = {
  * izvozi, a widget treba znati KOJU paletu zamijeniti.
  */
 function paletteKeyFor(code: number, isDay: boolean): string {
-  if (code >= 95 && code <= 99) return "thunder";
-  if (code >= 71 && code <= 86 && code !== 80 && code !== 81 && code !== 82) return "snow";
-  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
+  /*
+   * OBORINA I GRMLJAVINA IMAJU NOC I U WIDGETU (10.9.2026., Markov
+   * zahtjev "napravi nocnu verziju grmljavine ... i ostalo sto fali po
+   * noci").
+   *
+   * Heroj je nocne palete za kisu/snijeg/grmljavinu dobio 9.9., a ovdje
+   * su ostale dnevne: vedro i oblacno su noc razlikovali (nightClear,
+   * nightCloudy), oborina nije - pa je widget u 23 h uz grmljavinu nosio
+   * istu podlogu kao u podne. Nocni kljucevi NEMAJU unos u
+   * WIDGET_DARK_PALETTES, pa widgetGradient pada na
+   * weatherGradient(code, isDay, true) = tamna inacica nocne palete iz
+   * weatherLook - isti izvor kao heroj u tamnoj temi. Bijeli tekst na
+   * njima (izmjereno u weatherLook): nightThunder vrh 13:1, nightRain
+   * 11:1, nightSnow 9.5:1.
+   */
+  if (code >= 95 && code <= 99) return isDay ? "thunder" : "nightThunder";
+  if (code >= 71 && code <= 86 && code !== 80 && code !== 81 && code !== 82) return isDay ? "snow" : "nightSnow";
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return isDay ? "rain" : "nightRain";
   // >= 3 zbog razreda 3.5 „pretezno oblacno" — vidi weatherLook.paletteKey.
   if ((code >= 3 && code < 4) || code === 45 || code === 48) return isDay ? "cloud" : "nightCloudy";
   if (code === 2) return isDay ? "partlyDay" : "nightCloudy";

@@ -157,7 +157,14 @@ export const HeroBackdrop = memo(function HeroBackdrop({
                 ? cloudDensity
                 : name === "rays" && sparseClouds
                   ? "sparse"
-                  : "full"
+                  : // ZVIJEZDE uz oblake su prorijedene kao i zrake (10.9.2026.):
+                    // nocno "pretezno vedro" i "djelomicno oblacno" nose
+                    // ["stars","clouds"], a puno zvjezdano nebo ispod oblaka
+                    // izgleda kao da oblaka nema. StarsLayer "sparse" zadrzava
+                    // mjesec, reze prasinu.
+                    name === "stars" && effects.includes("clouds")
+                    ? "sparse"
+                    : "full"
             }
           />
         );

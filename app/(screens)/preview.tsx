@@ -53,10 +53,23 @@ const SAMPLES: Sample[] = [
   { code: 66, isDay: true },
   { code: 71, isDay: true },
   { code: 75, isDay: true },
+  /*
+   * NOC U ISTOM NIZU KAO DAN (10.9.2026.): vedro -> pretezno vedro ->
+   * djelomicno -> pretezno oblacno, pa oborine. Do sada je noc imala samo
+   * vedro, pretezno oblacno, kisu i snijeg - GRMLJAVINA NOCU se nije mogla
+   * vidjeti nigdje osim cekajuci nevrijeme u mraku (Markov zahtjev).
+   */
   { code: 0, isDay: false },
+  { code: 1, isDay: false },
+  { code: 2, isDay: false },
   { code: 3.5, isDay: false },
+  { code: 45, isDay: false },
   { code: 61, isDay: false },
   { code: 63, isDay: false },
+  { code: 65, isDay: false },
+  { code: 82, isDay: false },
+  { code: 95, isDay: false },
+  { code: 66, isDay: false },
   // Slab, umjeren i jak snijeg noću — broj pahulja raste s jačinom.
   { code: 71, isDay: false },
   { code: 73, isDay: false },

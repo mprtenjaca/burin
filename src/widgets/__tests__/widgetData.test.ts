@@ -135,6 +135,10 @@ describe("widgetEntries", () => {
       { code: 95, isDay: true }, // grmljavina
       { code: 0, isDay: false }, // vedra noć
       { code: 3, isDay: false }, // oblačna noć
+      // Nocne palete oborine (10.9.2026.) — vidi paletteKeyFor.
+      { code: 63, isDay: false }, // kiša noću
+      { code: 73, isDay: false }, // snijeg noću
+      { code: 95, isDay: false }, // grmljavina noću
     ];
     for (const c of cases) {
       const b = bundle({ current: { ...current, code: c.code, isDay: c.isDay } });
@@ -205,6 +209,34 @@ describe("widgetEntries", () => {
     const [first] = widgetEntries(noDaily, "C", "ms", NOW);
     expect(first.props.tMax).toBe(24);
     expect(first.props.tMin).toBe(24);
+  });
+
+  /*
+   * NOĆNA OBORINA IMA SVOJU PODLOGU (10.9.2026., Markov zahtjev
+   * „napravi nocnu verziju grmljavine … i ostalo sto fali po noci").
+   *
+   * Heroj je nocne palete za kisu/snijeg/grmljavinu dobio 9.9., a widget
+   * je za njih vracao DNEVNE — vedro i oblacno su noc razlikovali, a
+   * oborina nije, pa je plocica u 23 h uz grmljavinu izgledala kao u
+   * podne. Test trazi da se dan i noc RAZLIKUJU; koja je tocno boja
+   * odlucuje `weatherLook`, pa se ovdje ne prepisuje.
+   */
+  it("kiša, snijeg i grmljavina NOĆU nose drugu podlogu od dnevne", () => {
+    for (const code of [63, 73, 95]) {
+      const day = widgetEntries(
+        bundle({ current: { ...current, code, isDay: true } }),
+        "C",
+        "ms",
+        NOW,
+      )[0].props.stops;
+      const night = widgetEntries(
+        bundle({ current: { ...current, code, isDay: false } }),
+        "C",
+        "ms",
+        NOW,
+      )[0].props.stops;
+      expect({ code, night }).not.toEqual({ code, night: day });
+    }
   });
 
   it("crta je ograničena na 12 budućih sati", () => {

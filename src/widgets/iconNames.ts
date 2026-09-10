@@ -71,6 +71,12 @@ export function ambientForWeather(code: number, isDay: boolean): AmbientKind {
    * Djelomično oblačno ima SVOJ sloj (Markov ispravak 7.8.2026.): oblak
    * je izraženiji nego kod pune naoblake, da se razlika vidi. Noću ide na
    * običnu naoblaku — mjesec je već u ikoni.
+   *
+   * Zašto widget NE prati heroja (koji od 10.9. nocu na 1 i 2 crta
+   * mjesec IZA oblaka): `AmbientKind` je JEDAN sloj, ne niz — widget ne
+   * moze zvijezde i oblake odjednom (isti razlog zbog kojeg kod 1 danju
+   * ostaje `rays`, a ne `rays`+`clouds`). Oblak je tocniji izbor od
+   * zvijezda jer se naoblaka na 158 px vidi, a prasina zvijezda ne.
    */
   if (code === 2) return isDay ? "partly" : "clouds";
   if (code <= 1) return isDay ? "rays" : "stars";
