@@ -54,3 +54,10 @@ yarn-error.*
 # Zapisi odluka i specovi — radni materijal, ostaju lokalno (6.8.2026.).
 # Opće odluke koje se čuvaju idu u CLAUDE.md (Recent Decisions) i README.
 docs/
+
+# Mjerni podaci za baždarenje radarskog sudca (11.9.2026.) — rastu s
+# vremenom i nisu izvorni kod. `data/*.jsonl` je dataset za buduci vlastiti
+# model (scripts/collect-dataset.mjs), `replay-*.json` su snimke jednog
+# trenutka (scripts/radar-replay.mjs). Isti razlog kao docs/.
+data/
+replay-*.json
