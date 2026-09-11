@@ -46,8 +46,20 @@ import { fetchBytes } from "./client";
 /** RainViewer: podaci staju na z=7 (dokumentirano i izmjereno). */
 export const RAINVIEWER_ZOOM = 7;
 
-/** Radijus uzorka u km oko točke: kiša je zakrpasta, korisnik nije na metru. */
-export const SAMPLE_RADIUS_KM = 5;
+/**
+ * Radijus uzorka u km oko točke.
+ *
+ * 11.9.2026. sa 5 na 3 km (Markov nalaz: „nakon što je kiša stala nama
+ * piše da još pada"). Uzorak uzima NAJJAČI odjek u krugu, pa je s 5 km
+ * kiša u Bibinjama ili na Zemuniku postajala „kiša u Zadru" — izmjereno
+ * istog jutra: dok je nad Poluotokom prestajalo, Zemunik (10 km) je
+ * skočio s 22 na 35 dBZ, a krug ih je oba obuhvaćao.
+ *
+ * Zašto ne još uže: na z=7 je jedan piksel ~1.2 km na 44° N, pa je 3 km
+ * krug od ~5×5 piksela. Ispod toga uzorak postaje osjetljiv na jedan
+ * piksel šuma i na to koliko je GPS točan.
+ */
+export const SAMPLE_RADIUS_KM = 3;
 
 const TILE = 256;
 
@@ -57,6 +69,13 @@ export type RadarEcho = {
   /** Vrijeme okvira (epoch s) — po njemu se računa starost. */
   frameTime: number;
   radiusKm: number;
+  /**
+   * Koliko je piksela u krugu UKUPNO pregledano. S `echoPixels` daje
+   * POKRIVENOST — mjeru koja razlikuje jezgru u oblaku od kišnog polja
+   * (11.9.2026., Metković: 49 dBZ na 18 % kruga uz suho tlo; Korenica:
+   * 37 dBZ na 100 % kruga uz kišu).
+   */
+  coverPixels: number;
   /** Koliko je piksela u krugu imalo prepoznat odjek — za dijagnostiku. */
   echoPixels: number;
 };
@@ -328,9 +347,10 @@ export function sampleMaxDbz(
   gy: number,
   radiusPx: number,
   decode: PixelDecoder,
-): { maxDbz: number | null; echoPixels: number } {
+): { maxDbz: number | null; echoPixels: number; coverPixels: number } {
   let max = -Infinity;
   let echoPixels = 0;
+  let coverPixels = 0;
   for (let dy = -radiusPx; dy <= radiusPx; dy += 1) {
     for (let dx = -radiusPx; dx <= radiusPx; dx += 1) {
       const X = gx + dx;
@@ -339,6 +359,10 @@ export function sampleMaxDbz(
       const { tx, ty } = tileOf(X, Y);
       const t = tiles.get(`${tx}/${ty}`);
       if (!t) continue;
+      // Piksel je PREGLEDAN i kad na njemu nema odjeka — inače se
+      // pokrivenost ne može izračunati (dijelilo bi se samo s onima koji
+      // odjek imaju, pa bi svaka jezgra bila „100 %").
+      coverPixels += 1;
       const i = ((Y % TILE) * t.width + (X % TILE)) * 4;
       const dbz = decode(t.rgba[i]!, t.rgba[i + 1]!, t.rgba[i + 2]!, t.rgba[i + 3]!);
       if (dbz === null) continue;
@@ -346,7 +370,7 @@ export function sampleMaxDbz(
       if (dbz > max) max = dbz;
     }
   }
-  return { maxDbz: echoPixels ? Math.round(max) : null, echoPixels };
+  return { maxDbz: echoPixels ? Math.round(max) : null, echoPixels, coverPixels };
 }
 
 /** URL pločice: `{host}{path}/256/{z}/{x}/{y}/{shema}/{glačanje}_{snijeg}.png`. */
@@ -377,8 +401,8 @@ export async function fetchRadarEcho(
       tiles.set(`${tx}/${ty}`, decodePng(bytes));
     }),
   );
-  const { maxDbz, echoPixels } = sampleMaxDbz(tiles, gx, gy, radiusPx, dbzFromUniversalBlue);
-  return { maxDbz, frameTime: frame.time, radiusKm, echoPixels };
+  const { maxDbz, echoPixels, coverPixels } = sampleMaxDbz(tiles, gx, gy, radiusPx, dbzFromUniversalBlue);
+  return { maxDbz, frameTime: frame.time, radiusKm, echoPixels, coverPixels };
 }
 
 /** Coverage pločica RainViewera za točku (z7): prozirno = pokriveno. */

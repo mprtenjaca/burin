@@ -25,13 +25,17 @@ export const QUERY_BUSTER = "1";
  *  - `librewxr-frames` — radarski okviri se mijenjaju svakih 10 min,
  *    stari su beskorisni, a pločice se ionako traže po okviru;
  *  - `radar-echo` — uzorak odjeka nad mjestom za JEDAN okvir; jučerašnji
- *    ne govori ništa o danas, a ključ ionako nosi vrijeme okvira.
+ *    ne govori ništa o danas, a ključ ionako nosi vrijeme okvira;
+ *  - `radar-past` — dBZ po prošlim satima (popravak ikona u traci);
+ *    vrijedi samo za današnje sate i sadrži Map, koji se ne serijalizira
+ *    u JSON kako treba.
  */
 export const NOT_ON_DISK: ReadonlySet<string> = new Set([
   "windy-webcams",
   "stampar-pollen",
   "librewxr-frames",
   "radar-echo",
+  "radar-past",
 ]);
 
 /** Smije li upit s ovim ključem na disk. */

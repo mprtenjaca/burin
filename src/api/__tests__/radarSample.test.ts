@@ -195,14 +195,16 @@ describe("sampleMaxDbz na pravim pločicama", () => {
   it("RainViewer z8 = placeholder s tekstom → NULL, ne broj (inače bi bijeli tekst bio 'tuča')", () => {
     const tiles = new Map<string, Rgba>([["138/92", decodePng(load("rv-z8-unsupported"))]]);
     const { gx, gy } = pointToGlobalPixel(44.13, 15.206, 8);
-    expect(sampleMaxDbz(tiles, gx, gy, 11, dbzFromUniversalBlue)).toEqual({ maxDbz: null, echoPixels: 0 });
+    expect(sampleMaxDbz(tiles, gx, gy, 11, dbzFromUniversalBlue)).toMatchObject({ maxDbz: null, echoPixels: 0 });
   });
 
   it("prazna pločica (Kairo) daje null, ne nulu; pločica koje nema se preskače", () => {
     const empty = new Map<string, Rgba>([["150/105", decodePng(load("kairo-z8-150-105"))]]);
     const p = pointToGlobalPixel(30.04, 31.24, 8);
-    expect(sampleMaxDbz(empty, p.gx, p.gy, 11, dbzFromGrey)).toEqual({ maxDbz: null, echoPixels: 0 });
-    expect(sampleMaxDbz(new Map(), p.gx, p.gy, 5, dbzFromGrey)).toEqual({ maxDbz: null, echoPixels: 0 });
+    // Pokrivenost je > 0 jer su pikseli PREGLEDANI (samo nemaju odjek).
+    expect(sampleMaxDbz(empty, p.gx, p.gy, 11, dbzFromGrey)).toMatchObject({ maxDbz: null, echoPixels: 0 });
+    // Pločice koje nema se preskaču, pa nema ni pregledanih piksela.
+    expect(sampleMaxDbz(new Map(), p.gx, p.gy, 5, dbzFromGrey)).toEqual({ maxDbz: null, echoPixels: 0, coverPixels: 0 });
   });
 });
 
