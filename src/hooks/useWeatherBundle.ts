@@ -24,12 +24,13 @@ import {
   debiasHourly,
   observationDelta,
   withCurrentCode,
+  withPastCodes,
 } from "@/api/weather";
 import { useLastWeather } from "@/store/lastWeather";
 import { mark } from "@/utils/perf";
 import { useRadarEcho } from "@/hooks/useRadarEcho";
 import { useRadarFrames } from "@/hooks/useRadarFrames";
-import { judgeCurrentCode, stationAgeMinutes } from "@/utils/radarJudge";
+import { DBZ_DRY, cloudCodeFromCover, judgeCurrentCode, precipCodeFromDbz, stationAgeMinutes } from "@/utils/radarJudge";
 import { dhmzTextToCode } from "@/utils/weatherCodes";
 import { useSettings } from "@/store/settings";
 import { pushWidget } from "@/widgets/widgetData";
@@ -45,11 +46,19 @@ const DHMZ_MAX_DISTANCE_KM = 50;
  * Kod greške vraća zadnje spremljene podatke (isStale = true).
  */
 export function useWeatherBundle(place: Place | null) {
+  /*
+   * TEMPO, 11.9.2026.: s 10 na 5 min. Open-Meteo osvježava „current"
+   * svakih 15 min, pa češće od 5 nema što donijeti — a satna kvota
+   * (~600/h) se troši po mjestu, ne po feedu kao kod DHMZ-a.
+   */
   const current = useQuery({
     queryKey: ["om-current", place?.id],
     queryFn: () => fetchCurrent(place!.lat, place!.lon),
     enabled: !!place,
-    staleTime: 10 * MIN,
+    staleTime: 5 * MIN,
+    refetchInterval: 5 * MIN,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   const forecast = useQuery({
@@ -120,12 +129,24 @@ export function useWeatherBundle(place: Place | null) {
     retry: 0,
   });
 
-  // Globalni DHMZ feed (sve postaje); greška vraća null — tihi fallback.
+  /*
+   * Globalni DHMZ feed (sve postaje); greška vraća null — tihi fallback.
+   *
+   * TEMPO, 11.9.2026. (Markov zahtjev za zimu — svaka promjena na oku):
+   * s 10 na 3 min. DHMZ objavljuje satni termin, ali NEPRAVILNO — 30 do
+   * 70 min nakon samog termina. S provjerom svakih 10 min novi je termin
+   * u prosjeku 5 min star prije nego ga app vidi; s 3 min taj rep pada na
+   * ~1.5 min. Feed je JEDAN za sve gradove (~40 kB), pa je i ovo jedan
+   * zahtjev bez obzira na broj spremljenih mjesta.
+   */
   const dhmz = useQuery({
     queryKey: ["dhmz"],
     queryFn: fetchDhmzObservations,
     enabled: !!place,
-    staleTime: 10 * MIN,
+    staleTime: 3 * MIN,
+    refetchInterval: 3 * MIN,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     // Jedan feed za SVA mjesta — vrijedi ga držati dulje od zadanog sata.
     gcTime: 24 * 60 * MIN,
     retry: 1,
@@ -248,13 +269,36 @@ export function useWeatherBundle(place: Place | null) {
      * postaja u istom trenutku (44/46).
      */
     const nowMs = Date.now();
+
+    /*
+     * PROŠLI SATI TRAKE IZ RADARA (11.9.2026.) — vidi `withPastCodes`.
+     * dBZ po satu → kod, istim pragovima kao „sada", ali bez grmljavine
+     * (munje radar ne vidi, a za prošli sat nema postaje da ih potvrdi).
+     * Temperatura se uzima ista kao sad: unutar dva sata se ne prelazi
+     * granica snijega, a točniju po satu ionako nemamo mjerenu.
+     */
+    const pastCodes = new Map<string, number>();
+    if (radar.pastDbz) {
+      for (const [iso, dbz] of radar.pastDbz) {
+        pastCodes.set(iso, dbz < DBZ_DRY ? cloudCodeFromCover(debiasedCurrent.cloudCover) : precipCodeFromDbz(dbz, debiasedCurrent.temp + delta));
+      }
+    }
+
     const judged = judgeCurrentCode({
       stationCode: measuredCode,
       stationAgeMin: stationAgeMinutes(dhmzObs?.measuredAt, nowMs),
+      // Blizina odlučuje smije li postaja govoriti o OBORINI: 11.9.2026.
+      // je postaja Zadar (2.3 km) javljala jaku kišu dok je Zadar-aerodrom
+      // (10.8 km) javljao „pretežno oblačno" — u istom terminu, oboje
+      // točno. Za nebo se blizina ne gleda (već je stegnuto na 25 km).
+      stationDistanceKm: dhmzObs?.distanceKm,
       modelCode: debiasedCurrent.code,
       cloudCover: debiasedCurrent.cloudCover,
       temp: debiasedCurrent.temp + delta,
       echo: radar.echo,
+      // Prethodni okvir: razlikuje jezgru u oblaku od kiše na tlu
+      // (Metković 11.9. — vidi `WIDE_ECHO_PCT`).
+      prevEcho: radar.prevEcho,
       covered: radar.covered,
       nowMs,
     });
@@ -262,7 +306,15 @@ export function useWeatherBundle(place: Place | null) {
       const age = radar.echo ? Math.round((nowMs / 1000 - radar.echo.frameTime) / 60) : null;
       // eslint-disable-next-line no-console
       console.log(
-        `[radar] ${place.name}: ${radar.covered === false ? "nepokriveno" : radar.echo ? `${radar.echo.maxDbz ?? "—"} dBZ (okvir −${age} min)` : "bez radara"}, postaja ${measuredCode ?? "—"}, model ${debiasedCurrent.code} → ${judged.code} (${judged.source})`,
+        `[radar] ${place.name}: ${
+          radar.covered === false
+            ? "nepokriveno"
+            : radar.echo
+              ? radar.echo.maxDbz === null
+                ? `bez odjeka (okvir −${age} min)`
+                : `${radar.echo.maxDbz} dBZ na ${Math.round((100 * radar.echo.echoPixels) / radar.echo.coverPixels)}% kruga (okvir −${age} min)`
+              : "bez radara"
+        }, postaja ${measuredCode ?? "—"}, model ${debiasedCurrent.code} → ${judged.code} (${judged.source})`,
       );
     }
 
@@ -277,8 +329,16 @@ export function useWeatherBundle(place: Place | null) {
         code: judged.code,
       },
       // Prvi stupac trake (tekući sat) nosi isti kod kao heroj.
-      hourly: withCurrentCode(correctHourly(debiasedHourly, delta), judged.code, new Date(nowMs)),
-      hourlyAll: withCurrentCode(correctHourly(debiasedAll, delta), judged.code, new Date(nowMs)),
+      hourly: withPastCodes(
+        withCurrentCode(correctHourly(debiasedHourly, delta), judged.code, new Date(nowMs)),
+        pastCodes,
+        new Date(nowMs),
+      ),
+      hourlyAll: withPastCodes(
+        withCurrentCode(correctHourly(debiasedAll, delta), judged.code, new Date(nowMs)),
+        pastCodes,
+        new Date(nowMs),
+      ),
       daily: debiasDaily(forecast.data.daily, modelBias),
       dhmz: dhmzObs,
     };

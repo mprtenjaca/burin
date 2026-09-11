@@ -287,3 +287,42 @@ export function withCurrentCode(hourly: HourlyPoint[], code: number, now: Date):
   if (idx < 0 || hourly[idx]!.code === code) return hourly;
   return hourly.map((h, i) => (i === idx ? { ...h, code } : h));
 }
+
+/**
+ * PROŠLI SATI TRAKE SE POPRAVLJAJU IZ RADARA (11.9.2026.).
+ *
+ * Markov nalaz: „ove ikonice za forecast za danas mi se čine netočne".
+ * Bio je u pravu, i to mjerljivo: model je za Zadar u 07:00 tvrdio
+ * „pretežno vedro" (kod 1, 0 mm) dok je radar nad istom točkom imao
+ * 32 dBZ, a u 07:40 čak 39 dBZ (10 mm/h). Traka je taj kriv podatak
+ * držala i nakon što je kiša prošla, jer je `withCurrentCode` popravljao
+ * SAMO tekući stupac.
+ *
+ * Radar nosi ~2 h povijesti (13 okvira po 10 min), pa se prošli sati ne
+ * moraju nagađati — za njih postoji mjerenje. Svakom prošlom satu se
+ * uzme NAJJAČI odjek unutar tog sata (6 okvira): pljusak od 15 min je
+ * ono što je čovjek tog sata upamtio, a prosjek bi ga izgladio u ništa.
+ *
+ * Prevodi se istim pravilima kao „sada" (`precipCodeFromDbz`), ali BEZ
+ * grmljavine: munje radar ne vidi, a za prošli sat nema postaje koja bi
+ * ih potvrdila. Sat bez ijednog okvira se ne dira.
+ *
+ * Budući sati ostaju model — njih radar ne zna.
+ */
+export function withPastCodes(
+  hourly: HourlyPoint[],
+  pastCodes: Map<string, number>,
+  now: Date,
+): HourlyPoint[] {
+  if (pastCodes.size === 0) return hourly;
+  const iso = currentHourIso(now);
+  let changed = false;
+  const out = hourly.map((h) => {
+    if (h.time >= iso) return h;
+    const code = pastCodes.get(h.time);
+    if (code === undefined || code === h.code) return h;
+    changed = true;
+    return { ...h, code };
+  });
+  return changed ? out : hourly;
+}
