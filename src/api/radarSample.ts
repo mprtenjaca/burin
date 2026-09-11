@@ -55,29 +55,27 @@ export const RAINVIEWER_ZOOM = 7;
  * istog jutra: dok je nad Poluotokom prestajalo, Zemunik (10 km) je
  * skočio s 22 na 35 dBZ, a krug ih je oba obuhvaćao.
  *
- * Zašto ne još uže: na z=7 je jedan piksel ~1.2 km na 44° N, pa je 3 km
- * krug od ~5×5 piksela. Ispod toga uzorak postaje osjetljiv na jedan
- * piksel šuma i na to koliko je GPS točan.
+ * Zašto ne još uže: na z=7 je jedan piksel ~0.88 km na 44° N (1.22 km na
+ * ekvatoru — Mercator steže prema polovima), pa je 3 km krug od ~7×7
+ * piksela. Ispod toga uzorak postaje osjetljiv na jedan piksel šuma i na
+ * to koliko je GPS točan.
  */
 export const SAMPLE_RADIUS_KM = 3;
 
 const TILE = 256;
 
-export type RadarEcho = {
-  /** Najveći odjek u krugu, dBZ; `null` = ni jedan piksel s oborinom. */
-  maxDbz: number | null;
+/**
+ * Odjek nad točkom za JEDAN okvir.
+ *
+ * Od 11.9.2026. nosi CIJELE prostorne statistike (`RadarStats`), a ne
+ * samo `maxDbz` — isti prolaz kroz piksele daje i jedno i drugo, pa V2
+ * featurei ne traže dodatni dohvat. V1 čita `maxDbz`/`echoPixels`/
+ * `coverPixels` kao dosad.
+ */
+export type RadarEcho = RadarStats & {
   /** Vrijeme okvira (epoch s) — po njemu se računa starost. */
   frameTime: number;
   radiusKm: number;
-  /**
-   * Koliko je piksela u krugu UKUPNO pregledano. S `echoPixels` daje
-   * POKRIVENOST — mjeru koja razlikuje jezgru u oblaku od kišnog polja
-   * (11.9.2026., Metković: 49 dBZ na 18 % kruga uz suho tlo; Korenica:
-   * 37 dBZ na 100 % kruga uz kišu).
-   */
-  coverPixels: number;
-  /** Koliko je piksela u krugu imalo prepoznat odjek — za dijagnostiku. */
-  echoPixels: number;
 };
 
 export type Rgba = { width: number; height: number; rgba: Uint8Array };
@@ -100,6 +98,18 @@ export function pointToGlobalPixel(lat: number, lon: number, z: number): { gx: n
 export function kmToPixels(km: number, lat: number, z: number): number {
   const metersPerPixel = (156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** z;
   return Math.max(1, Math.round((km * 1000) / metersPerPixel));
+}
+
+/**
+ * Koliko KILOMETARA nosi jedan piksel na zadanom zoomu i širini.
+ *
+ * Obrat `kmToPixels`, potreban za težine po udaljenosti i za motion
+ * vektor. Na z=7 i 44° N to je ~0.88 km (1.22 na ekvatoru) — zbog toga je
+ * pomak od jednog piksela između okvira na granici šuma, a 5–6 piksela
+ * (kiša na 30 km/h kroz 10 min) jest mjerljivo.
+ */
+export function kmPerPixel(lat: number, z: number): number {
+  return ((156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** z) / 1000;
 }
 
 /** Pločica u kojoj leži globalni piksel. */
@@ -337,9 +347,183 @@ export function decodePng(bytes: Uint8Array): Rgba {
 // ---- uzorak ----
 
 /**
+ * PROSTORNE STATISTIKE radarskog uzorka (11.9.2026.).
+ *
+ * Zamjenjuje golу brojku `maxDbz` kao temelj odluke. Zašto: `maxDbz` je
+ * maksimum preko ~49 piksela, pa JEDAN piksel diktira cijelu tvrdnju —
+ * točno kvar koji je istog dana dao lažnu jaku kišu nad Metkovićem
+ * (45 dBZ na 18 % kruga, susjedstvo tiho).
+ *
+ * Percentili i pokrivenost po pragu mjere KOLIKO područja je pod
+ * oborinom, a ne samo koliko je najjača točka jaka. `maxDbz` ostaje
+ * dijagnostika.
+ *
+ * Sve se računa u JEDNOM prolazu kroz piksele — petlja ionako posjećuje
+ * svaki i zna njegov pomak od središta, pa su težine i pragovi besplatni.
+ */
+export type RadarStats = {
+  /** Najjači piksel — DIJAGNOSTIKA, ne smije sam odlučivati. */
+  maxDbz: number | null;
+  /** Aritmetički prosjek preko piksela S ODJEKOM. */
+  meanDbz: number | null;
+  medianDbz: number | null;
+  p75Dbz: number | null;
+  p90Dbz: number | null;
+  p95Dbz: number | null;
+  /**
+   * Prosjek TEŽINSKI po udaljenosti — najbliži piksel vrijedi najviše
+   * (vidi `distanceWeight`). Odgovara na „kakvo je vrijeme kod MENE", ne
+   * „kakvo je u krugu od 3 km".
+   */
+  weightedMeanDbz: number | null;
+  /** Udio PREGLEDANIH piksela iznad praga, 0..1. */
+  coverage20: number;
+  coverage28: number;
+  coverage40: number;
+  coverage55: number;
+  /** Težinska pokrivenost iznad `DBZ_DRY`-praga (20), 0..1. */
+  weightedCoverage20: number;
+  /** Koliko je piksela pregledano (i bez odjeka) — djelitelj pokrivenosti. */
+  coverPixels: number;
+  /** Koliko je piksela imalo prepoznat odjek. */
+  echoPixels: number;
+  /**
+   * TEŽIŠTE odjeka u km relativno na korisničku točku (x istok, y sjever),
+   * ponderirano jačinom. `undefined` bez odjeka ili bez `kmPerPx`.
+   *
+   * Iz pomaka težišta između okvira izvodi se motion vektor
+   * (`radarTemporal`). Težište, a ne najjači piksel: maksimum skače s
+   * piksela na piksel i dao bi lažno kretanje.
+   */
+  centroid?: { xKm: number; yKm: number };
+};
+
+/**
+ * Težina piksela po udaljenosti: Gauss, `exp(-(d/scale)^2)`.
+ *
+ * `scale` je pola polumjera uzorka, pa piksel na rubu (d = r) dobije
+ * `exp(-4) ≈ 0.018` — praktično ne glasa, a središnji 1.0. Time uzorak
+ * odgovara na pitanje o TVOJOJ točki, dok susjedstvo služi kao kontekst.
+ *
+ * Gauss, a ne linearno ili 1/d: gladak je (nema skoka na rubu), nikad
+ * nula (pa se ne gubi informacija), a 1/d divergira u središtu.
+ */
+export function distanceWeight(distanceKm: number, radiusKm: number): number {
+  const scale = radiusKm / 2;
+  return Math.exp(-((distanceKm / scale) ** 2));
+}
+
+/** Percentil iz SORTIRANOG niza, linearna interpolacija. */
+export function percentile(sorted: number[], p: number): number | null {
+  if (sorted.length === 0) return null;
+  if (sorted.length === 1) return sorted[0]!;
+  const idx = (sorted.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo]!;
+  return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (idx - lo);
+}
+
+/**
+ * Prostorne statistike u kvadratu ±`radiusPx` oko globalnog piksela.
+ *
+ * `kmPerPx` služi samo za težine po udaljenosti; kad ga nema, težinske
+ * vrijednosti su jednake netežinskima.
+ */
+export function sampleStats(
+  tiles: Map<string, Rgba>,
+  gx: number,
+  gy: number,
+  radiusPx: number,
+  decode: PixelDecoder,
+  kmPerPx?: number,
+): RadarStats {
+  const values: number[] = [];
+  let coverPixels = 0;
+  let wSum = 0;
+  let wDbzSum = 0;
+  let wEchoSum = 0;
+  // Težište odjeka, ponderirano jačinom (u pikselima, pa u km na kraju).
+  let cWeight = 0;
+  let cxSum = 0;
+  let cySum = 0;
+  const radiusKm = kmPerPx ? radiusPx * kmPerPx : undefined;
+
+  for (let dy = -radiusPx; dy <= radiusPx; dy += 1) {
+    for (let dx = -radiusPx; dx <= radiusPx; dx += 1) {
+      const X = gx + dx;
+      const Y = gy + dy;
+      if (X < 0 || Y < 0) continue;
+      const { tx, ty } = tileOf(X, Y);
+      const t = tiles.get(`${tx}/${ty}`);
+      if (!t) continue;
+      coverPixels += 1;
+
+      const w =
+        kmPerPx && radiusKm
+          ? distanceWeight(Math.hypot(dx, dy) * kmPerPx, radiusKm)
+          : 1;
+      wSum += w;
+
+      const i = ((Y % TILE) * t.width + (X % TILE)) * 4;
+      const dbz = decode(t.rgba[i]!, t.rgba[i + 1]!, t.rgba[i + 2]!, t.rgba[i + 3]!);
+      if (dbz === null) continue;
+      values.push(dbz);
+      wDbzSum += w * dbz;
+      if (dbz >= 20) wEchoSum += w;
+      // Težište: samo pikseli s pravim odjekom, ponderirani jačinom.
+      // `dy` je prema JUGU u rasteru, pa se okreće za sjever-pozitivno.
+      if (dbz >= 20) {
+        cWeight += dbz;
+        cxSum += dx * dbz;
+        cySum += -dy * dbz;
+      }
+    }
+  }
+
+  const n = values.length;
+  if (n === 0) {
+    return {
+      maxDbz: null, meanDbz: null, medianDbz: null,
+      p75Dbz: null, p90Dbz: null, p95Dbz: null, weightedMeanDbz: null,
+      coverage20: 0, coverage28: 0, coverage40: 0, coverage55: 0,
+      weightedCoverage20: 0, coverPixels, echoPixels: 0,
+    };
+  }
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const over = (th: number) => values.filter((v) => v >= th).length / (coverPixels || 1);
+  return {
+    maxDbz: Math.round(sorted[n - 1]!),
+    meanDbz: values.reduce((a, b) => a + b, 0) / n,
+    medianDbz: percentile(sorted, 0.5),
+    p75Dbz: percentile(sorted, 0.75),
+    p90Dbz: percentile(sorted, 0.9),
+    p95Dbz: percentile(sorted, 0.95),
+    // Težinski prosjek dijeli sa SVIM težinama, ne samo onima s odjekom:
+    // pola kruga pod kišom nije isto kao cijeli krug pod kišom.
+    weightedMeanDbz: wSum > 0 ? wDbzSum / wSum : null,
+    coverage20: over(20),
+    coverage28: over(28),
+    coverage40: over(40),
+    coverage55: over(55),
+    weightedCoverage20: wSum > 0 ? wEchoSum / wSum : 0,
+    coverPixels,
+    echoPixels: n,
+    centroid:
+      kmPerPx && cWeight > 0
+        ? { xKm: (cxSum / cWeight) * kmPerPx, yKm: (cySum / cWeight) * kmPerPx }
+        : undefined,
+  };
+}
+
+/**
  * Najveći dBZ u kvadratu ±`radiusPx` oko globalnog piksela, kroz zadani
  * dekoder boje. `tiles` su dekodirane pločice po ključu "tx/ty"; pločica
  * koje nema se preskače.
+ *
+ * V1 put — `sampleStats` ga nadograđuje. Ostaje jer `judgeCurrentCode`
+ * (V1) i dalje odlučuje u aplikaciji dok se V2 ne izmjeri.
  */
 export function sampleMaxDbz(
   tiles: Map<string, Rgba>,
@@ -401,8 +585,15 @@ export async function fetchRadarEcho(
       tiles.set(`${tx}/${ty}`, decodePng(bytes));
     }),
   );
-  const { maxDbz, echoPixels, coverPixels } = sampleMaxDbz(tiles, gx, gy, radiusPx, dbzFromUniversalBlue);
-  return { maxDbz, frameTime: frame.time, radiusKm, echoPixels, coverPixels };
+  /*
+   * Jedan prolaz daje i V1 brojke i SVE prostorne statistike (11.9.2026.).
+   * `sampleStats` je nadskup `sampleMaxDbz` — `maxDbz`, `echoPixels` i
+   * `coverPixels` su identični (test to čuva), pa V1 ne osjeti razliku, a
+   * V2 dobije percentile, pokrivenost po pragu i težište BEZ dodatnog
+   * dohvaćanja pločica.
+   */
+  const stats = sampleStats(tiles, gx, gy, radiusPx, dbzFromUniversalBlue, kmPerPixel(lat, z));
+  return { ...stats, frameTime: frame.time, radiusKm };
 }
 
 /** Coverage pločica RainViewera za točku (z7): prozirno = pokriveno. */

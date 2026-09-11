@@ -58,7 +58,9 @@ function isAdminName(value: string): boolean {
  * `useLocation` se ne može testirati bez nativnog modula.
  */
 export function placeNameFrom(
-  address: Pick<Location.LocationGeocodedAddress, "city" | "district" | "subregion" | "region" | "name"> | undefined,
+  address:
+    | Partial<Pick<Location.LocationGeocodedAddress, "city" | "district" | "subregion" | "region" | "name">>
+    | undefined,
 ): string | undefined {
   const candidates = [address?.city, address?.district, address?.subregion, address?.name, address?.region];
   for (const c of candidates) {
@@ -68,6 +70,59 @@ export function placeNameFrom(
     return trimmed;
   }
   return undefined;
+}
+
+/**
+ * Gradovi u kojima ime dobiva ČETVRT, jer se vrijeme unutar njih razlikuje.
+ *
+ * Markov zahtjev 11.9.2026.: „ako onda nudi kvart želim da mi piše
+ * Trešnjevka sjever Zagreb… ne općenito Zagreb, ako može bit pljusak na
+ * jednoj strani a na drugoj ništa".
+ *
+ * To nije dojam nego mjerljivo — istog dana nad Zagrebom, ista ćelija:
+ *   13:40  pokrivenost 68 % kruga od 3 km
+ *   13:50  pokrivenost 16 %
+ * Ćelija prelazi grad za deset minuta, a Trešnjevka i Maksimir su 6 km
+ * razmaknuti — to je sedam radarskih piksela (0.88 km na z=7). Dakle
+ * pljusak doista može biti nad jednim kvartom a ne nad drugim, i tada je
+ * „Zagreb" preširoko ime za ono što app pokazuje.
+ *
+ * Prag je 100 000 stanovnika — ispod toga je grad manji od radarskog
+ * uzorka (krug od 3 km = 28 km²), pa četvrt ne bi rekla ništa novo, a ime
+ * bi postalo dulje bez razloga. U Hrvatskoj to znači Zagreb, Split,
+ * Rijeka i Osijek.
+ *
+ * NE koristi se popis imena nego populacija iz geokodera kad je ima; ovdje
+ * su hrvatski gradovi nabrojani jer `reverseGeocodeAsync` populaciju NE
+ * vraća — on daje samo adresu.
+ */
+const DISTRICT_CITIES = ["zagreb", "split", "rijeka", "osijek"];
+
+/**
+ * Ime s ČETVRTI za velike gradove: „Trešnjevka · Zagreb".
+ *
+ * Vraća čisto ime grada kad četvrti nema, kad je grad malen, ili kad je
+ * `district` zapravo isto što i grad (neki uređaji ondje ponove ime).
+ *
+ * Redoslijed je ČETVRT PRVA: ona je odgovor na pitanje „gdje sam", a grad
+ * je kontekst — isto načelo koje tražilica već koristi za županije
+ * („Bayern · Njemačka", `placeSubtitle`).
+ */
+export function placeNameWithDistrict(
+  address:
+    | Partial<Pick<Location.LocationGeocodedAddress, "city" | "district" | "subregion" | "region" | "name">>
+    | undefined,
+): string | undefined {
+  const base = placeNameFrom(address);
+  if (!base) return undefined;
+
+  const district = address?.district?.trim();
+  if (!district || isAdminName(district)) return base;
+  // Isti naziv na obje razine (uređaj ponovio grad) — ne piše se dvaput.
+  if (district.toLowerCase() === base.toLowerCase()) return base;
+  if (!DISTRICT_CITIES.includes(base.toLowerCase())) return base;
+
+  return `${district} · ${base}`;
 }
 
 /**
@@ -143,7 +198,8 @@ export function useLocation(
         try {
           const geo = await Location.reverseGeocodeAsync({ latitude, longitude });
           const first = geo[0];
-          name = placeNameFrom(first) ?? name;
+          // Veliki gradovi dobivaju cetvrt — vidi placeNameWithDistrict.
+          name = placeNameWithDistrict(first) ?? name;
           // Bira Meteoalarm feed i izvan Hrvatske (dorada 6.8.2026.).
           countryCode = first?.isoCountryCode ?? undefined;
         } catch {

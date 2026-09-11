@@ -1,3 +1,4 @@
+import { cloudCodeFromCover, isPrecip as isPrecipCode } from "@/utils/radarJudge";
 import { dhmzTextToCode } from "@/utils/weatherCodes";
 
 import { biasSlotForHour, isZeroBias } from "./bias";
@@ -281,6 +282,121 @@ export function buildBundle(args: {
  * ostatak trake ostaje prognoza. Bez tekućeg sata u nizu (stari niz) se
  * ne mijenja ništa.
  */
+/**
+ * KIŠA IZ VEDROG NEBA NIJE KIŠA — čišćenje modelske trake (11.9.2026.).
+ *
+ * Markov nalaz: „za Zadar u 2 piše kiša a mislim da se to neće desiti".
+ * Izmjereno u tom trenutku, ECMWF za Zadar u 14:00:
+ *   kod 53 „rosulja", 0.8 mm, vjerojatnost 94 %, NAOBLAKA 14 %
+ * Drugi model (`best_match`) za isti sat: kod 1 „pretežno vedro", 0 mm.
+ *
+ * Oborina uz 14 % neba je fizički besmislena — nema iz čega pasti. To je
+ * artefakt jednog modela: mreža ima 25 km, pa razmaže sitnu oborinu iz
+ * susjedne ćelije preko vedre točke.
+ *
+ * KOLIKO GA IMA, izmjereno na 12 gradova × 48 h (576 sati, 174 s
+ * oborinom): 24 sata (14 %) tvrdi oborinu uz naoblaku < 40 %. Najgori
+ * Dubrovnik 20:00 — „rosulja" uz 5 % oblaka.
+ *
+ * PRAG NIJE POGOĐEN nego pročitan iz raspodjele. Svih 18 sati s oborinom
+ * uz naoblaku < 30 % poredanih po količini:
+ *
+ *   0.1 mm ×8  (Split, Šibenik — rosulja uz 4–24 % neba)
+ *   0.2 mm ×4  (Dubrovnik, do 5 % neba)
+ *   0.3 mm ×2  (Knin)
+ *   0.5 mm ×1  (Gospić)
+ *   0.8 mm ×2  (ZADAR 13 i 14 h — Markov slučaj)
+ *   ─────────  ← rez na 1 mm
+ *   4.4 mm ×1  (Split 11 h uz 29 % neba)
+ *
+ * Između 0.8 i 4.4 mm nema ničega, pa je rez siguran: čisti svih 17
+ * besmislica, a Splitov pljusak ostaje. To je i fizički smisleno —
+ * konvektivna ćelija doista pada iz malo neba, ali u milimetrima, ne u
+ * desetinkama.
+ *
+ * Prva verzija je imala 0.5 mm i propuštala baš Zadar (0.8) — prag je bio
+ * odabran prije nego je raspodjela pogledana.
+ *
+ * Kod se zamjenjuje NEBOM iz naoblake (ista ljestvica koju app koristi
+ * posvuda), pa stupac postane „pretežno vedro" umjesto „rosulja".
+ *
+ * POSTOTAK SE STIŠĆE, NE NULIRA (drugi Markov nalaz istog sata: „sad za
+ * Zadar piše 0 % za sljedeći sat i onda u 15h 79 %, nema smisla — a nije
+ * ni 0 vjerojatno"). Prva verzija je postavljala `precipProb: 0` i time
+ * napravila nemoguć skok 0 → 80 %.
+ *
+ * Koliki je razuman strop — izmjereno na 12 gradova × 72 h, gledajući
+ * sate BEZ IJEDNE KAPI (mm = 0) i njihov postotak po naoblaci:
+ *
+ *   naoblaka   n    prosjek   p90
+ *    0–14 %   338     1 %      0 %
+ *   15–29 %    88     4 %      8 %
+ *   30–49 %    76     6 %     16 %
+ *   75–100 %  110    13 %     50 %
+ *
+ * Dakle i posve suh sat uz malo neba nosi 1–8 %, ne nulu. Strop se zato
+ * računa iz naoblake (`cloudCover / 3`, zaokruženo): 14 % neba → 5 %,
+ * 29 % → 10 %. Postojeći postotak se samo OGRANIČAVA na taj strop, nikad
+ * ne diže — ako je model već dao manje, njegov broj ostaje.
+ *
+ * Zadar 14 h time ide s 98 % na 5 %, a susjedni 15 h (80 %, 0 mm, 25 %
+ * neba) ostaje netaknut jer nema oborinski kod. Prijelaz 5 → 80 je i
+ * dalje velik, ali to je model sam: on postotak daje neovisno o nebu
+ * (Zadar 15 h: 80 % uz 0 mm), i to nije naše da izmišljamo.
+ */
+export const CLEAR_SKY_MAX_CLOUD = 30;
+export const CLEAR_SKY_MAX_MM = 1;
+
+/** Strop vjerojatnosti za očišćeni sat: iz naoblake, ne nula. */
+export function clearSkyProbCap(cloudCover: number): number {
+  return Math.round(cloudCover / 3);
+}
+
+export function dropImpossiblePrecip(hourly: HourlyPoint[]): HourlyPoint[] {
+  let changed = false;
+  const out = hourly.map((h) => {
+    /*
+     * SUH SAT S VISOKIM POSTOTKOM (11.9.2026., Markov nalaz: „piše mi u 3
+     * 80 % padalina za Zadar i tako dalje se smanjuje… je li to istina").
+     *
+     * Nije. ECMWF je za Zadar u 15:00 davao 80 % uz **0 mm i 25 %
+     * naoblake**; yr.no za isti sat kaže `clearsky_day`. Postotak ondje
+     * nije ni kod oborine — sat je već „pretežno vedro" — pa ga
+     * `isPrecipCode` grana ne hvata, a stupac svejedno piše 80 %.
+     *
+     * Koliko ih ima, izmjereno na 12 gradova × 72 h: od 690 suhih sati
+     * njih 21 nosi ≥ 50 %, 9 ≥ 60 %, a najgori su Zadar 80 % (25 % neba),
+     * Rijeka 78 % (44 %), Osijek 78 % (49 %). Rijetko, ali baš na mjestu
+     * koje bode oko.
+     *
+     * Pravilo je isto kao za kod: postotak ne smije nadmašiti ono što NEBO
+     * dopušta. Suhi sati uz 0–14 % neba nose u prosjeku 1 %, uz 15–29 %
+     * oko 4 % — strop `naoblaka / 3` je iz te raspodjele.
+     *
+     * Dira SAMO sate bez ijedne kapi: kad model predviđa oborinu, njegov
+     * postotak ostaje njegov.
+     */
+    if (h.precip === 0) {
+      const cap = clearSkyProbCap(h.cloudCover);
+      if (h.precipProb > cap) {
+        changed = true;
+        return { ...h, precipProb: cap };
+      }
+      return h;
+    }
+    if (!isPrecipCode(h.code)) return h;
+    if (h.cloudCover >= CLEAR_SKY_MAX_CLOUD || h.precip > CLEAR_SKY_MAX_MM) return h;
+    changed = true;
+    return {
+      ...h,
+      code: cloudCodeFromCover(h.cloudCover),
+      precip: 0,
+      precipProb: Math.min(h.precipProb, clearSkyProbCap(h.cloudCover)),
+    };
+  });
+  return changed ? out : hourly;
+}
+
 export function withCurrentCode(hourly: HourlyPoint[], code: number, now: Date): HourlyPoint[] {
   const iso = currentHourIso(now);
   const idx = hourly.findIndex((h) => h.time === iso);

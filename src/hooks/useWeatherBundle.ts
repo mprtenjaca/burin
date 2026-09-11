@@ -24,6 +24,7 @@ import {
   debiasHourly,
   observationDelta,
   withCurrentCode,
+  dropImpossiblePrecip,
   withPastCodes,
 } from "@/api/weather";
 import { useLastWeather } from "@/store/lastWeather";
@@ -31,6 +32,8 @@ import { mark } from "@/utils/perf";
 import { useRadarEcho } from "@/hooks/useRadarEcho";
 import { useRadarFrames } from "@/hooks/useRadarFrames";
 import { DBZ_DRY, cloudCodeFromCover, judgeCurrentCode, precipCodeFromDbz, stationAgeMinutes } from "@/utils/radarJudge";
+import { judgeCurrentCodeV2, modelAgeMinutes } from "@/utils/currentWeatherV2";
+import { clutterScore, radarTemporal } from "@/utils/radarFeatures";
 import { dhmzTextToCode } from "@/utils/weatherCodes";
 import { useSettings } from "@/store/settings";
 import { pushWidget } from "@/widgets/widgetData";
@@ -316,6 +319,61 @@ export function useWeatherBundle(place: Place | null) {
               : "bez radara"
         }, postaja ${measuredCode ?? "—"}, model ${debiasedCurrent.code} → ${judged.code} (${judged.source})`,
       );
+
+      /*
+       * SHADOW MODE za V2 (11.9.2026.).
+       *
+       * V2 se računa PARALELNO i samo se logira — odluku i dalje donosi V1.
+       * Zašto tako, a ne odmah zamjena: replay protiv mjerenja na tlu
+       * (241 austrijska postaja, mm/10 min) pokazao je da je V2 RAZMJENA,
+       * ne čisto poboljšanje — hvata 65 % kiše prema 41 % kod V1, ali uz
+       * 19 lažnih prema 12. A cijelo to mjerenje je iz Austrije, gdje
+       * nema orografskog cluttera koji nam najviše kvari Dalmaciju
+       * (Polača, Metković, Mosor nad Splitom).
+       *
+       * Ovaj log je zato jedini način da se dobiju brojke ODAVDE: par
+       * dana stvarnog korištenja po hrvatskim mjestima, pa odluka s
+       * podacima. Samo `__DEV__`, bez ijednog dodatnog zahtjeva —
+       * featurei se računaju iz okvira koji su već dohvaćeni.
+       */
+      const series = radar.series;
+      if (series.length > 0) {
+        const temporal = radarTemporal(series, series.map((s) => s.centroid));
+        const clutter = clutterScore(series[series.length - 1]!, temporal);
+        const v2 = judgeCurrentCodeV2({
+          radar: {
+            stats: series[series.length - 1]!,
+            temporal,
+            clutterScore: clutter,
+            frameTime: series[series.length - 1]!.frameTime,
+          },
+          covered: radar.covered,
+          station:
+            measuredCode !== undefined && dhmzObs
+              ? { code: measuredCode, ageMin: stationAgeMinutes(dhmzObs.measuredAt, nowMs), distanceKm: dhmzObs.distanceKm }
+              : undefined,
+          model: {
+            code: debiasedCurrent.code,
+            cloudCover: debiasedCurrent.cloudCover,
+            precipitation: debiasedCurrent.precipitation,
+            // Model nosi vrijeme za koje TVRDI da je „sada"; izmjereno
+            // 11.9. da zna biti dva sata star (u 09:18 je vraćao 07:15).
+            ageMin: modelAgeMinutes(debiasedCurrent.modelTime, nowMs),
+          },
+          temp: debiasedCurrent.temp + delta,
+          nowMs,
+        });
+        const same = v2.code === judged.code;
+        // eslint-disable-next-line no-console
+        console.log(
+          `[v2] ${place.name}: ${same ? "ISTO" : `V1 ${judged.code} vs V2 ${v2.code}`}` +
+            ` | ${v2.precipitation ? v2.precipitationIntensity : "bez oborine"}` +
+            ` conf ${v2.precipitationConfidence.toFixed(2)} (${v2.source})` +
+            ` | nebo ${v2.sky.condition} conf ${v2.sky.confidence.toFixed(2)} (${v2.sky.source})` +
+            `\n      ${v2.diagnostics.reason}` +
+            (v2.diagnostics.flags.length ? `\n      flags: ${v2.diagnostics.flags.join(", ")}` : ""),
+        );
+      }
     }
 
     return {
@@ -330,12 +388,12 @@ export function useWeatherBundle(place: Place | null) {
       },
       // Prvi stupac trake (tekući sat) nosi isti kod kao heroj.
       hourly: withPastCodes(
-        withCurrentCode(correctHourly(debiasedHourly, delta), judged.code, new Date(nowMs)),
+        withCurrentCode(dropImpossiblePrecip(correctHourly(debiasedHourly, delta)), judged.code, new Date(nowMs)),
         pastCodes,
         new Date(nowMs),
       ),
       hourlyAll: withPastCodes(
-        withCurrentCode(correctHourly(debiasedAll, delta), judged.code, new Date(nowMs)),
+        withCurrentCode(dropImpossiblePrecip(correctHourly(debiasedAll, delta)), judged.code, new Date(nowMs)),
         pastCodes,
         new Date(nowMs),
       ),

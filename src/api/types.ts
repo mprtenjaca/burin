@@ -44,6 +44,17 @@ export type CurrentWeather = {
   pressure: number;
   cloudCover: number;
   precipitation: number;
+  /**
+   * Lokalni ISO trenutka za koji MODEL tvrdi da je „sada" (npr.
+   * "2026-09-11T07:15"), onako kako ga Open-Meteo vrati.
+   *
+   * Nije isto što i `fetchedAt` (kad smo MI dohvatili). Izmjereno
+   * 11.9.2026.: u 09:18 je ECMWF kao „sada" vraćao **07:15** — dva sata
+   * star. Zato model ne smije imati istu težinu kao radar od 3 minute, a
+   * da bi se to uopće moglo vagati, starost mora biti mjerljiva.
+   * `undefined` za starije keširane odgovore.
+   */
+  modelTime?: string;
 };
 
 export type HourlyPoint = {

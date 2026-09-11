@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import type { HourlyPoint } from "@/api/types";
@@ -19,11 +20,23 @@ export function HourlyStrip({
   hours,
   tempUnit,
   accent,
+  resetKey,
 }: {
   hours: HourlyPoint[];
   tempUnit: TempUnit;
   /** Boja postotka oborina — na heroju ovisi o pozadini (heroAccent). */
   accent: string;
+  /**
+   * Kad se promijeni, traka se vraća na POČETAK (Markov nalaz 11.9.2026.:
+   * „na svakoj promjeni grada želim da mi se resetira na početak, jer mi
+   * nekad ostane na sredini").
+   *
+   * Uzrok je RNS-ov: `ScrollView` preživi promjenu propova i zadrži
+   * `contentOffset`, pa novi grad naslijedi tuđi pomak — a kako traka
+   * počinje od sljedećeg sata, korisnik gleda u sredinu tuđe prognoze.
+   * U praksi je to ime mjesta; prazan reset (`undefined`) ne radi ništa.
+   */
+  resetKey?: string;
 }) {
   /*
    * Traka NAMJERNO prati TEMU, ne podlogu heroja (provjereno 8.8.2026.).
@@ -36,8 +49,19 @@ export function HourlyStrip({
    */
   const { fg } = useThemeColors();
 
+  /*
+   * Povratak na početak pri promjeni mjesta. `animated: false` — skok, ne
+   * klizanje: promjena grada ionako ide kroz skeleton, pa bi animacija
+   * bila vidljiva tek kao trzaj nakon što se sadržaj pojavi.
+   */
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ x: 0, animated: false });
+  }, [resetKey]);
+
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ paddingHorizontal: 14 }}

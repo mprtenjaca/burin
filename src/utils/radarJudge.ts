@@ -195,6 +195,100 @@ export const STATION_PRECIP_RANGE_KM = 8;
  * Korenicu (100 %) i Zadar ne dira.
  */
 export const WIDE_ECHO_PCT = 40;
+/**
+ * Koliko okvira mora imati odjek da se OBORINA uopće tvrdi, 0..1.
+ *
+ * Markov nalaz 11.9.2026.: „Metković sad piše slaba kiša a nema tamo
+ * uopće na radaru oborina". Izmjereno u tom trenutku:
+ *   09:50 bez odjeka · 10:00 bez · 10:10 bez · 10:20 bez · 10:30 23 dBZ
+ *   na 8 % kruga
+ * Odjek u JEDNOM okviru od pet, na 8 % kruga — rub nečega ili šum, ne
+ * kiša. Postaja Ploče je javljala „umjereno oblačno", a model „slabu
+ * kišu" iz runa starog 128 min. App je ipak pisala kišu, jer je pravilo
+ * tražilo samo `dBZ >= 20` i ništa više.
+ *
+ * 0.25 je IZMJEREN na 240 postaja s mjerenjem na tlu (GeoSphere mm/10min):
+ *
+ *   pravilo                      mokro  suho   F1     lažnih
+ *   ────────────────────────────────────────────────────────
+ *   dBZ >= 20 (bez uvjeta)        41 %  94 %  0.469     12
+ *   dBZ >= 20 I postojanost 25 %  38 %  97 %  0.483      7   ← ovo
+ *   dBZ >= 20 I pokrivenost 10 %  27 %  96 %  0.364      8
+ *
+ * Lažne kiše padaju za 42 % uz gubitak od 3 poena na pogotku — a
+ * pokrivenost je kao zaštita mjerljivo slabija od postojanosti.
+ *
+ * NE PRIMJENJUJE SE kad postojanost nije poznata (jedan okvir, npr. pri
+ * prvom pokretanju): radije kiša koje nema nego propuštena kiša koja
+ * pada — isto načelo kao kod `prevEcho`.
+ */
+export const PERSISTENCE_WET = 0.25;
+/**
+ * Najmanji MEDIAN uzorka da se tvrdi oborina, dBZ.
+ *
+ * Median je jačina NAD TOČKOM (vidi `intensityDbz` u V2): ne ovisi o
+ * polumjeru uzorka, dok `maxDbz` ovisi o jednom pikselu. Uska jezgra 3 km
+ * dalje digne max, ali ne median.
+ *
+ * Izmjeren na 240 postaja s mjerenjem na tlu, uz već postavljenu
+ * postojanost:
+ *
+ *   pravilo                          mokro  suho   lažnih
+ *   ─────────────────────────────────────────────────────
+ *   dBZ >= 20                         41 %  94 %     12
+ *   + postojanost >= 25 %             38 %  97 %      7
+ *   + median >= 14 dBZ                38 %  98 %      5   ← ovo
+ *
+ * Dvije lažne kiše manje BEZ ijednog poena izgubljenog na pogotku.
+ *
+ * ZAŠTO 14, A NE 15 (isti dan, Markov nalaz „za ZG je sad kiša, mi kažemo
+ * oblačno"): prag je prvo bio 15 i Zagreb je pao za JEDNU jedinicu.
+ * Izmjereno u tom trenutku — ćelija prolazi preko grada:
+ *   13:30  26 dBZ, median 10,  5 % kruga
+ *   13:40  32 dBZ, median 23, 68 % kruga
+ *   13:50  31 dBZ, median 14, 16 % kruga   ← app je rekla „oblačno"
+ * Tri postaje istovremeno: Zagreb-Grič (0.8 km) „potpuno oblačno",
+ * RC Puntijarka (10 km) „KIŠA", Zagreb-aerodrom (11 km) „slaba rosulja".
+ *
+ * Median pada čim rub ćelije uđe u krug, iako još pada. Na austrijskom
+ * datasetu su 14 i 15 IDENTIČNI (oba 38 % / 98 %, 5 lažnih), pa brojka ne
+ * odlučuje — odlučuje hrvatski slučaj, gdje 14 hvata pravu kišu.
+ *
+ * Pokrivenost je za istu svrhu izmjerena kao LOŠIJA: svaki prag (2–15 %)
+ * gubio je na kiši (38 % → 27 %) bez dobitka na suhom.
+ */
+export const MEDIAN_WET_DBZ = 14;
+/**
+ * Postaja BLIŽE od ovoga smije oboriti radar bez obzira na jačinu odjeka.
+ *
+ * Markov nalaz 11.9.2026. (usporedba na 112 mjesta): Senj — radar 33 dBZ
+ * postojanih 80 %, ali odjek pokriva samo 8 % kruga, a DHMZ postaja je
+ * **400 metara** daleko i javlja „pretežno oblačno". To je Velebit: uska,
+ * postojana jezgra nad brdom, klasičan orografski odjek.
+ *
+ * Pravilo `DBZ_CERTAIN` (28) tu ne pomaže jer je odjek jači od toga.
+ * Ali postaja na 400 m mjeri ISTU točku — nema prostorne nesigurnosti
+ * koja je 8 km dalje stvarna (Puntamika lije, Zemunik suh). Zato unutar
+ * 2 km njezina riječ vrijedi i protiv jakog odjeka, dok je svježa.
+ *
+ * 2 km, a ne 5: na z=7 je piksel 0.88 km, pa je 2 km približno isti
+ * radarski piksel — dalje od toga postaja i radar više ne gledaju isto.
+ */
+export const STATION_SAME_SPOT_KM = 2;
+/**
+ * Koliko stara smije biti postaja NA ISTOJ TOČKI da obori USKI odjek.
+ *
+ * `STATION_TRUSTED_AGE_MIN` (20) je za nju bio prestrog: DHMZ termin je u
+ * trenutku objave već 25–40 min star, pa pravilo praktički nikad nije
+ * palilo. Senj 11.9. dvaput: postaja 400 m „pretežno oblačno" stara
+ * 28 min, radar 33 pa 48 dBZ na 8–16 % kruga, kamere suho — i oba puta
+ * je app pisala kišu jer je 28 > 20.
+ *
+ * 45 min vrijedi SAMO uz uski odjek: on je i inače sumnjiv (jezgra u
+ * oblaku ili brdo). Uz široki odjek postaja mora biti svježa (≤ 20) —
+ * kiša je mogla početi nakon termina.
+ */
+export const STATION_SAME_SPOT_AGE_MIN = 45;
 
 export type CodeSource = "radar" | "station" | "model";
 
@@ -226,6 +320,12 @@ export type JudgeInput = {
    * propuštena kiša koja pada).
    */
   prevEcho?: RadarEcho;
+  /**
+   * Udio okvira s odjekom, 0..1 (`radarFeatures.radarTemporal`). Kad je
+   * poznata, ima prednost nad izvođenjem iz `prevEcho` — više okvira daje
+   * bolju sliku. `undefined` = ne zna se, i tada se ne obara.
+   */
+  persistence?: number;
   /** Ima li radar nad točkom (RainViewer coverage). Bez toga radar šuti. */
   covered?: boolean;
   /** Sada, epoch ms. */
@@ -306,6 +406,30 @@ function skyOnly(i: JudgeInput): Judged {
 }
 
 /**
+ * RADAR RADI, ALI NE POTVRĐUJE OBORINU — tko onda smije tvrditi kišu?
+ *
+ * Samo BLISKA I SVJEŽA POSTAJA. Model NE.
+ *
+ * Krk 11.9.2026. (usporedba na 112 mjesta): radar 31 dBZ uz 20 %
+ * postojanosti → sudac ga ispravno obori… pa je grana pala na
+ * `stationThenModel`, postaja je javljala samo vjetar (kod `undefined`),
+ * i MODEL je uskočio sa „slaba kiša". Dakle radar je rekao „nisam
+ * uvjeren", a onda smo pustili izvor star dva sata da tvrdi ono što radar
+ * od 3 minute nije htio. Isto se dogodilo Metkoviću ujutro (jezgra u
+ * oblaku → model 80 „pljuskovi", a kamere suho).
+ *
+ * Načelo je već zapisano za suhi radar („tko god tvrdi oborinu, u krivu
+ * je") — ovdje se samo dosljedno primjenjuje na SVE grane u kojima je
+ * radar odustao od tvrdnje: nepostojan, uzak, nizak median. Postaja
+ * smije jer mjeri tlo; model ne smije jer ga je radar upravo nadglasao.
+ */
+function stationThenSky(i: JudgeInput): Judged {
+  const s = i.stationCode;
+  if (s !== undefined && isPrecip(s) && stationMayClaimPrecip(i)) return { code: s, source: "station" };
+  return skyOnly(i);
+}
+
+/**
  * Odluka o kodu „sada". Nikad ne baca; bez radara i bez postaje vraća model.
  *
  * Redoslijed je namjeran: prvo grmljavina (najjača tvrdnja i traži
@@ -344,7 +468,23 @@ export function judgeCurrentCode(i: JudgeInput): Judged {
   const persisted =
     i.prevEcho === undefined ||
     (i.prevEcho.maxDbz !== null && i.prevEcho.maxDbz >= DBZ_DRY);
-  const groundedHeavy = wide || persisted;
+  /*
+   * JAKA jezgra je oborina SAMO ako je ŠIROKA (11.9.2026., Markove kamere).
+   *
+   * Prva verzija je puštala i usku jezgru ako je bila POSTOJANA. Kamere su
+   * to oborile na četiri mjesta u jednom danu: Omiš 32 52 49 49 29 dBZ
+   * kroz 50 min na 6 % kruga — suho; Senj 48–58 na 16 % — suho; Metković
+   * 45 na 18 % — suho; Trilj 33–36 — suho. Sve krš i planina (Mosor,
+   * Velebit, Kamešnica): radar tamo vidi brdo, ne kišu, i vidi ga
+   * POSTOJANO — pa postojanost tu ne razlikuje ništa.
+   *
+   * Prava jaka kiša istog dana bila je ŠIROKA: Novi Vinodolski 46 dBZ na
+   * 67 %, Korenica 100 %, Zadar 86 %. Na austrijskim postajama nijedna
+   * (0/37 mokrih, 0/204 suhih) nije imala jaku a usku jezgru, pa pravilo
+   * tamo ne košta ništa. `persisted` ostaje izračunat za dijagnostiku.
+   */
+  const groundedHeavy = wide;
+  void persisted;
 
   // ── GRMLJAVINA: samo iz konvektivne jezgre ili uz potvrdu drugog izvora.
   const stationThunder =
@@ -361,7 +501,60 @@ export function judgeCurrentCode(i: JudgeInput): Judged {
    * Metkovića) pa model. Radar je tu vidio nešto stvarno, ali visoko.
    */
   if (dbz >= DBZ_HEAVY && !groundedHeavy) {
-    return stationThenModel(i);
+    return stationThenSky(i);
+  }
+
+  /*
+   * ── POSTOJANOST: odjek u jednom okviru NIJE oborina.
+   *
+   * Metković 11.9. 10:30 — 23 dBZ na 8 % kruga nakon četiri prazna
+   * okvira, uz postaju „umjereno oblačno" i model star dva sata. Prije
+   * je prolazilo jer je pravilo tražilo samo `dBZ >= 20`.
+   *
+   * `persistence` se računa iz onoga što sudac ima: kad je poznata
+   * (`i.persistence`), vrijedi ona; inače se izvodi iz prethodnog okvira
+   * — jedan prethodni s odjekom znači 100 %, bez njega 50 % (jedan od
+   * dva). Bez ijednog podatka o prošlosti se NE obara (prvo pokretanje).
+   */
+  const persistence =
+    i.persistence ??
+    (i.prevEcho === undefined
+      ? undefined
+      : i.prevEcho.maxDbz !== null && i.prevEcho.maxDbz >= DBZ_DRY
+        ? 1
+        : 0.5);
+  if (persistence !== undefined && persistence < PERSISTENCE_WET) {
+    return stationThenSky(i);
+  }
+
+  /*
+   * ── MEDIAN: jačina NAD TOČKOM, a ne jedan piksel u krugu.
+   * Uska jezgra 3 km dalje digne `maxDbz`, ali ne median (vidi
+   * `MEDIAN_WET_DBZ` — izmjereno: dvije lažne kiše manje bez gubitka).
+   * Kad mediana nema (stari keširani odjek), ne obara se.
+   */
+  const median = i.echo!.medianDbz;
+  if (median !== null && median < MEDIAN_WET_DBZ) {
+    return stationThenSky(i);
+  }
+
+  /*
+   * ── POSTAJA NA ISTOJ TOČKI obara i jak odjek.
+   * Senj 11.9.: 33 dBZ postojanih 80 % na 8 % kruga, a postaja 400 m
+   * javlja „pretežno oblačno" — orografska jezgra nad Velebitom. Unutar
+   * `STATION_SAME_SPOT_KM` postaja i radar gledaju isti piksel, pa
+   * prostorne nesigurnosti (koja postoji na 8 km) nema.
+   */
+  if (
+    i.stationCode !== undefined &&
+    !isPrecip(i.stationCode) &&
+    (i.stationDistanceKm ?? Infinity) <= STATION_SAME_SPOT_KM &&
+    // Uski odjek: postaja smije biti i 45 min stara (Senj 28 min, dvaput
+    // kamere suho). Široki odjek: samo svježa — kiša je mogla početi
+    // nakon termina (Zadar 07:30 uz termin 07:00).
+    (i.stationAgeMin ?? Infinity) <= (pct < WIDE_ECHO_PCT ? STATION_SAME_SPOT_AGE_MIN : STATION_TRUSTED_AGE_MIN)
+  ) {
+    return { code: i.stationCode, source: "station" };
   }
 
   // ── OBORINA KROZ CIJELI RASPON (≥ DBZ_DRY).
@@ -374,7 +567,10 @@ export function judgeCurrentCode(i: JudgeInput): Judged {
   //
   // Iznad `DBZ_CERTAIN` radar vodi bez pitanja: nijedna od 290 suhih
   // postaja nije prešla 37 dBZ.
-  const radarCode = precipCodeFromDbz(dbz, i.temp);
+  // Jačina NAD TOČKOM iz MEDIANA, ne iz najjačeg piksela — isti okvir nad
+  // splitskom Rivom davao je 8.9 ili 31.6 mm/h samo ovisno o polumjeru
+  // (max), a median je bio 38 dBZ na svakom polumjeru. Kamere: rosi.
+  const radarCode = precipCodeFromDbz(i.echo!.medianDbz ?? dbz, i.temp);
   const station = i.stationCode;
   const near = (i.stationDistanceKm ?? 0) <= STATION_PRECIP_RANGE_KM;
   const stationFresh = (i.stationAgeMin ?? Infinity) <= STATION_TRUSTED_AGE_MIN;

@@ -204,6 +204,24 @@ export const RainLayer = memo(function RainLayer({
    */
   const ambient = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    /*
+     * PETLJA UVIJEK KREĆE OD NULE (11.9.2026., Markov nalaz: „na promjenu
+     * grada krene od pola, i kad prođe krug opet krene od pola; refresh
+     * popravi").
+     *
+     * Uzrok: `HeroBackdrop` montira slojeve s `key={name}`, koji je za
+     * svaki grad isti („rain"), pa React sloj NE premontira — `ambient`
+     * zadrži vrijednost zatečenu usred ciklusa. Kad se `intensity`
+     * promijeni (drugi grad, druga jačina), `ambientMs` se mijenja i ovaj
+     * efekt se ponovo vrti, ali `Animated.loop` kreće od TRENUTNE
+     * vrijednosti — dakle od pola. Nakon punog kruga se vrati na 0 i
+     * ponovo ode na pola, pa izgleda kao da zapinje zauvijek.
+     *
+     * `setValue(0)` prije pokretanja to rješava bez premontiranja: uzorak
+     * je periodičan (pomak je točno jedan period), pa je skok na nulu
+     * vizualno neprimjetan — a početak ciklusa je opet čist.
+     */
+    ambient.setValue(0);
     const loop = Animated.loop(
       Animated.timing(ambient, {
         toValue: 1,

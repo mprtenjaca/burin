@@ -95,6 +95,8 @@ type OmGeoResult = {
   country?: string;
   country_code?: string;
   admin1?: string;
+  /** GeoNames oznaka vrste mjesta — vidi `isSettlement`. */
+  feature_code?: string;
 };
 type OmGeoResponse = { results?: OmGeoResult[] };
 
@@ -133,6 +135,8 @@ export function mapCurrent(raw: OmRawCurrent): CurrentWeather {
     pressure: raw.pressure_msl,
     cloudCover: raw.cloud_cover,
     precipitation: raw.precipitation,
+    // Trenutak za koji MODEL tvrdi da je „sada" — vidi `modelTime`.
+    modelTime: raw.time,
   };
 }
 
@@ -366,6 +370,37 @@ export function expandQuery(query: string): string[] {
   return [q, `Sveti ${rest}`, `Sveta ${rest}`];
 }
 
+/**
+ * Je li rezultat geokodera NASELJE, a ne otok, uzletište ili planina.
+ *
+ * Markov nalaz 11.9.2026.: „mi u appu imamo 2 Hvara, ista županija, isto
+ * sve — jedan oblačan, jedan kiša". Izmjereno, geokoder za „Hvar" vraća
+ * TRI unosa s istim imenom i istom županijom:
+ *
+ *   43.173, 16.443   pop 3519   PPLA2  ← GRAD Hvar
+ *   43.141, 16.728   pop —      ISL    ← cijeli OTOK (25 km istočnije)
+ *   43.182, 16.633   pop —      AIRF   ← uzletište
+ *
+ * Nisu duplikati — to su tri različite točke 25 km razmaknute, pa im je i
+ * vrijeme različito. Korisnik ih u listi ne može razlikovati (isto ime,
+ * ista županija), a otok kao „mjesto" je besmislen: njegova točka je
+ * geometrijsko središte, često nenaseljeno brdo.
+ *
+ * GeoNames `feature_code` to razlikuje: `PPL*` su naselja (PPL, PPLA,
+ * PPLA2, PPLC, PPLX…), sve ostalo su otoci (ISL), uzletišta (AIRF, AIRP),
+ * vrhovi (MT, PK), jezera i slično. Propuštamo samo `PPL*`.
+ *
+ * Zašto ne po populaciji: mala sela nemaju upisanu populaciju, a upravo
+ * njih Marko najviše traži (Polača, Pridraga). Vrsta mjesta je pouzdanija.
+ *
+ * Kad `feature_code` NEMA (stariji keširani odgovor), propušta se —
+ * radije jedan otok u listi nego izgubljeno selo.
+ */
+export function isSettlement(featureCode?: string): boolean {
+  if (!featureCode) return true;
+  return featureCode.startsWith("PPL");
+}
+
 export async function geocode(query: string): Promise<Place[]> {
   const queries = expandQuery(query);
   const responses = await Promise.all(
@@ -387,6 +422,8 @@ export async function geocode(query: string): Promise<Place[]> {
   const places: Place[] = [];
   for (const res of responses) {
     for (const r of res.results ?? []) {
+      // Otoci, uzletišta i vrhovi nisu mjesta — vidi `isSettlement`.
+      if (!isSettlement(r.feature_code)) continue;
       const id = placeId(r.latitude, r.longitude);
       if (seen.has(id)) continue;
       seen.add(id);

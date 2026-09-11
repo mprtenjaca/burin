@@ -385,7 +385,12 @@ function HeroView({
           vremenom. `useNow` otkucava svaku minutu, pa traka prelazi na
           sljedeći sat čim otkuca puni sat.
         */}
-        <HourlyStrip hours={futureHours(hours, now)} tempUnit={tempUnit} accent={stripAccent()} />
+        <HourlyStrip
+          hours={futureHours(hours, now)}
+          tempUnit={tempUnit}
+          accent={stripAccent()}
+          resetKey={placeName}
+        />
       </View>
     </View>
   );

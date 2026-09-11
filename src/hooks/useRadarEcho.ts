@@ -131,10 +131,21 @@ export function useRadarEcho(
   const coveragePending = !!place && !!host && !coverage.isFetched && !coverage.isError;
   const echoPending = echoEnabled && !echo.isFetched && !echo.isError;
 
+  /*
+   * NIZ OKVIRA za V2 featurese (11.9.2026.). Sastavlja se od onoga što je
+   * VEĆ dohvaćeno — `prevEcho` i `echo` — pa shadow mode ne košta ni
+   * jedan dodatni zahtjev. Kad V2 preuzme odluku, ovdje se doda još
+   * okvira (postojanost je najjači signal, izmjereno: 55 % vs 37 %
+   * pogotka na kiši, pa više okvira vrijedi).
+   */
+  const series = [prevEcho.data, echo.data].filter((e): e is NonNullable<typeof e> => !!e);
+
   return {
     echo: echo.data,
     /** Prethodni okvir (~10 min prije) — sudac iz njega čita postojanost. */
     prevEcho: prevEcho.data,
+    /** Okviri po vremenu uzlazno — ulaz za `radarTemporal` (V2). */
+    series,
     /** dBZ po prošlom satu (`"2026-09-11T07:00"` → 39). Prazno dok ne stigne. */
     pastDbz: pastEcho.data,
     covered: coverage.isFetched ? covered : undefined,

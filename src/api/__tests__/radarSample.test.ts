@@ -9,7 +9,11 @@ import {
   isCoveredPixel,
   kmToPixels,
   pointToGlobalPixel,
+  distanceWeight,
+  kmPerPixel,
+  percentile,
   sampleMaxDbz,
+  sampleStats,
   tileOf,
   tilesCovering,
   type Rgba,
@@ -215,5 +219,107 @@ describe("pokrivenost (RainViewer coverage, z7): prozirno = pokriveno, crno = ne
     const kyiv = pointToGlobalPixel(50.45, 30.52, RAINVIEWER_ZOOM);
     expect(tileOf(kyiv.gx, kyiv.gy)).toEqual({ tx: 74, ty: 43 });
     expect(isCoveredPixel(decodePng(load("coverage-z7-kyiv")), kyiv.gx, kyiv.gy)).toBe(false);
+  });
+});
+
+/*
+ * PROSTORNE STATISTIKE (11.9.2026.) — zamjena za golu brojku `maxDbz`.
+ *
+ * Povod: `maxDbz` je maksimum preko ~49 piksela, pa JEDAN piksel diktira
+ * cijelu tvrdnju. Nad Metkovićem je tako 45 dBZ na 18 % kruga dalo lažnu
+ * jaku kišu, a nad splitskom Rivom je isti okvir davao 8.9 ili 31.6 mm/h
+ * ovisno SAMO o polumjeru uzorka (Markov nalaz s kamere: ljudi bez
+ * kišobrana). Median je bio 38 dBZ na svakom polumjeru.
+ */
+describe("sampleStats — percentili, pokrivenost, tezine", () => {
+  it("percentile: granice i interpolacija", () => {
+    expect(percentile([], 0.5)).toBeNull();
+    expect(percentile([10], 0.9)).toBe(10);
+    expect(percentile([10, 20], 0.5)).toBe(15);
+    expect(percentile([10, 20, 30, 40], 0.5)).toBe(25);
+    expect(percentile([10, 20, 30, 40], 0)).toBe(10);
+    expect(percentile([10, 20, 30, 40], 1)).toBe(40);
+  });
+
+  it("distanceWeight: sredina 1, rub prakticno 0, monotono pada", () => {
+    expect(distanceWeight(0, 3)).toBe(1);
+    expect(distanceWeight(3, 3)).toBeCloseTo(Math.exp(-4), 4);
+    expect(distanceWeight(1, 3)).toBeGreaterThan(distanceWeight(2, 3));
+    // nikad nula — informacija se ne gubi
+    expect(distanceWeight(10, 3)).toBeGreaterThan(0);
+  });
+
+  it("kmPerPixel: na z=7 i 44° je ~0.88 km (1.2 km vrijedi na ekvatoru)", () => {
+    // Mercator steze prema polovima: 1.2 km/px na ekvatoru je 0.88 na 44°.
+    // Bitno za motion — pomak od JEDNOG piksela je ~0.9 km, dakle 5 km/h
+    // kroz 10 min; zato je prag pouzdanosti pomaka 3 km/h.
+    expect(kmPerPixel(44, 7)).toBeCloseTo(0.88, 2);
+    expect(kmPerPixel(0, 7)).toBeCloseTo(1.22, 2);
+    // obrat kmToPixels se poklapa
+    expect(kmToPixels(3, 44, 7)).toBe(Math.max(1, Math.round(3 / kmPerPixel(44, 7))));
+  });
+
+  it("prazna plocica: sve null, pokrivenost 0, bez teziste", () => {
+    const tiles = new Map<string, Rgba>([["150/105", decodePng(load("kairo-z8-150-105"))]]);
+    const p = pointToGlobalPixel(30.04, 31.24, 8);
+    const s = sampleStats(tiles, p.gx, p.gy, 5, dbzFromGrey, 1.2);
+    expect(s.maxDbz).toBeNull();
+    expect(s.medianDbz).toBeNull();
+    expect(s.coverage20).toBe(0);
+    expect(s.echoPixels).toBe(0);
+    expect(s.coverPixels).toBeGreaterThan(0);
+    expect(s.centroid).toBeUndefined();
+  });
+
+  it("Verona z7: median je NIZI od maxa (jedan piksel ne vuce sredinu)", () => {
+    const tiles = new Map<string, Rgba>([["67/45", decodePng(load("rv-z7-verona-scheme2"))]]);
+    const { gx, gy } = pointToGlobalPixel(45.438, 10.992, RAINVIEWER_ZOOM);
+    const s = sampleStats(tiles, gx, gy, 3, dbzFromUniversalBlue, 1.2);
+    expect(s.maxDbz).not.toBeNull();
+    expect(s.medianDbz).not.toBeNull();
+    expect(s.medianDbz!).toBeLessThanOrEqual(s.maxDbz!);
+    expect(s.p90Dbz!).toBeLessThanOrEqual(s.maxDbz!);
+    expect(s.medianDbz!).toBeLessThanOrEqual(s.p90Dbz!);
+  });
+
+  it("pokrivenost pada s pragom: cov20 >= cov28 >= cov40 >= cov55", () => {
+    const tiles = new Map<string, Rgba>([["67/45", decodePng(load("rv-z7-verona-scheme2"))]]);
+    const { gx, gy } = pointToGlobalPixel(45.438, 10.992, RAINVIEWER_ZOOM);
+    const s = sampleStats(tiles, gx, gy, 5, dbzFromUniversalBlue, 1.2);
+    expect(s.coverage20).toBeGreaterThanOrEqual(s.coverage28);
+    expect(s.coverage28).toBeGreaterThanOrEqual(s.coverage40);
+    expect(s.coverage40).toBeGreaterThanOrEqual(s.coverage55);
+    expect(s.coverage20).toBeLessThanOrEqual(1);
+  });
+
+  it("maxDbz je ISTI kao u sampleMaxDbz — nova funkcija ne mijenja staru brojku", () => {
+    const tiles = new Map<string, Rgba>([["67/45", decodePng(load("rv-z7-verona-scheme2"))]]);
+    const { gx, gy } = pointToGlobalPixel(45.438, 10.992, RAINVIEWER_ZOOM);
+    const a = sampleMaxDbz(tiles, gx, gy, 4, dbzFromUniversalBlue);
+    const b = sampleStats(tiles, gx, gy, 4, dbzFromUniversalBlue);
+    expect(b.maxDbz).toBe(a.maxDbz);
+    expect(b.echoPixels).toBe(a.echoPixels);
+    expect(b.coverPixels).toBe(a.coverPixels);
+  });
+
+  it("bez kmPerPx su tezinske vrijednosti jednake netezinskima", () => {
+    const tiles = new Map<string, Rgba>([["67/45", decodePng(load("rv-z7-verona-scheme2"))]]);
+    const { gx, gy } = pointToGlobalPixel(45.438, 10.992, RAINVIEWER_ZOOM);
+    const s = sampleStats(tiles, gx, gy, 3, dbzFromUniversalBlue);
+    expect(s.weightedMeanDbz).toBeCloseTo(
+      // bez tezina je to obican prosjek preko SVIH pregledanih piksela
+      (s.meanDbz ?? 0) * (s.echoPixels / s.coverPixels), 5,
+    );
+    expect(s.centroid).toBeUndefined();
+  });
+
+  it("teziste je unutar uzorka i u kilometrima", () => {
+    const tiles = new Map<string, Rgba>([["67/45", decodePng(load("rv-z7-verona-scheme2"))]]);
+    const { gx, gy } = pointToGlobalPixel(45.438, 10.992, RAINVIEWER_ZOOM);
+    const s = sampleStats(tiles, gx, gy, 3, dbzFromUniversalBlue, 1.2);
+    if (s.centroid) {
+      expect(Math.abs(s.centroid.xKm)).toBeLessThanOrEqual(3 * 1.2 + 0.01);
+      expect(Math.abs(s.centroid.yKm)).toBeLessThanOrEqual(3 * 1.2 + 0.01);
+    }
   });
 });

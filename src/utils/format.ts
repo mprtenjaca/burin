@@ -57,6 +57,22 @@ export function formatHour(iso: string): string {
  * Uspoređuje se po punom satu, ne po točnom trenutku: unos za 16:00
  * mora ostati vidljiv cijeli taj sat, a nestati tek u 17:00.
  */
+/**
+ * Sati za traku: od SLJEDEĆEG sata naprijed.
+ *
+ * Traka je PROGNOZA — Markov odabir 11.9.2026.: „pokazuj samo od
+ * sljedećeg, sadašnji i prošli nemaju smisla u traci, oni su dolje na
+ * 14-dnevnoj gdje se može vidjeti što je bilo ujutro".
+ *
+ * Sadašnjost ionako stoji iznad, na heroju (isti presuđeni kod), pa bi je
+ * stupac ponavljao; prošli sati žive u sheetu dana, gdje ih
+ * `withPastCodes` ispravlja iz radarskih okvira.
+ *
+ * Isti rez je stajao i prije 10.9., iz drugog razloga (tada je tekući
+ * stupac nosio MODELSKU prognozu za sat koji traje — u 15:40 je „15"
+ * crtao kišu iz runa starog pola sata). Kratko je 11.9. bio pomaknut na
+ * tekući sat i vraćen istog dana.
+ */
 export function futureHours<T extends { time: string }>(hours: T[], now: Date): T[] {
   const startOfHour = new Date(now).setMinutes(0, 0, 0);
   const upcoming = hours.filter((h) => parseLocal(h.time).getTime() > startOfHour);

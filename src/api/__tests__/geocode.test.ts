@@ -1,4 +1,4 @@
-import { expandQuery, geocode } from "../openMeteo";
+import { expandQuery, geocode, isSettlement } from "../openMeteo";
 
 jest.mock("../client", () => ({ fetchJson: jest.fn() }));
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -162,5 +162,67 @@ describe("geocode — spajanje proširenih upita", () => {
     client.fetchJson.mockResolvedValue({ results: [] });
     await geocode("Zadar");
     expect(client.fetchJson).toHaveBeenCalledTimes(1);
+  });
+});
+
+/*
+ * DVA HVARA (11.9.2026.) — Markov nalaz: „mi u appu imamo 2 Hvara, ista
+ * zupanija, isto sve — jedan oblacan, jedan kisa". Pa je sam potvrdio:
+ * „jedan Hvar je centar otoka, drugi je grad bas".
+ *
+ * Geokoder za „Hvar" vraca TRI unosa istog imena u istoj zupaniji:
+ *   43.173, 16.443  pop 3519  PPLA2  GRAD Hvar
+ *   43.141, 16.728  pop —     ISL    cijeli OTOK (25 km istocnije!)
+ *   43.182, 16.633  pop —     AIRF   uzletiste
+ * Nisu duplikati — tri tocke razmaknute 25 km, pa im je i vrijeme
+ * razlicito. U listi se ne mogu razlikovati (isto ime, ista zupanija).
+ */
+const HVAR = {
+  results: [
+    { id: 3199180, name: "Hvar", latitude: 43.1725, longitude: 16.44278, country: "Hrvatska", country_code: "HR", admin1: "Splitsko-dalmatinska županija", feature_code: "PPLA2" },
+    { id: 3199177, name: "Hvar", latitude: 43.14083, longitude: 16.72833, country: "Hrvatska", country_code: "HR", admin1: "Splitsko-dalmatinska županija", feature_code: "ISL" },
+    { id: 3217167, name: "Hvar", latitude: 43.18157, longitude: 16.63341, country: "Hrvatska", country_code: "HR", admin1: "Splitsko-dalmatinska županija", feature_code: "AIRF" },
+    { id: 6299321, name: "Hvar Airport", latitude: 43.16667, longitude: 16.45, country: "Hrvatska", country_code: "HR", admin1: "Splitsko-dalmatinska županija", feature_code: "AIRP" },
+  ],
+};
+
+describe("isSettlement — otok i uzletiste nisu mjesta", () => {
+  it("PPL* su naselja", () => {
+    for (const c of ["PPL", "PPLA", "PPLA2", "PPLA3", "PPLC", "PPLX"]) {
+      expect(isSettlement(c)).toBe(true);
+    }
+  });
+
+  it("otok, uzletiste, vrh, jezero NISU", () => {
+    for (const c of ["ISL", "AIRF", "AIRP", "MT", "PK", "LK"]) {
+      expect(isSettlement(c)).toBe(false);
+    }
+  });
+
+  it("bez oznake se PROPUSTA — radije otok u listi nego izgubljeno selo", () => {
+    expect(isSettlement(undefined)).toBe(true);
+    expect(isSettlement("")).toBe(true);
+  });
+});
+
+describe("geocode: Hvar", () => {
+  beforeEach(() => client.fetchJson.mockReset());
+
+  it("vraca SAMO grad — otok i uzletiste otpadaju", async () => {
+    client.fetchJson.mockResolvedValue(HVAR);
+    const out = await geocode("Hvar");
+    expect(out).toHaveLength(1);
+    expect(out[0]!.name).toBe("Hvar");
+    // Grad Hvar, ne sredina otoka 25 km istocnije.
+    expect(out[0]!.lat).toBeCloseTo(43.1725, 3);
+    expect(out[0]!.lon).toBeCloseTo(16.4428, 3);
+  });
+
+  it("stariji kesirani odgovor BEZ feature_code i dalje radi", async () => {
+    client.fetchJson.mockResolvedValue({
+      results: HVAR.results.map(({ feature_code, ...r }) => r),
+    });
+    const out = await geocode("Hvar");
+    expect(out.length).toBeGreaterThan(1);
   });
 });

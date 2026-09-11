@@ -24,6 +24,10 @@ describe("futureHours", () => {
     { time: "2026-08-07T17:00" },
   ];
 
+  /*
+   * Traka je PROGNOZA (Markov odabir 11.9.2026.): sadašnjost je na heroju,
+   * prošlost u 14-dnevnom sheetu. Prvi stupac je SLJEDEĆI sat.
+   */
   it("izbacuje sat koji TRAJE, prvi je sljedeći", () => {
     const at1540 = new Date(2026, 7, 7, 15, 40);
     expect(futureHours(hours, at1540)[0]).toEqual({ time: "2026-08-07T16:00" });
@@ -39,6 +43,7 @@ describe("futureHours", () => {
     const at1600 = new Date(2026, 7, 7, 16, 0);
     expect(futureHours(hours, at1559)[0]).toEqual({ time: "2026-08-07T16:00" });
     expect(futureHours(hours, at1600)[0]).toEqual({ time: "2026-08-07T17:00" });
+    expect(futureHours(hours, at1600)).toHaveLength(1);
   });
 
   it("kad su svi sati prošli, vraća zadnje poznato umjesto prazne trake", () => {

@@ -5,6 +5,10 @@ import {
   DBZ_DRY,
   DBZ_HEAVY,
   DBZ_STORM,
+  MEDIAN_WET_DBZ,
+  PERSISTENCE_WET,
+  STATION_SAME_SPOT_AGE_MIN,
+  STATION_SAME_SPOT_KM,
   STATION_PRECIP_RANGE_KM,
   WIDE_ECHO_PCT,
   STATION_TRUSTED_AGE_MIN,
@@ -24,24 +28,44 @@ import {
  */
 
 const NOW = new Date(2026, 8, 10, 13, 24).getTime(); // 10.9.2026. 13:24 lokalno
-// Zadano je ŠIROKO polje (100/100 = 100 % kruga) — dakle prava oborina.
-// Uska jezgra se traži izricito preko .
-const echo = (maxDbz: number | null, ageMin = 4): RadarEcho => ({
+
+/*
+ * V1 sudac čita samo `maxDbz`, `echoPixels` i `coverPixels`, ali od
+ * 11.9.2026. `RadarEcho` nosi CIJELE prostorne statistike (isti prolaz
+ * kroz piksele daje oboje, pa V2 ne traži dodatni dohvat). Ostale brojke
+ * se ovdje popunjavaju na `maxDbz` — V1 ih ne gleda, a tip zahtijeva.
+ */
+const mk = (maxDbz: number | null, echoPixels: number, ageMin: number): RadarEcho => ({
   maxDbz,
+  meanDbz: maxDbz,
+  medianDbz: maxDbz,
+  p75Dbz: maxDbz,
+  p90Dbz: maxDbz,
+  p95Dbz: maxDbz,
+  weightedMeanDbz: maxDbz,
+  coverage20: maxDbz !== null && maxDbz >= 20 ? echoPixels / 100 : 0,
+  coverage28: maxDbz !== null && maxDbz >= 28 ? echoPixels / 100 : 0,
+  coverage40: maxDbz !== null && maxDbz >= 40 ? echoPixels / 100 : 0,
+  coverage55: maxDbz !== null && maxDbz >= 55 ? echoPixels / 100 : 0,
+  weightedCoverage20: maxDbz !== null && maxDbz >= 20 ? echoPixels / 100 : 0,
+  coverPixels: 100,
+  echoPixels,
   frameTime: NOW / 1000 - ageMin * 60,
   radiusKm: 3,
-  echoPixels: maxDbz === null ? 0 : 100,
-  coverPixels: 100,
 });
 
-/** Uska jezgra: jak odjek na malom dijelu kruga (Metkovic 11.9.). */
-const core = (maxDbz: number, pct: number, ageMin = 4): RadarEcho => ({
-  maxDbz,
-  frameTime: NOW / 1000 - ageMin * 60,
-  radiusKm: 3,
-  echoPixels: pct,
-  coverPixels: 100,
+/** Isto, ali s APSOLUTNIM vremenom okvira (blokovi s vlastitim nowMs). */
+const mkAt = (maxDbz: number | null, echoPixels: number, frameTime: number): RadarEcho => ({
+  ...mk(maxDbz, echoPixels, 0),
+  frameTime,
 });
+
+/** Zadano je ŠIROKO polje (100 % kruga) — dakle prava oborina. */
+const echo = (maxDbz: number | null, ageMin = 4): RadarEcho =>
+  mk(maxDbz, maxDbz === null ? 0 : 100, ageMin);
+
+/** Uska jezgra: jak odjek na malom dijelu kruga (Metkovic 11.9.). */
+const core = (maxDbz: number, pct: number, ageMin = 4): RadarEcho => mk(maxDbz, pct, ageMin);
 const base = { modelCode: 3, cloudCover: 100, temp: 23.9, nowMs: NOW, covered: true, stationDistanceKm: 2.3 };
 
 /*
@@ -64,7 +88,7 @@ describe("Zadar 11.9.2026. — obična kiša koju je stari sudac bacao", () => {
     modelCode: 1, // ECMWF „pretežno vedro", 0 mm
     cloudCover: 42,
     temp: 20.6,
-    echo: { maxDbz: dbz, frameTime: nowMs / 1000 - frameMinAgo * 60, radiusKm: 5, echoPixels: 141, coverPixels: 100 },
+    echo: mkAt(dbz, 141, nowMs / 1000 - frameMinAgo * 60),
     covered: true,
     nowMs,
   });
@@ -121,7 +145,7 @@ describe("Zadar 11.9.2026. 08:20 — kiša je stala prije 15 min", () => {
     modelCode: 51,
     cloudCover: 46,
     temp: 22,
-    echo: { maxDbz: dbz, frameTime: nowMs / 1000 - 5 * 60, radiusKm: 3, echoPixels: 32, coverPixels: 100 },
+    echo: mkAt(dbz, 32, nowMs / 1000 - 5 * 60),
     covered: true,
     nowMs,
   });
@@ -200,8 +224,10 @@ describe("jezgra u oblaku NIJE kiša na tlu", () => {
       echo: core(45, 18),
       prevEcho: echo(null),
     });
-    expect(j.code).not.toBe(65);
-    expect(j.source).toBe("model");
+    // Kamere: suho. Ni model (80 „pljuskovi") ne smije uskočiti kad je
+    // radar odustao — vidi `stationThenSky`. Ostaje nebo.
+    expect(isPrecip(j.code)).toBe(false);
+    expect(j.source).toBe("radar");
   });
 
   it("Metković: uz postaju koja svjedoči grmljavinu piše GRMLJAVINA, ne jaka kiša", () => {
@@ -237,17 +263,53 @@ describe("jezgra u oblaku NIJE kiša na tlu", () => {
     expect(j).toEqual({ code: 65, source: "radar" });
   });
 
-  it("POSTOJANA jezgra prolazi i kad je uska — bila je i prije 10 min", () => {
+  /*
+   * PROMIJENJENO 11.9. popodne: postojanost NE prizemljuje usku jezgru.
+   * Omiš je bio postojan 50 min (32 52 49 49 29 dBZ) na 6 % kruga — i
+   * suh po kameri. Krš i planina daju POSTOJAN lažni odjek, pa je
+   * postojanost tu bezvrijedna; jedino širina razlikuje.
+   */
+  it("Omiš: POSTOJANA uska jezgra 49 dBZ na 6 % → NIJE kiša (kamera: suho)", () => {
+    const j = judgeCurrentCode({
+      ...base,
+      stationCode: 3.5, // Split-Marjan 22 km, „pretežno oblačno" — nebo smije, oborinu ne
+      stationAgeMin: 28,
+      stationDistanceKm: 22.3,
+      modelCode: 3,
+      echo: core(49, 6),
+      prevEcho: core(49, 6),
+      persistence: 0.8,
+    });
+    expect(isPrecip(j.code)).toBe(false);
+    expect(j.code).toBe(3.5);
+  });
+
+  it("Novi Vinodolski: jezgra 46 dBZ na 67 % kruga → JAKA KIŠA (front, Rijeka postaje javljaju kišu)", () => {
     const j = judgeCurrentCode({
       ...base,
       stationCode: undefined,
       stationAgeMin: Infinity,
       stationDistanceKm: undefined,
       modelCode: 3,
-      echo: core(45, 18),
-      prevEcho: core(38, 15),
+      echo: core(46, 67),
+      prevEcho: core(35, 40),
+      persistence: 0.67,
     });
     expect(j).toEqual({ code: 65, source: "radar" });
+  });
+
+  it("Split Riva: max 50 ali median 38 na 86 % kruga → KIŠA (63), ne jaka — jačina iz mediana", () => {
+    const j = judgeCurrentCode({
+      ...base,
+      stationCode: undefined,
+      stationAgeMin: Infinity,
+      stationDistanceKm: undefined,
+      modelCode: 63,
+      echo: { ...core(50, 86), medianDbz: 38 },
+      prevEcho: core(47, 80),
+      persistence: 1,
+    });
+    expect(j).toEqual({ code: 63, source: "radar" });
   });
 
   it("granica pokrivenosti je 40 %", () => {
@@ -262,14 +324,25 @@ describe("jezgra u oblaku NIJE kiša na tlu", () => {
         echo: core(45, pct),
         prevEcho: echo(null),
       });
-    expect(at(40).source).toBe("radar");
-    expect(at(39).source).toBe("model");
+    expect(isPrecip(at(40).code)).toBe(true);
+    // Ispod praga radar odustaje, a model NE smije uskociti -> nebo.
+    expect(isPrecip(at(39).code)).toBe(false);
   });
 
-  it("bez prethodnog okvira se postojanost NE traži — kiša koja počinje ne smije propasti", () => {
-    // Zadar 07:30 je bio PRVI okvir s odjekom; da se tražila potvrda iz
-    // prošlosti, app bi propustila početak kiše.
-    const j = judgeCurrentCode({
+  it("kiša koja POČINJE ne smije propasti — ali mora biti ŠIROKA (Zadar 07:30: 33 dBZ na 86 %)", () => {
+    // Zadar 07:30 je bio PRVI okvir s odjekom, širok. Uska jezgra bez
+    // prošlosti je pak Metković — i ta je bila suha.
+    const zadar = judgeCurrentCode({
+      ...base,
+      stationCode: undefined,
+      stationAgeMin: Infinity,
+      stationDistanceKm: undefined,
+      modelCode: 1,
+      echo: core(33, 86),
+      prevEcho: undefined,
+    });
+    expect(isPrecip(zadar.code)).toBe(true);
+    const metkovic = judgeCurrentCode({
       ...base,
       stationCode: undefined,
       stationAgeMin: Infinity,
@@ -278,7 +351,7 @@ describe("jezgra u oblaku NIJE kiša na tlu", () => {
       echo: core(45, 18),
       prevEcho: undefined,
     });
-    expect(j).toEqual({ code: 65, source: "radar" });
+    expect(isPrecip(metkovic.code)).toBe(false);
   });
 
   it("SLABA i umjerena oborina ne traže ništa od ovoga — prag je samo za JAKU", () => {
@@ -305,6 +378,201 @@ describe("jezgra u oblaku NIJE kiša na tlu", () => {
       prevEcho: echo(null),
     });
     expect(j).toEqual({ code: 95, source: "radar" });
+  });
+});
+
+/*
+ * METKOVIĆ 11.9.2026. 10:30 — ODJEK U JEDNOM OKVIRU NIJE OBORINA.
+ *
+ * Markov nalaz: „Metković sad piše slaba kiša a nema tamo uopće na radaru
+ * oborina". Izmjereno u tom trenutku:
+ *   09:50 bez · 10:00 bez · 10:10 bez · 10:20 bez · 10:30 23 dBZ na 8 %
+ *   postaja Ploče (16.7 km): „umjereno oblačno"
+ *   model: kod 51 (slaba kiša), ali run star 128 min
+ *
+ * Prije je prolazilo jer je pravilo tražilo samo `dBZ >= 20`. Prag
+ * postojanosti (0.25, izmjeren na 240 postaja) to obara.
+ */
+describe("Metković 11.9. 10:30 — jedan okvir odjeka nije kiša", () => {
+  const metkovic = (persistence?: number): JudgeInput => ({
+    stationCode: 2, // Ploče „umjereno oblačno"
+    stationAgeMin: 37,
+    stationDistanceKm: 16.7, // predaleko za oborinu (> 8 km)
+    modelCode: 51, // model tvrdi slabu kišu, ali je star 2 h
+    cloudCover: 66,
+    temp: 26.3,
+    echo: core(23, 8),
+    prevEcho: echo(null),
+    persistence,
+    covered: true,
+    nowMs: NOW,
+  });
+
+  it("postojanost 20 % (1 od 5 okvira) → NE tvrdi kišu", () => {
+    const j = judgeCurrentCode(metkovic(0.2));
+    expect(isPrecip(j.code)).toBe(false);
+  });
+
+  it("prag je 25 %", () => {
+    expect(PERSISTENCE_WET).toBe(0.25);
+    expect(isPrecip(judgeCurrentCode(metkovic(0.2)).code)).toBe(false);
+    expect(isPrecip(judgeCurrentCode(metkovic(0.4)).code)).toBe(true);
+  });
+
+  it("bez ijednog podatka o prošlosti se NE obara — prvo pokretanje", () => {
+    const prvi = { ...metkovic(undefined), prevEcho: undefined };
+    expect(isPrecip(judgeCurrentCode(prvi).code)).toBe(true);
+  });
+
+  it("prethodni okvir S odjekom je dovoljan kad postojanost nije poznata", () => {
+    const j = judgeCurrentCode({ ...metkovic(undefined), prevEcho: echo(25) });
+    expect(isPrecip(j.code)).toBe(true);
+  });
+
+  it("daleka postaja ne preuzima oborinu, pa kod dolazi iz MODELA", () => {
+    // Ploče su 16.7 km — iznad `STATION_PRECIP_RANGE_KM`. Model tvrdi 51,
+    // i to je ono što ostaje kad radar odustane. Nije idealno (model je
+    // star 2 h), ali V1 starost modela ne mjeri — to radi V2.
+    expect(judgeCurrentCode(metkovic(0.2)).source).toBe("station");
+  });
+});
+
+/*
+ * SENJ 11.9.2026. — ORAOGRAFSKA JEZGRA NAD VELEBITOM.
+ *
+ * Nađeno usporedbom na 112 mjesta (Markov zahtjev „provjeri što više
+ * gradova"). Izmjereno:
+ *   okviri: — 24 39 38 33   → postojanost 80 %, dakle POSTOJAN odjek
+ *   zadnji: max 33, median 32, ali pokrivenost SAMO 8 % kruga
+ *   postaja: 400 m (!), „pretežno oblačno"
+ *   vrijemeradar.hr: „promjenljivo oblačno"
+ *
+ * Postojanost i median prolaze, `DBZ_CERTAIN` (28) ne pomaže jer je
+ * odjek jači. Rješenje je BLIZINA: postaja na 400 m mjeri isti radarski
+ * piksel, pa nema prostorne nesigurnosti koja na 8 km postoji.
+ */
+describe("Senj 11.9. — postaja na 400 m obara orografsku jezgru", () => {
+  const senj = (over: Partial<JudgeInput> = {}): JudgeInput => ({
+    stationCode: 3.5, // „pretežno oblačno", 400 m
+    stationAgeMin: 15,
+    stationDistanceKm: 0.4,
+    modelCode: 3,
+    cloudCover: 90,
+    temp: 20,
+    echo: core(33, 8), // jak, ali uzak — 8 % kruga
+    persistence: 0.8, // postojan kroz okvire
+    covered: true,
+    nowMs: NOW,
+    ...over,
+  });
+
+  it("postaja na 400 m pobjeđuje jak odjek", () => {
+    expect(judgeCurrentCode(senj())).toEqual({ code: 3.5, source: "station" });
+  });
+
+  it("granica je 2 km — na 2.5 km radar ponovno vodi", () => {
+    expect(STATION_SAME_SPOT_KM).toBe(2);
+    expect(judgeCurrentCode(senj({ stationDistanceKm: 2 })).source).toBe("station");
+    expect(isPrecip(judgeCurrentCode(senj({ stationDistanceKm: 2.5 })).code)).toBe(true);
+  });
+
+  it("uz USKI odjek postaja na 400 m smije biti i 45 min stara (Senj: 28 min, kamere suho)", () => {
+    expect(STATION_SAME_SPOT_AGE_MIN).toBe(45);
+    expect(judgeCurrentCode(senj({ stationAgeMin: 28 })).source).toBe("station");
+    expect(judgeCurrentCode(senj({ stationAgeMin: 45 })).source).toBe("station");
+  });
+
+  it("preko 45 min ni postaja na 400 m ne obara", () => {
+    // Uski odjek 33 dBZ nije ni jak (< 40), pa nakon što postaja ispadne
+    // radar vodi s medianom.
+    expect(isPrecip(judgeCurrentCode(senj({ stationAgeMin: 50 })).code)).toBe(true);
+  });
+
+  it("uz ŠIROKI odjek postaja mora biti svježa — kiša je mogla početi nakon termina", () => {
+    const wide = senj({ echo: echo(33), stationAgeMin: 28 });
+    expect(isPrecip(judgeCurrentCode(wide).code)).toBe(true);
+  });
+
+  it("Senj popodne: 48 dBZ na 16 %, postaja 400 m 28 min → OBLAČNO (kamera: suho)", () => {
+    expect(judgeCurrentCode(senj({ echo: core(48, 16), stationAgeMin: 28 }))).toEqual({ code: 3.5, source: "station" });
+  });
+
+  it("postaja koja i SAMA tvrdi kišu ne obara ništa — slažu se", () => {
+    const j = judgeCurrentCode(senj({ stationCode: 61 }));
+    expect(isPrecip(j.code)).toBe(true);
+  });
+});
+
+describe("MEDIAN kao uvjet: jedan piksel u krugu nije jačina nad točkom", () => {
+  it("visok max uz nizak median NE tvrdi oborinu", () => {
+    expect(MEDIAN_WET_DBZ).toBe(14);
+    // Jezgra 3 km dalje: max 35, ali median nad točkom samo 12.
+    const daleka = { ...base, stationCode: 3, stationAgeMin: 15, stationDistanceKm: 5, persistence: 0.8 };
+    const e = { ...core(35, 30), medianDbz: 12 };
+    expect(isPrecip(judgeCurrentCode({ ...daleka, echo: e }).code)).toBe(false);
+  });
+
+  it("Zagreb 13:50: median 14 uz 16 % kruga -> KISA (tri postaje javljaju kisu)", () => {
+    const zg = { ...base, stationCode: 3, stationAgeMin: 56, stationDistanceKm: 0.8, persistence: 0.5 };
+    const e = { ...core(31, 16), medianDbz: 14 };
+    expect(isPrecip(judgeCurrentCode({ ...zg, echo: e }).code)).toBe(true);
+  });
+
+  it("median iznad praga prolazi", () => {
+    const daleka = { ...base, stationCode: 3, stationAgeMin: 15, stationDistanceKm: 5, persistence: 0.8 };
+    const e = { ...core(35, 30), medianDbz: 20 };
+    expect(isPrecip(judgeCurrentCode({ ...daleka, echo: e }).code)).toBe(true);
+  });
+
+  it("bez mediana (star kesirani odjek) se NE obara", () => {
+    const daleka = { ...base, stationCode: 3, stationAgeMin: 15, stationDistanceKm: 5, persistence: 0.8 };
+    const e = { ...core(35, 30), medianDbz: null };
+    expect(isPrecip(judgeCurrentCode({ ...daleka, echo: e }).code)).toBe(true);
+  });
+});
+
+/*
+ * KRK 11.9.2026. — MODEL NE SMIJE USKOČITI KAD RADAR ODUSTANE.
+ *
+ * Usporedba na 112 mjesta: radar 31 dBZ uz 20 % postojanosti → sudac ga
+ * obori (ispravno). Postaja javlja samo vjetar (kod `undefined`). I onda
+ * je MODEL, star dva sata, upisao „slaba kiša" — jer je grana padala na
+ * `stationThenModel`. vrijemeradar.hr: „promjenljivo oblačno".
+ */
+describe("Krk 11.9. — radar odustane, model ne smije preuzeti oborinu", () => {
+  const krk = (over: Partial<JudgeInput> = {}): JudgeInput => ({
+    stationCode: undefined, // „slab vjetar" → nema koda
+    stationAgeMin: 20,
+    stationDistanceKm: 11.7,
+    modelCode: 61, // model tvrdi slabu kišu
+    cloudCover: 70,
+    temp: 22,
+    echo: core(31, 20),
+    persistence: 0.2, // 1 od 5 okvira
+    covered: true,
+    nowMs: NOW,
+    ...over,
+  });
+
+  it("nepostojan odjek + model 'kiša' → NEBO iz naoblake, ne kiša", () => {
+    const j = judgeCurrentCode(krk());
+    expect(isPrecip(j.code)).toBe(false);
+    expect(j.code).toBe(cloudCodeFromCover(70));
+  });
+
+  it("isto kad radar odustane zbog niskog MEDIANA", () => {
+    const j = judgeCurrentCode(krk({ persistence: 0.8, echo: { ...core(31, 20), medianDbz: 10 } }));
+    expect(isPrecip(j.code)).toBe(false);
+  });
+
+  it("ali BLISKA SVJEŽA postaja koja tvrdi kišu SMIJE — ona mjeri tlo", () => {
+    const j = judgeCurrentCode(krk({ stationCode: 61, stationDistanceKm: 1.5, stationAgeMin: 10 }));
+    expect(j).toEqual({ code: 61, source: "station" });
+  });
+
+  it("kad radar NE RADI (nepokriveno), model i dalje vodi — nema ga tko nadglasati", () => {
+    const j = judgeCurrentCode(krk({ covered: false }));
+    expect(j).toEqual({ code: 61, source: "model" });
   });
 });
 
@@ -523,7 +791,7 @@ describe("mjereno nebo protiv radara — nova granica", () => {
       modelCode: 3,
       cloudCover: 99,
       temp: 24.8,
-      echo: { maxDbz: null, frameTime: nowMs / 1000 - 13 * 60, radiusKm: 5, echoPixels: 0, coverPixels: 100 },
+      echo: mkAt(null, 0, nowMs / 1000 - 13 * 60),
       covered: true,
       nowMs,
       ...over,
@@ -534,7 +802,7 @@ describe("mjereno nebo protiv radara — nova granica", () => {
   });
 
   it("SVJEŽA BLISKA postaja drži nebo protiv slabog odjeka (< 28)", () => {
-    expect(judge({ echo: { maxDbz: 24, frameTime: nowMs / 1000 - 5 * 60, radiusKm: 3, echoPixels: 40, coverPixels: 100 } })).toEqual({
+    expect(judge({ echo: mkAt(24, 40, nowMs / 1000 - 5 * 60) })).toEqual({
       code: 3.5,
       source: "station",
     });
@@ -546,14 +814,14 @@ describe("mjereno nebo protiv radara — nova granica", () => {
   });
 
   it("odjek >= 28 nadglasa i svježe mjereno nebo — to je Zadar 11.9.", () => {
-    expect(judge({ echo: { maxDbz: 28, frameTime: nowMs / 1000 - 2 * 60, radiusKm: 5, echoPixels: 141, coverPixels: 100 } })).toEqual({
+    expect(judge({ echo: mkAt(28, 141, nowMs / 1000 - 2 * 60) })).toEqual({
       code: 63,
       source: "radar",
     });
   });
 
   it("jaka jezgra i dalje nadglasa", () => {
-    expect(judge({ echo: { maxDbz: 45, frameTime: nowMs / 1000 - 2 * 60, radiusKm: 5, echoPixels: 60, coverPixels: 100 } })).toEqual({
+    expect(judge({ echo: mkAt(45, 60, nowMs / 1000 - 2 * 60) })).toEqual({
       code: 65,
       source: "radar",
     });
