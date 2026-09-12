@@ -18,6 +18,33 @@ function pad2(n: number): string {
   return n.toString().padStart(2, "0");
 }
 
+/**
+ * „SADA" U ZONI MJESTA, izraženo kao lokalni Date uređaja — par za
+ * `parseLocal` (12.9.2026., Markov nalaz na Sidneyju u Ohiju).
+ *
+ * Open-Meteo se zove s `timezone=auto`, pa satni unosi VEĆ dolaze u
+ * vremenu mjesta („2026-09-12T08:00" znači 08:00 po Ohiju). Ali
+ * `parseLocal` ih gradi `new Date(y, m-1, d, hh, mm)`, a taj konstruktor
+ * uvijek radi u zoni UREĐAJA — pa se „08:00 u Ohiju" uspoređivalo s
+ * hrvatskih 14:12 i ispadalo kao prošlost.
+ *
+ * Izmjereno: u Ohiju 08:11, traka je počinjala od 15:00 umjesto od 09:00
+ * i PRESKAKALA šest sati (cijelo prijepodne). Vrijedi za svaki grad izvan
+ * zone uređaja; na hrvatskim gradovima se ne vidi jer je pomak nula.
+ *
+ * Popravak je pomak istog predznaka koji `parseLocal` već nosi: uzme se
+ * pravi trenutak, doda pomak mjesta i oduzme pomak uređaja, pa oba kraja
+ * usporedbe žive u istoj (uređajevoj) skali.
+ *
+ * Bez `utcOffsetSeconds` vraća `now` nepromijenjen — tako se ponašaju
+ * pozivi koji zonu još ne nose i domaći gradovi.
+ */
+export function placeNow(now: Date, utcOffsetSeconds?: number): Date {
+  if (utcOffsetSeconds === undefined) return now;
+  const deviceOffsetMs = -now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() + utcOffsetSeconds * 1000 - deviceOffsetMs);
+}
+
 /** "utorak, 4.8." */
 export function formatDay(iso: string): string {
   const dt = parseLocal(iso);
@@ -73,8 +100,12 @@ export function formatHour(iso: string): string {
  * crtao kišu iz runa starog pola sata). Kratko je 11.9. bio pomaknut na
  * tekući sat i vraćen istog dana.
  */
-export function futureHours<T extends { time: string }>(hours: T[], now: Date): T[] {
-  const startOfHour = new Date(now).setMinutes(0, 0, 0);
+export function futureHours<T extends { time: string }>(
+  hours: T[],
+  now: Date,
+  utcOffsetSeconds?: number,
+): T[] {
+  const startOfHour = new Date(placeNow(now, utcOffsetSeconds)).setMinutes(0, 0, 0);
   const upcoming = hours.filter((h) => parseLocal(h.time).getTime() > startOfHour);
   /*
    * Kad prognoza zaostane (svi unosi su prošli), bolje je pokazati
@@ -84,9 +115,29 @@ export function futureHours<T extends { time: string }>(hours: T[], now: Date): 
 }
 
 /** epoch ms -> "HH:mm" lokalno — za "Podaci od HH:mm" */
-export function clockTime(epochMs: number): string {
-  const dt = new Date(epochMs);
+export function clockTime(epochMs: number, utcOffsetSeconds?: number): string {
+  const dt = placeNow(new Date(epochMs), utcOffsetSeconds);
   return `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
+}
+
+/**
+ * Oznaka zone uz sat, SAMO kad se mjesto ne poklapa s uređajem
+ * (12.9.2026., Markov zahtjev za američke gradove).
+ *
+ * Ne ispisuje se ime zone (`America/New_York`) nego pomak od UTC-a —
+ * kratica je nejednoznačna (CST je i Amerika i Kina), a pomak je
+ * jednoznačan i ne treba prijevod. Domaći grad ne dobiva ništa: tamo
+ * oznaka ne govori ništa novo, a oduzima prostor.
+ */
+export function zoneLabel(utcOffsetSeconds: number | undefined, now = new Date()): string {
+  if (utcOffsetSeconds === undefined) return "";
+  const deviceOffsetSeconds = -now.getTimezoneOffset() * 60;
+  if (utcOffsetSeconds === deviceOffsetSeconds) return "";
+  const sign = utcOffsetSeconds < 0 ? "−" : "+";
+  const abs = Math.abs(utcOffsetSeconds);
+  const h = Math.floor(abs / 3600);
+  const m = Math.floor((abs % 3600) / 60);
+  return `UTC${sign}${h}${m ? `:${pad2(m)}` : ""}`;
 }
 
 export function convertTemp(celsius: number, unit: TempUnit): number {

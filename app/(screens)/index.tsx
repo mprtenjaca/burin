@@ -341,6 +341,7 @@ export default function HomeScreen() {
            * bi inače probijao `memo(Hero)` bez ikakve vidljive razlike.
            */
           fetchedAt={Math.floor(bundle.fetchedAt / 60_000) * 60_000}
+          utcOffsetSeconds={bundle.utcOffsetSeconds}
           isStale={isStale}
           stops={stops}
           pageBg={pageBg}

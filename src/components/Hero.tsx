@@ -14,7 +14,7 @@ import { useNow } from "@/hooks/useNow";
 import { t } from "@/i18n";
 import { useThemeColors } from "@/theme/useThemeColors";
 import type { TempUnit, WindUnit } from "@/utils/format";
-import { clockTime, convertTemp, convertWind, futureHours, windUnitLabel } from "@/utils/format";
+import { clockTime, convertTemp, convertWind, futureHours, placeNow, windUnitLabel, zoneLabel } from "@/utils/format";
 import { backdropEffects, cloudDensity, heroAccent, precipIntensity, readableOn, stripAccent, windStrength, type GradientStops } from "@/utils/weatherLook";
 import { codeToCondition } from "@/utils/weatherCodes";
 
@@ -63,6 +63,7 @@ function HeroView({
   hours,
   warnings,
   fetchedAt,
+  utcOffsetSeconds,
   isStale,
   stops,
   pageBg,
@@ -82,6 +83,13 @@ function HeroView({
   /** Meteoalarm upozorenja za mjesto; prazno = nema trake. */
   warnings: MeteoWarning[];
   fetchedAt: number;
+  /**
+   * Pomak zone MJESTA (`utc_offset_seconds`). Traka se reže po vremenu
+   * GRADA, ne uređaja — Markov nalaz na Sidneyju u Ohiju: ondje je bilo
+   * 08:11, a app je prvi stupac crtala od 15:00 i gubila šest sati.
+   * Bez njega se ponaša kao dosad (domaći gradovi, stari keš).
+   */
+  utcOffsetSeconds?: number;
   isStale: boolean;
   stops: GradientStops;
   pageBg: string;
@@ -127,6 +135,8 @@ function HeroView({
   const fg = heroFg;
   // Živ sat: bez ovoga je datum/vrijeme stajao na trenutku renderiranja.
   const now = useNow();
+  // Prazno za domaći grad; za strani „UTC−4" uz sat.
+  const zone = zoneLabel(utcOffsetSeconds, now);
 
   const condition = codeToCondition(current.code, current.isDay);
   const deg = (v: number) => `${Math.round(convertTemp(v, tempUnit))}`;
@@ -322,12 +332,22 @@ function HeroView({
         se datum spustio ispod njih i dobio sredinu.
       */}
       <View className="items-center" style={{ position: "absolute", top: insets.top + 58, left: 0, right: 0 }}>
+        {/*
+          DATUM I SAT SU MJESTOVI, NE UREĐAJEVI (12.9.2026., Markov nalaz
+          na Sidneyju u Ohiju, pa njegov zahtjev za oznakom zone).
+
+          Za strani grad se uz sat ispisuje pomak od UTC-a — bez njega
+          „08:18" izgleda kao greška kad je na uređaju 14:18. Datum mora
+          pratiti isti pomak, inače Ohio noću pokazuje sutrašnji dan.
+          Domaći grad ne dobiva oznaku (`zoneLabel` vraća prazno).
+        */}
         <Text className="font-grotesk-bold text-[16px]" style={{ color: heroFg }}>
-          {dateLabel(now)}
+          {dateLabel(placeNow(now, utcOffsetSeconds))}
         </Text>
         <Text className="font-grotesk-medium text-[14px]" style={heroFg75}>
           {isStale ? `${t.common.dataFrom} ` : ""}
-          {clockTime(fetchedAt)}
+          {clockTime(fetchedAt, utcOffsetSeconds)}
+          {zone ? ` · ${zone}` : ""}
         </Text>
 
         {/*
@@ -386,7 +406,7 @@ function HeroView({
           sljedeći sat čim otkuca puni sat.
         */}
         <HourlyStrip
-          hours={futureHours(hours, now)}
+          hours={futureHours(hours, now, utcOffsetSeconds)}
           tempUnit={tempUnit}
           accent={stripAccent()}
           resetKey={placeName}

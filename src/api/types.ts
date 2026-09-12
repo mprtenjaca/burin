@@ -121,4 +121,14 @@ export type WeatherBundle = {
   pollenDays?: import("@/api/openMeteo").PollenDay[]; // danas + 2 dana; svaki nosi izvor (CAMS / Štampar u razvoju) i gotov razred kad ga ima
   seaTemp?: number; // temperatura mora, samo za obalna mjesta
   fetchedAt: number; // epoch ms — "Podaci od HH:mm"
+  /**
+   * Pomak zone MJESTA u sekundama (Open-Meteo `utc_offset_seconds`).
+   *
+   * Satni unosi dolaze u vremenu grada (`timezone=auto`), pa svaka
+   * usporedba „je li ovaj sat prošao" mora ići kroz `placeNow` — inače
+   * se strani grad reže prema satu uređaja (Ohio 12.9.2026.: traka je
+   * počinjala od 15:00 umjesto od 09:00). Nedostaje za mjesta iz starog
+   * keša, pa je neobavezan i tada se ponaša kao dosad.
+   */
+  utcOffsetSeconds?: number;
 };

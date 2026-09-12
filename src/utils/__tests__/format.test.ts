@@ -7,6 +7,7 @@ import {
   formatHour,
   formatTime,
   futureHours,
+  zoneLabel,
   windDirLabel,
 } from "../format";
 
@@ -44,6 +45,38 @@ describe("futureHours", () => {
     expect(futureHours(hours, at1559)[0]).toEqual({ time: "2026-08-07T16:00" });
     expect(futureHours(hours, at1600)[0]).toEqual({ time: "2026-08-07T17:00" });
     expect(futureHours(hours, at1600)).toHaveLength(1);
+  });
+
+  /*
+   * STRANI GRAD: rez ide po zoni MJESTA, ne uređaja (12.9.2026., Markov
+   * nalaz na Sidneyju u Ohiju).
+   *
+   * Izmjereno tog dana: u Ohiju 08:11 (UTC−4), uređaj u Hrvatskoj 14:12
+   * (UTC+2). Satni unosi dolaze u vremenu grada, pa je app „08:00 u
+   * Ohiju" uspoređivala s hrvatskih 14:12 i rezala ga kao prošlost —
+   * prvi stupac je bio 15:00 umjesto 09:00, SEST sati prognoze izgubljeno.
+   */
+  it("strani grad: reže po vremenu MJESTA, ne uređaja", () => {
+    const ohio = [
+      { time: "2026-09-12T08:00" },
+      { time: "2026-09-12T09:00" },
+      { time: "2026-09-12T15:00" },
+    ];
+    // Uređaj: 14:12 po svom satu. Mjesto: UTC−4, uređaj UTC+2 → 6 h manje.
+    const deviceNow = new Date(2026, 8, 12, 14, 12);
+    const offsetOhio = -4 * 3600;
+    // Bez pomaka bi prvi stupac bio 15:00 (stari kvar).
+    expect(futureHours(ohio, deviceNow)[0]).toEqual({ time: "2026-09-12T15:00" });
+    // S pomakom: u Ohiju je 08:12, pa je sljedeći sat 09:00.
+    const shifted = futureHours(ohio, deviceNow, offsetOhio);
+    expect(shifted[0]).toEqual({ time: "2026-09-12T09:00" });
+    expect(shifted).toHaveLength(2);
+  });
+
+  it("domaći grad: pomak jednak uređajevom ne mijenja ništa", () => {
+    const at1540 = new Date(2026, 7, 7, 15, 40);
+    const deviceOffset = -at1540.getTimezoneOffset() * 60;
+    expect(futureHours(hours, at1540, deviceOffset)).toEqual(futureHours(hours, at1540));
   });
 
   it("kad su svi sati prošli, vraća zadnje poznato umjesto prazne trake", () => {
@@ -94,5 +127,57 @@ describe("format (hrvatski, 24-satni)", () => {
     expect(windDirLabel(180)).toBe("J");
     expect(windDirLabel(225)).toBe("JZ");
     expect(windDirLabel(359)).toBe("S");
+  });
+});
+
+/*
+ * OZNAKA ZONE UZ SAT (12.9.2026., Markov zahtjev: „promijeni i hero sat
+ * uz navedenu zonu pokraj sata za USA").
+ *
+ * Bez oznake „08:18" na heroju izgleda kao greška kad uređaj pokazuje
+ * 14:18. Ispisuje se POMAK od UTC-a, ne kratica: „CST" je i Amerika i
+ * Kina, a pomak je jednoznačan i ne treba prijevod.
+ */
+describe("zoneLabel", () => {
+  // Uređaj u ovom testu je u zoni u kojoj se test vrti, pa se pomak čita.
+  const now = new Date(2026, 8, 12, 14, 18);
+  const deviceOffset = -now.getTimezoneOffset() * 60;
+
+  it("domaći grad NEMA oznaku — ne govori ništa novo", () => {
+    expect(zoneLabel(deviceOffset, now)).toBe("");
+  });
+
+  it("bez podatka o zoni nema oznake (stari keš)", () => {
+    expect(zoneLabel(undefined, now)).toBe("");
+  });
+
+  it("Ohio: UTC−4", () => {
+    expect(zoneLabel(-4 * 3600, now)).toBe("UTC−4");
+  });
+
+  it("Tokio: UTC+9", () => {
+    expect(zoneLabel(9 * 3600, now)).toBe("UTC+9");
+  });
+
+  it("pola sata: Indija UTC+5:30", () => {
+    expect(zoneLabel(5.5 * 3600, now)).toBe("UTC+5:30");
+  });
+});
+
+describe("clockTime uz zonu mjesta", () => {
+  it("bez pomaka je sat uređaja", () => {
+    const at = new Date(2026, 8, 12, 14, 18).getTime();
+    expect(clockTime(at)).toBe("14:18");
+  });
+
+  it("sa zonom Ohija pokazuje vrijeme MJESTA", () => {
+    const at = new Date(2026, 8, 12, 14, 18);
+    const deviceOffset = -at.getTimezoneOffset() * 60;
+    // Ohio je 6 h iza Hrvatske (UTC−4 vs UTC+2) → 08:18.
+    const shifted = clockTime(at.getTime(), -4 * 3600);
+    const expected = new Date(at.getTime() - (deviceOffset + 4 * 3600) * 1000);
+    expect(shifted).toBe(
+      `${expected.getHours().toString().padStart(2, "0")}:${expected.getMinutes().toString().padStart(2, "0")}`,
+    );
   });
 });
