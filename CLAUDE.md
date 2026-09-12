@@ -17,7 +17,35 @@ razvojni izvor iza `__DEV__`** (pravna odluka — vidi Recent Decisions).
 Karta dobila dugmad dana i klizač po danu. Repo je od danas na GitHubu
 (`origin/master`) — pushati nakon zelenih provjera.
 
-**11.9.2026. — OBORINA PREPISANA NA MARKOVIM NALAZIMA (NECOMMITANO).**
+**12.9.2026. — ZONE, POSTOTAK, OTA I MJERENJE PROTIV DRUGIH.** Četiri
+popravka, tri nađena Markovim nalazima na ekranu. Zapis:
+`docs/records/2026-09-12-zone-postotak-ota-mjerenja.md`.
+
+**Budva i Danilovgrad: MI smo bili u pravu, vrijemeradar nije** — i to s
+neovisnom potvrdom s tla (Tivat `TSRA` 16 km od Budve; Podgorica bez
+pojave 18 km od Danilovgrada). Prvi put da se to dalo dokazati.
+
+**Vremenske zone su bile pravi kvar:** za Sidney u Ohiju je traka
+počinjala od 15:00 umjesto od 09:00 — ŠEST sati izgubljeno. Podaci su VEĆ
+dolazili u zoni mjesta, ali ih je `parseLocal` gradio u zoni UREĐAJA. Sat
+i datum na heroju sad su mjestovi, uz oznaku `UTC−4`. **Prvi popravak nije
+radio** (`buildBundle` nije prepisivao polje) i Marko je to odmah vidio —
+zato test sad drži cijeli lanac.
+
+**Vjerojatnost oborine prešla na `best_match`:** izmjereno na 288 sati ×
+12 mjesta da je ECMWF viši u 173 sata, niži u 36 (+18.2 pb prosjek), a
+točnost je IZJEDNAČENA. Mijenja se kalibracija, ne pogađanje.
+
+**OTA ažuriranja** (`expo-updates`, fingerprint) — JS izmjene idu
+`eas update`-om bez builda i bez računala na Metru. Traži jedan build po
+platformi da se ugradi.
+
+**Koliko smo točni, izmjereno obostrano:** u Hrvatskoj 34/34 uz NULA
+lažnih kiša (ostali po 2) i najbolja naoblaka; u Europi 13/19, zadnji od
+četiri, jer propuštamo rosulju ispod praga. **Nismo najtočniji nego
+najoprezniji** — u Hrvatskoj prednost, u Norveškoj mana.
+
+**11.9.2026. — OBORINA PREPISANA NA MARKOVIM NALAZIMA.**
 Dan je počeo s „u Zadru piše oblačno, a vani kiša lije" i završio s osam
 odvojenih kvarova — svaki nađen njegovim nalazom, svaki IZMJEREN prije
 popravka. Zapis: `docs/records/2026-09-11-oborina-v2-i-mjerni-alati.md`.
@@ -131,11 +159,15 @@ zaslonu u 270° luk s točkom.
 
 | Što | Status | Bilješka |
 |---|---|---|
-| **OBORINA V2 — PROVJERA na uređaju** | **Napisano, NEPROVJERENO, NECOMMITANO** | Sve je JS, reload s `-c`. Osam kvarova nađenih 11.9. na Markovim nalazima (zapis `2026-09-11-oborina-v2-i-mjerni-alati.md`). Gledati: (1) **Omiš/Senj/Trilj/Malinska NE pišu kišu** kad kamere pokazuju suho — uska jezgra više ne prolazi; (2) **Zagreb piše kišu** kad postaje javljaju kišu (prag mediana 14, ne 15); (3) traka **nema rosulju uz vedro nebo** ni 80 % uz 0 mm; (4) traka se na promjenu grada **vraća na početak**; (5) **kiša ne kreće od pola** ciklusa pa u krug; (6) tražilica ima **jedan Hvar** (otok i uzletište ispali); (7) „Moja lokacija" u ZG/ST/RI/OS piše **četvrt** („Trešnjevka · Zagreb") — samo ako uređaj vrati `district`. Konzola: `[radar]` i `[v2]` po mjestu |
+| **PROVJERA na uređaju — 12.9. (zone, postotak, hero sat)** | **Čeka Marka, reload s `-c`** | Sve je JS. **Strani grad** (Sidney Ohio, New York): traka počinje od PRAVOG sljedećeg sata po mjestu, hero sat i datum su MJESTOVI, uz oznaku `UTC−4` pokraj sata. Domaći grad NEMA oznaku. **Postotak u traci** je iz `best_match` — niži i bliži ostalim aplikacijama; Budvina večer pada s 82 % na 18 %, gledati čini li se to preniskim. Konzola `[radar]` po mjestu |
+| **Nova dev buildova zbog `expo-updates`** | **Sljedeći korak, 2 builda** | OTA je konfiguriran ali je `expo-updates` NATIVNI modul — dok se ne ugradi, `eas update` nema u što sjesti. Ista dva builda pokrivaju i haptiku i widget prsten. Nakon toga JS izmjene idu `npx eas-cli update --channel development` bez builda i bez računala na Metru |
+| **Buduci sati u traci nad planinom** | **Otvoreno, nemam izmjeren popravak** | Danilovgrad 14–17 h: mi 2/3/7/9 %, AccuWeather 43/47/51/52. Uzrok je ECMWF-ova naoblaka (6 % neba dok pada), koju `dropImpossiblePrecip` uzme kao dokaz suhoće. **Provjereno i ODBAČENO:** neslaganje modela ne predviđa grešku (ECMWF griješi 20–21 % u obje skupine, lažno „vedro" 0/40); best_match naoblaka je lošija (26.0 % vs 20.1 %); WeatherAPI ne pomaže (bliži istini 3× prema našima 10×). Radar štiti SAMO tekući sat, a traka počinje od sljedećeg. Pravi lijek je satelit |
+| **OBORINA V2 — provjera od 11.9.** | **Commitano, čeka uređaj** | Reload s `-c`. Gledati: (1) **Omiš/Senj/Trilj/Malinska NE pišu kišu** kad kamere pokazuju suho; (2) **Zagreb piše kišu** kad postaje javljaju kišu; (3) traka **nema rosulju uz vedro nebo** ni 80 % uz 0 mm; (4) traka se na promjenu grada **vraća na početak**; (5) **kiša ne kreće od pola** ciklusa; (6) tražilica ima **jedan Hvar**; (7) „Moja lokacija" u ZG/ST/RI/OS piše **četvrt** — Marko potvrdio 12.9. da radi iz tražilice, GPS put NEPROVJEREN |
+| **Slaba kiša i rosulja se propuštaju** | **Otvoreno, izmjereno** | Europa 12.9. (19 METAR postaja): uhvatili 1 od 7 kiša, svih 6 promašaja `-RA`/`DZ` na 10–12 dBZ = 0.15–0.21 mm/h, ispod praga `DBZ_DRY` 20. U Hrvatskoj isti oprez daje 0 lažnih kiša (ostali po 2). Mogući put: spustiti prag SAMO gdje je odjek širok — rosulja je široka, dalmatinski clutter uzak. Treba mjerenje iz KIŠNOG razdoblja nad Hrvatskom (`node scripts/compare-hr.mjs`) |
 | **V2 engine: preuzima li odluku** | **Shadow mode, čeka brojke** | `currentWeatherV2.ts` se računa PARALELNO, app koristi V1. Replay (240 AT postaja, mm/10 min): V2 hvata 65 % kiše prema 41 %, ali 19 lažnih prema 12 — RAZMJENA, ne poboljšanje, i mjereno u Austriji gdje nema orografskog cluttera. Treba par dana `[v2]` logova iz Hrvatske pa odluka |
-| **yr.no za traku** | **Izmjereno, čeka Markovu riječ** | Nakon današnjeg čišćenja bi maknuo JOŠ 10 % oborinskih sati (Zagreb 0.4 mm uz 100 % neba; Dubrovnik kod 96 „nevrijeme s tučom" → yr `partlycloudy`). Samo kao OBARANJE — svih 18 razlika išlo je u tom smjeru. Za temperaturu NE: 3.29 °C (ECMWF) vs 3.46 (yr) na 40 postaja. Klijent je bio napisan pa OBRISAN kao mrtav kod; mjerenje je u zapisu |
+| **yr.no za traku** | **Riješeno 12.9. — NE za postotak** | yr **nema `probability_of_precipitation` za naše područje** (provjereno: Oslo/Bergen/Stockholm ga imaju, Danilovgrad/Zadar/Zagreb/Split nemaju — MET ga računa iz nordijskog ansambla). Umjesto njega je uzet `best_match`, isti Open-Meteo poziv koji app već radi. Za OBARANJE oborine yr i dalje stoji kao ideja, ali nije ugrađen; za temperaturu NE (3.29 vs 3.46 °C na 40 postaja). U Europi je 12.9. bio NAJTOČNIJI od četiri (17/19) — vrijedi zapamtiti ako se ikad vrati pitanje |
 | **Dataset za vlastiti model** | **Alat spreman, treba ga vrtjeti** | `node scripts/collect-dataset.mjs` → 230 redaka po pokretanju (192 AT postaje s mm + 38 DHMZ + 40 featurea + istina) u `data/*.jsonl`. Treba TJEDNIMA i raznih vremena. Jedino što rješava ono što pragovi ne mogu: vezu radar→tlo PO LOKACIJI (Mosor sistematski laže) |
-| **Naoblaka kasni** | Otvoreno, treba NOVI izvor | Markov nalaz: Hvar vedro, app oblačno. Za nebo postoje samo postaja (termin 25–90 min) i model (~2 h); radar oblake NE VIDI i odsutnost odjeka NIJE vedro (to bi svaki oblačan zimski dan pretvorilo u vedar). Jedini brži izvor je satelit (Meteosat 5–15 min) — nije u projektu, treba provjeriti smije li se uopće koristiti |
+| **Naoblaka: satelit je IZMJEREN, nije ugrađen** | **Otvoreno, čeka noć i Istru** | Markov nalaz: Hvar vedro, app oblačno. **EUMETSAT `view.eumetsat.int/geoserver/wms` je izmjeren 12.9.** — bez ključa, latencija ~12 min (prema 25–90 min kod postaje i ~2 h kod modela), sloj `msg_rss:rgb_natural_nrt`. Na 43 DHMZ postaje: **satelit 15.7 % greške, ECMWF 20.8 %**, bliži mjerenju 27× prema 16×; razredi monotoni, vedro i oblačno se NE preklapaju. Zadar mjereno 45 % → satelit 35 %, model 14 %. **Prije ugradnje riješiti dvoje:** (1) NOĆ — `rgb_natural` je vidljivi spektar, noću bi svaku noć proglasio vedrom, treba IR sloj i vlastito baždarenje; (2) Istra/Kvarner (Rovinj 60 %, Pula 46 % greške, uži okvir NE pomaže). Detalji u zapisu `2026-09-11-satelit-i-dhmz-radar-izmjereno.md` |
 | **Dekoder boja: crveni pojas ±5 dBZ** | Otvoreno, sitno | `dbzFromUniversalBlue` je kontinuiran (sidra izmjerena na LibreWXR-u); iznad 47 dBZ odstupa do ±5 od sidra. Nebitno za pragove 20/42, ali ako se pragovi pomaknu u crveno, treba mu gušća tablica. `dbzFromGrey` (LibreWXR shema 0) ostaje izvezen i testiran, sudac ga ne koristi |
 | **Brzina (10.9.): BROJKE** | **Marko potvrdio brzinu** („puno brže"); ostaje IZMJERITI | Kod je commitan I PUSHAN. Ostaje dvoje: (1) oznake u konzoli Metroa — po dodiru na grad `[perf] search:tap → …` i `[perf] stack nakon prijelaza: [index:…]` (ako piše i `search`, stari kvar je živ), pa broj `home:content(N°)` oznaka = koliko se puta vidjela DRUGA brojka (cilj 1); (2) release build na starijem Androidu + `dumpsys meminfo` nakon 1/10/20 prebacivanja — traži se PLATO. Postupak u `docs/2026-09-10-perf-baseline.md`. Ta memorija je i JEDINI kriterij za MapLibre na `/map` (vidi odluke) |
 | **Provjera na uređaju — 10.9.: ostalo iz brzine** | **Čeka Marka, reload** | Pelud: „Nema peludi" na Helsinkiju (zeleno, skala s markerom na dnu), New York bez kartice. Ladica: otvoriti/zatvoriti (ambijent zaglavlja se pali samo otvorena), temperature u redovima. Karta doma: pregled ne treperi pri promjeni grada (kamera skače, radar je globalan okvir do 10 min star). Restart aplikacije: poznati grad iz diska bez mreže (persister). Upozorenja za strani grad: drugi put bez geokodiranja |
@@ -163,7 +195,7 @@ zaslonu u 270° luk s točkom.
 
 ## Next Step
 
-### 0. OBORINA V2 — PROVJERA PRIJE COMMITA
+### 0. PROVJERA NA UREĐAJU — 12.9. (zone, postotak, hero sat)
 
 Sve je JS, ali Metro treba `-c` (cache je 11.9. dvaput zavarao — stari
 `radarJudge` je preživio običan reload):
@@ -172,33 +204,47 @@ Sve je JS, ali Metro treba `-c` (cache je 11.9. dvaput zavarao — stari
 npx expo start --dev-client -c
 ```
 
-Konzola po mjestu ispisuje DVIJE linije (V1 odlučuje, V2 je shadow):
+**Strani grad je glavna stvar** (Sidney Ohio, New York, Tokio):
 
+1. **Traka počinje od PRAVOG sljedećeg sata po mjestu.** Izmjereno 12.9.:
+   u Ohiju 08:11, app je crtala od 15:00 i gubila ŠEST sati. Sad mora
+   početi od 09:00.
+2. **Hero sat i datum su MJESTOVI**, uz oznaku pomaka: `08:18 · UTC−4`.
+   Domaći grad NEMA oznaku (`zoneLabel` vraća prazno).
+3. Datum mora biti datum MJESTA — Ohio noću ne smije pisati sutrašnji dan.
+
+**Postotak u traci** je od danas iz `best_match`, ne ECMWF-a. Niži je i
+bliži ostalim aplikacijama, ali zna i pretjerati prema dolje: Budvina
+večer pada s 82 % na 18 %. Gledati čini li se to preniskim kroz par dana;
+ako da, mogu vratiti ECMWF ili napraviti sredinu (izmjereno, ne pogođeno).
+
+**Ostalo od 11.9.** (commitano, još neprovjereno na uređaju): Omiš/Senj/
+Trilj/Malinska ne pišu kišu; Zagreb piše kad postaje javljaju; traka bez
+rosulje uz vedro nebo; traka se na promjenu grada vraća na početak; kiša
+ne kreće od pola; jedan Hvar u tražilici. **Četvrt u „Mojoj lokaciji"**
+je Marko potvrdio iz tražilice, ali GPS put (`district` s uređaja) je i
+dalje NEPROVJEREN.
+
+### 0a. Dva builda — `expo-updates`, haptika, widget prsten
+
+OTA je konfiguriran, ali `expo-updates` je NATIVNI modul: dok se ne
+ugradi, `eas update` nema u što sjesti. Isti par buildova pokriva i
+`expo-haptics` i novi 270° prsten.
+
+```bash
+npx eas-cli build --profile development --platform ios
+npx eas-cli build --profile development --platform android
 ```
-[radar] Zadar: 27 dBZ na 45% kruga (okvir −3 min), postaja 3.5, model 51 → 3.5 (station)
-[v2] Zadar: ISTO | bez oborine conf 0.18 (station) | nebo mostly_cloudy conf 0.82
+
+Nakon toga JS izmjene idu bez builda i bez računala na Metru:
+
+```bash
+npx eas-cli update --channel development -m "opis izmjene"
 ```
 
-Što mora vrijediti — svako je Markov nalaz od 11.9. (detalji i brojke u
-zapisu `2026-09-11-oborina-v2-i-mjerni-alati.md`):
-
-1. **Omiš, Senj, Trilj, Malinska NE pišu kišu** kad je vani suho. Sva
-   četiri su krš i planina; radar tamo vidi brdo i vidi ga POSTOJANO, pa
-   postojanost ondje ne razlikuje ništa — jedino ŠIRINA odjeka.
-2. **Zagreb piše kišu** kad postaje javljaju kišu. Prag mediana je 14, ne
-   15 — kiša je pala za jednu jedinicu (Puntijarka je javljala „kiša").
-3. **Traka nema rosulju uz vedro nebo** (Zadar 14 h: bilo „rosulja 0.8 mm
-   94 %" uz 14 % neba) ni **80 % uz 0 mm** (Zadar 15 h).
-4. **Traka se na promjenu grada vraća na početak** — prije je ostajala na
-   sredini tuđe prognoze.
-5. **Kiša ne kreće od pola** pa u krug. Uzrok je bio `key={name}`: sloj se
-   ne premontira, pa je `Animated.loop` kretao od zatečene vrijednosti.
-6. **Tražilica ima JEDAN Hvar** — otok (ISL) i uzletište (AIRF) više nisu
-   „mjesta". Provjeriti da sela OSTAJU (Polača, Pridraga, Tkon).
-7. **„Moja lokacija" u ZG/ST/RI/OS piše četvrt** („Trešnjevka · Zagreb").
-   Radi samo ako uređaj vrati `district` — NEPROVJERENO, javi što piše.
-
-Ako prođe → commit. Oborina je ZASEBAN commit od mjernih alata.
+`fingerprint` politika znači: update koji traži nativni modul kojeg build
+nema NEĆE sjesti (zaštita, ne smetnja). Dodavanje nativnog modula i dalje
+traži novi build.
 
 ### 0b. Brzina (10.9.) — BROJKE
 
@@ -293,6 +339,15 @@ Sastaviti zahtjev za ponovnu uporabu informacija prema NZJZ Štampar
 
 | Odluka | Zašto |
 |---|---|
+| **Satni ključevi su u vremenu MJESTA — svaka usporedba „je li sat prošao" ide kroz `placeNow`** (12.9.2026., `utils/format.ts`) | Markov nalaz na Sidneyju u Ohiju: ondje 08:11, a traka počinjala od 15:00 — ŠEST sati izgubljeno. Podaci su VEĆ dolazili točni (`timezone=auto` na svih pet poziva), ali `parseLocal` gradi `new Date(y, m-1, d, hh, mm)`, a taj konstruktor uvijek radi u zoni UREĐAJA. Pogađa `futureHours`, `currentHourIso`, `mapHourly`, `withCurrentCode`/`withPastCodes`, `wetNowIso`. Na domaćim gradovima se NE VIDI jer je pomak nula — zato je preživjelo do prvog stranog grada. Uz sat ide oznaka POMAKA (`UTC−4`), ne kratice: „CST" je i Amerika i Kina |
+| **Vjerojatnost oborine dolazi iz `best_match`, ne ECMWF-a** (12.9.2026., `HOURLY_FROM_FALLBACK`) | Markov nalaz: „jako puno se razlikujemo od ostatka aplikacija i to za 10ke posto". Danilovgrad 14–17 h: ECMWF 96/100/100/98 %, best_match 53/60/70/68, AccuWeather 43/47/51/52, vrijemeradar 80/50/50/40 — **ECMWF je jedini na 100**. Izmjereno na 288 sati × 12 mjesta: viši u 173 sata, niži u 36, prosjek +18.2 pb. Uzrok je poznat: na mreži od 25 km je njegova „vjerojatnost" bliža pitanju „koliki DIO ćelije dobije kap" nego „kolika je šansa nad tvojom točkom". **Točnost je izjednačena** (Brier 0.0791 vs 0.0765, oba 5/5 mokrih) — mijenja se KALIBRACIJA, ne pogađanje. Temperatura ostaje ECMWF-ova (0.97 vs 1.42 °C). Dnevni maksimum NIJE diran (+5.9 pb, preslabo) |
+| **Radar štiti tekući sat od `dropImpossiblePrecip`; SAMO presuda radara, ne modela** (12.9.2026.) | Pravilo je 11.9. izvedeno iz JEDNOG zadarskog slučaja gdje je niska naoblaka bila TOČNA. Nad planinom je ista niska naoblaka GREŠKA MODELA: ćelija nastane nad vrhom, mreža od 25 km je razmaže, pa nad točkom ispadne 6 % neba uz 94 % vjerojatnosti. Izmjereno na 14 jadranskih mjesta: očistilo 10, **7 ispravno i 3 pogrešno** (Danilovgrad 92→4 % uz radar 31 dBZ na 100 % kruga). Naoblaka i mm kod obje skupine su praktički isti — jedino ih razlikuje vidi li radar odjek. Štit vrijedi samo za presudu RADARA: model je upravo taj koji izmišlja kišu iz vedra neba, pa bi njime štitio vlastitu grešku. **Granica:** traka počinje od SLJEDEĆEG sata, pa ovo korisnik u traci ne vidi |
+| **Nismo najtočniji nego NAJOPREZNIJI — i to je u Hrvatskoj prednost** (12.9.2026., izmjereno obostrano) | Markov prioritet: „bitnije je da naša app u Hrvatskoj bude najtočnija". **Hrvatska (34 DHMZ postaje, sve suhe):** mi 34/34 uz NULA lažnih kiša, ECMWF/yr/WeatherAPI svi 32/34 s po 2 lažne; naoblaka 19.9 % prema yr 20.9 i WeatherAPI 37.0. **Europa (19 METAR postaja, 7 mokrih):** yr 17/19, ECMWF 16, WeatherAPI 15, **mi 13 — zadnji**, jer smo uhvatili 1 od 7 kiša. Svih 6 promašaja je `-RA`/`DZ` na 10–12 dBZ (0.15–0.21 mm/h), ispod praga `DBZ_DRY` 20. Sjeverna Europa je rosulja, Hrvatska je krš — isti oprez ondje je mana, ovdje prednost. **Hrvatska polovica „hvatamo li pravu kišu" NIJE izmjerena** (12.9. je bilo suho): pustiti `compare-hr.mjs` kad dođe kiša |
+| **`expo-updates` s politikom `fingerprint`, kanal i na `development`** (12.9.2026.) | Markov zahtjev: „da ne moram svaki put izbuildati da vidim promjene dok nisam doma". Dotad je dev build vani pokazivao stanje od dana kad je napravljen (nosi zapečeni JS kao rezervu). `fingerprint` umjesto `appVersion`: računa runtime iz onoga što stvarno dira nativnu stranu, pa update koji traži modul kojeg build nema NE MOŽE sjesti — `appVersion` bi to dopustio jer `version` ostaje „1.0.0" i kad se doda modul, a projekt ih ima pet. Kanal je dodan i na `development` (dokumentacija ga stavlja samo na preview/production) jer je dev build onaj koji se nosi po gradu |
+| **Neslaganje modela NE predviđa grešku naoblake** (negativan nalaz, 12.9.2026.) | Hipoteza je bila da `dropImpossiblePrecip` ne smije brisati kad se ECMWF i best_match razilaze oko neba. Izmjereno na 40 METAR postaja: ECMWF griješi JEDNAKO (20–21 %) bez obzira slažu li se, a lažno „vedro" (< 30 % uz stvarnih ≥ 50 %) je **0** u obje neslagajuće skupine. Uz to je best_match naoblaka LOŠIJA zamjena: 26.0 % prema 20.1 %. Danilovgrad je iznimka, ne pravilo — ne mijenjati pravilo po njemu |
+| **WeatherAPI ne bi poboljšao traku** (negativan nalaz, 12.9.2026.) | Ima `chance_of_rain` za naše područje (za razliku od yr-a) i 100k poziva/mj uz komercijalnu uporabu, pa je izgledao kao rješenje. Izmjereno protiv radara na 14 jadranskih mjesta: naša app bliža istini **10×**, WeatherAPI **3×**. Naoblaka mu griješi 49.8 % prema ECMWF-ovih 20.4 % (14 METAR postaja) — Vršac i Sarajevo CAVOK, on tvrdi 100 % neba. Njegovih ~36–48 % zvuči razumno jer je umjereno, ali ne razlikuje mjesta gdje pada od onih gdje ne pada |
+| **yr NEMA `probability_of_precipitation` za Hrvatsku** (12.9.2026., ispravak ranije tvrdnje) | Ranije je rečeno da yr taj podatak uopće nema — netočno. Ima ga, ali SAMO za Skandinaviju: Oslo 4.5 %, Bergen 67.3 %, Stockholm 0 %; Danilovgrad, Zadar, Zagreb i Split ga nemaju. MET ga računa iz vlastitog nordijskog ansambla, a za ostatak svijeta pada na globalni ECMWF gdje ga ne objavljuje. Zato je za postotak uzet `best_match`. yr ostaje kandidat za OBARANJE oborine (mm i simbol ima svugdje) |
+| **Open-Meteo besplatni tier je SAMO nekomercijalan** (12.9.2026., pravna provjera) | Njihovi uvjeti doslovno: nekomercijalno su „privatne ili neprofitne aplikacije **koje nemaju pretplate ni oglase**"; komercijalno su „aplikacije koje imaju pretplate ili prikazuju oglase". **Burin kakav je danas je u redu** — nema pretplate ni oglasa, objava na App Storeu to sama po sebi ne mijenja. Postaje problem čim se doda pretplata ili oglasi, a Open-Meteo nosi jezgru (temperatura, prognoza, geokodiranje, pelud, AQI). Limiti: 10 000 poziva/dan, 5 000/h, 600/min; atribucija CC-BY 4.0 obavezna. Za usporedbu, **yr i DHMZ su čisti i za komercijalnu uporabu** |
 | **Radar SUDI oborinu KROZ CIJELI RASPON, ali jaka jezgra mora biti ŠIROKA** (11.9.2026., `utils/radarJudge.ts`) | Prva izvedba (10.9.) imala je MRTVU ZONU 20–42 dBZ: radar se dohvaćao svakih 10 min, gledao i BACIO. Zadar je 20 minuta imao 33–39 dBZ dok je app pisala „oblačno". Sad kod dolazi po FIZICI (Marshall-Palmer, Z = 200·R^1.6): 20 dBZ = 0.65 mm/h, 28 = 2, 40 = 11.5, 55 = 100. Ali JAKA tvrdnja traži ŠIRINU (≥ 40 % kruga), ne postojanost — Markove kamere su isti dan oborile četiri lažne kiše (Omiš 49 dBZ na 6 % kruga POSTOJANO 50 min, Senj, Trilj, Malinska) i sve su bile krš/planina. Radar tamo vidi brdo i vidi ga postojano, pa postojanost ondje ne razlikuje ništa |
 | **Jačina oborine se čita iz MEDIANA, ne iz `maxDbz` ni `p90`** | Markov nalaz s kamere: app i vrijemeradar.hr tvrdili su grmljavinsko nevrijeme nad Splitom, a na Rivi ljudi šeću bez kišobrana. Izmjereno nad istom točkom, ISTI okvir, samo drugi polumjer uzorka: 1 km → p90 38 (8.9 mm/h), 3 km → p90 47 (31.6 mm/h), 5 km → 47. **Median je 38 na SVAKOM polumjeru.** Dakle s p90 je odgovor ovisio o tome koliki krug gledamo, a ne koliko pada. `p90` ostaje za drugo pitanje — „ima li konvektivne jezgre u blizini" (grmljavina) |
 | **Postojanost ≥ 25 % okvira; postaja ≤ 8 km i ≤ 25 min za oborinu; ≤ 2 km obara i jak odjek** | Tri odvojena Markova nalaza istog dana. (1) Metković: 23 dBZ u JEDNOM okviru od pet → „slaba kiša"; prag postojanosti je lažne kiše smanjio s 12 na 7 na 240 postaja. (2) Zadar: postaja na Puntamici (2.3 km) javlja „jaka kiša", Zadar-aerodrom (10.8 km) „pretežno oblačno" — U ISTOM TERMINU, i oba su TOČNA jer je kiša zakrpasta. (3) Senj: postaja na 400 m kaže „oblačno", radar 48 dBZ na 16 % kruga — orografska jezgra nad Velebitom; postaja na istom pikselu smije je oboriti, i to do 45 min jer je DHMZ termin u objavi već 25–40 min star |
@@ -438,6 +493,14 @@ node scripts/radar-replay.mjs --stations 250 --save replay-dataset.json
 node scripts/radar-tune.mjs replay-dataset.json      # pretraga pragova
 node scripts/compare-vrijemeradar.mjs                # 113 mjesta vs vrijemeradar.hr
 node scripts/compare-vrijemeradar.mjs --places zadar,split
+
+# 12.9.2026. — protiv MJERENJA NA TLU, ne protiv tuđih aplikacija:
+node scripts/compare-hr.mjs            # mi vs yr/WeatherAPI/ECMWF, istina = DHMZ
+node scripts/compare-apps.mjs          # isto, istina = METAR (cijela Europa)
+node scripts/probe-place.mjs 42.286,18.840 Budva   # sve što sudac vidi + KOJA grana
+node scripts/rain-check.mjs            # nađe gdje PADA pa ondje pusti sudca
+node scripts/compare-prob.mjs          # ECMWF vs best_match (slaganje + Brier)
+node scripts/check-cleaning.mjs        # griješi li dropImpossiblePrecip
 node scripts/collect-dataset.mjs                     # +230 redaka u data/*.jsonl
 ```
 
@@ -559,6 +622,21 @@ Hrvatske to pokažu (vidi Current Status).
 razmaže oborinu iz susjedne ćelije) i visok postotak uz 0 mm. Kod se
 zamjenjuje nebom iz naoblake, postotak se stišće na `cloudCover / 3`.
 Primjenjuje se PRIJE `withCurrentCode`, na `hourly` i `hourlyAll`.
+Od 12.9. prima `wetNowIso`: kad je RADAR presudio oborinu, tekući sat se
+NE dira — nad planinom je niska naoblaka greška modela, ne dokaz suhoće.
+
+**Vrijeme je u zoni MJESTA, ne uređaja** (12.9.2026.): `timezone=auto` je
+na svim Open-Meteo pozivima, pa satni ključevi dolaze u vremenu grada.
+`placeNow(now, utcOffsetSeconds)` u `utils/format.ts` pomiče „sada" u tu
+zonu, i kroz njega ide SVAKA usporedba „je li sat prošao" — `futureHours`,
+rez u `fetchForecast`, `withCurrentCode`/`withPastCodes`, `wetNowIso`.
+Pomak putuje `fetchForecast` → `WeatherBundle.utcOffsetSeconds` →
+`Hero`; `zoneLabel` ispisuje `UTC−4` uz sat, ali SAMO za strani grad.
+
+**Vjerojatnost oborine je iz `best_match`**, ne ECMWF-a
+(`HOURLY_FROM_FALLBACK` u `api/openMeteo.ts`, uz `uv_index` i
+`visibility`). ECMWF ju sustavno napuhuje (+18.2 pb na 288 sati); sve
+ostalo — temperatura, mm, kod, naoblaka — ostaje ECMWF-ovo.
 
 **Brzina i keš** (10.9.2026.): do početne se s podekrana ide SAMO
 `router.back()`/`dismissAll()` — `navigate` premješta, ne popa (vidi
@@ -684,6 +762,12 @@ scripts/radar-replay.mjs           V1/V2 protiv GeoSphere Austria (mm/10 min)
 scripts/radar-tune.mjs             pretraga pragova na spremljenom datasetu
 scripts/compare-vrijemeradar.mjs   usporedba s vrijemeradar.hr, 113 mjesta
 scripts/collect-dataset.mjs        JSONL dataset za budući vlastiti model
+scripts/compare-hr.mjs             mi vs yr/WeatherAPI/ECMWF, ISTINA = DHMZ
+scripts/compare-apps.mjs           isto, ISTINA = METAR (cijela Europa)
+scripts/probe-place.mjs            jedna točka: sve što sudac vidi + koja grana
+scripts/rain-check.mjs             nađe gdje u Europi PADA pa ondje sudi
+scripts/compare-prob.mjs           ECMWF vs best_match (slaganje + Brier)
+scripts/check-cleaning.mjs         griješi li dropImpossiblePrecip
 data/                 LOKALNO, u .gitignoreu — mjerni podaci (*.jsonl)
 docs/                 LOKALNO, u .gitignoreu — zapisi odluka su radni
                       materijal; opće odluke žive OVDJE i u README-u
