@@ -14,6 +14,35 @@ const config: ExpoConfig = {
    */
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
+  /*
+   * OTA AŽURIRANJA (11.9.2026., Markov zahtjev: "da ne moram svaki put
+   * izbuildati da vidim promjene dok nisam doma").
+   *
+   * Bez `expo-updates` je SVAKA izmjena tražila novi build — i dev build
+   * je vani pokazivao stanje od dana kad je napravljen, jer nosi svoj
+   * zapečeni JS kao rezervu. Sad se JS šalje `eas update`-om u POSTOJEĆI
+   * build, bez kvote buildova i bez računala na Metru.
+   *
+   * `fingerprint` je odabran umjesto `appVersion`: fingerprint računa
+   * runtime iz onoga što stvarno utječe na NATIVNU stranu (paketi,
+   * plugini, konfiguracija), pa update koji traži nativni modul kojeg
+   * build nema NE MOŽE sjesti u taj build. `appVersion` bi to dopustio
+   * jer `version` ostaje "1.0.0" i kad dodamo nativni modul — a ovaj
+   * projekt ih ima pet (widgeti, MapLibre, haptika, lokacija, splash) i
+   * mijenja ih često. Ista alatka već se koristi u projektu: fingerprint
+   * je 6.9. potvrdio što je unutar buildova 13/4.
+   *
+   * Posljedica koju treba znati: dodavanje ili promjena nativnog modula
+   * MIJENJA fingerprint, pa takva izmjena i dalje traži novi build. JS
+   * izmjene (logika, ekrani, tekstovi, sudac za oborinu) ne mijenjaju
+   * ništa i idu updateom.
+   */
+  runtimeVersion: {
+    policy: "fingerprint",
+  },
+  updates: {
+    url: "https://u.expo.dev/a3051112-d9b2-49cd-9e93-d2eeffde3d52",
+  },
   ios: {
     bundleIdentifier: "com.markop.burin",
     supportsTablet: false,
