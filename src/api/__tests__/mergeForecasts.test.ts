@@ -4,6 +4,7 @@ const hourly = (
   times: string[],
   temps: (number | null)[],
   uv: (number | null)[] = times.map(() => 5),
+  prob: (number | null)[] = times.map(() => 0),
 ) =>
   ({
     time: times,
@@ -12,7 +13,7 @@ const hourly = (
     weather_code: times.map(() => 0),
     is_day: times.map(() => 1),
     precipitation: times.map(() => 0),
-    precipitation_probability: times.map(() => 0),
+    precipitation_probability: prob,
     wind_speed_10m: times.map(() => 5),
     wind_direction_10m: times.map(() => 180),
     wind_gusts_10m: times.map(() => 9),
@@ -58,6 +59,29 @@ describe("mergeForecasts", () => {
     const m = mergeForecasts(primary, fallback);
     expect(m.hourly.uv_index).toEqual([7, 8]);
     expect(m.hourly.visibility).toEqual([20000, 20000]);
+  });
+
+  /*
+   * VJEROJATNOST OBORINE IZ best_match (12.9.2026., Markov nalaz).
+   *
+   * Brojke su IZMJERENE na Danilovgradu istog dana: ECMWF 96 % za 14 h i
+   * 100 % za 15 h, best_match 53 % i 60 %. Za usporedbu, AccuWeather je
+   * davao 43/47, vrijemeradar 80/50, WeatherAPI 37/39 — ECMWF je jedini
+   * na 100. Na 288 sati je ECMWF viši u 173, niži u 36.
+   */
+  it("vjerojatnost oborine uzima iz rezervnog — ECMWF je napuhan", () => {
+    const primary = {
+      hourly: hourly(TIMES, [24, 23], [5, 5], [96, 100]),
+      daily: daily(DATES, [24, 23]),
+    };
+    const fallback = {
+      hourly: hourly(TIMES, [28, 28], [5, 5], [53, 60]),
+      daily: daily(DATES, [28, 28]),
+    };
+    const m = mergeForecasts(primary, fallback);
+    expect(m.hourly.precipitation_probability).toEqual([53, 60]);
+    // Temperatura i dalje ECMWF — mijenja se SAMO vjerojatnost.
+    expect(m.hourly.temperature_2m).toEqual([24, 23]);
   });
 
   it("gdje primarni nema podatka koristi rezervni (zadnji dani)", () => {

@@ -1,5 +1,5 @@
 import type { HourlyPoint } from "../types";
-import { CLEAR_SKY_MAX_CLOUD, CLEAR_SKY_MAX_MM, clearSkyProbCap, dropImpossiblePrecip, withCurrentCode, withPastCodes } from "../weather";
+import { CLEAR_SKY_MAX_CLOUD, CLEAR_SKY_MAX_MM, buildBundle, clearSkyProbCap, dropImpossiblePrecip, withCurrentCode, withPastCodes } from "../weather";
 
 /**
  * Prvi stupac trake sati nosi ISTI kod kao heroj (10.9.2026.) — isto
@@ -141,6 +141,54 @@ describe("dropImpossiblePrecip", () => {
   });
 
   /*
+   * RADAR ŠTITI TEKUĆI SAT (12.9.2026., Markov nalaz Budva/Danilovgrad).
+   *
+   * Sva tri slučaja su IZMJERENA istog dana na pravim podacima; brojke
+   * su doslovne. Bez štita je app za Danilovgrad pisala 4 % dok je radar
+   * nad tom točkom vidio 31 dBZ na 100 % kruga, a tri druge aplikacije
+   * stajale na 38-80 %.
+   */
+  describe("radar štiti tekući sat", () => {
+    const NOW = "2026-09-12T13:00";
+    // Danilovgrad 12.9. 13:00: ECMWF kod 53, 0.5 mm, 92 %, 11 % neba.
+    const danilovgrad = hp({ time: NOW, code: 53, precip: 0.5, precipProb: 92, cloudCover: 11 });
+
+    it("Danilovgrad: radar vidi kišu → sat se NE čisti", () => {
+      const out = dropImpossiblePrecip([danilovgrad], NOW);
+      expect(out[0]!.code).toBe(53);
+      expect(out[0]!.precip).toBe(0.5);
+      expect(out[0]!.precipProb).toBe(92);
+    });
+
+    it("isti sat BEZ radara se čisti kao dosad — 92 % → 4 %", () => {
+      const out = dropImpossiblePrecip([danilovgrad]);
+      expect(out[0]!.code).toBe(0); // 11 % neba → vedro
+      expect(out[0]!.precipProb).toBe(4);
+    });
+
+    it("štit vrijedi SAMO za tekući sat, ne za buduće", () => {
+      const future = hp({ time: "2026-09-12T14:00", code: 53, precip: 0.5, precipProb: 94, cloudCover: 6 });
+      const out = dropImpossiblePrecip([danilovgrad, future], NOW);
+      expect(out[0]!.code).toBe(53); // tekući: zaštićen
+      expect(out[1]!.code).toBe(0); // idući sat: očišćen
+    });
+
+    it("Tivat: radar šuti pa se čisti, iako su naoblaka i mm isti", () => {
+      // Izmjereno isti sat: Tivat 0.6 mm, 9 % neba, radar BEZ odjeka.
+      // Naoblaka i mm su kao kod Danilovgrada — razlikuje ih samo radar.
+      const tivat = hp({ time: NOW, code: 51, precip: 0.6, precipProb: 87, cloudCover: 9 });
+      expect(dropImpossiblePrecip([tivat])[0]!.code).toBe(0);
+      expect(dropImpossiblePrecip([tivat])[0]!.precipProb).toBe(3);
+    });
+
+    it("štit ne dira suhi sat s visokim postotkom (Zadar 15:00)", () => {
+      // Grana za `precip === 0` vrijedi i dalje — štit je samo za oborinu.
+      const zadar = hp({ time: "2026-09-12T15:00", code: 1, precip: 0, precipProb: 80, cloudCover: 25 });
+      expect(dropImpossiblePrecip([zadar], NOW)[0]!.precipProb).toBe(8);
+    });
+  });
+
+  /*
    * Markov nalaz, isti sat: „sad za Zadar piše 0 % za sljedeći sat i onda
    * u 15h 79 %, nema smisla — a nije ni 0 vjerojatno". Prva verzija je
    * postotak NULIRALA i time napravila nemoguć skok 0 → 80 %.
@@ -183,5 +231,35 @@ describe("dropImpossiblePrecip", () => {
   it("snijeg i grmljavina se sude istim pravilom", () => {
     expect(dropImpossiblePrecip([hp({ code: 71, precip: 0.2, cloudCover: 10 })])[0]!.code).toBe(0);
     expect(dropImpossiblePrecip([hp({ code: 95, precip: 0.3, cloudCover: 20 })])[0]!.code).toBe(1);
+  });
+});
+
+/**
+ * ZONA MJESTA MORA PREŽIVJETI SASTAVLJANJE PAKETA (12.9.2026.).
+ *
+ * Markov nalaz: nakon prvog popravka je Sidney u Ohiju I DALJE počinjao
+ * od 15:00. Uzrok nije bio `futureHours` (on je bio točan i testiran),
+ * nego `buildBundle`: polje je postojalo u tipu i stizalo do jezgre, ali
+ * se NIJE prepisivalo u paket — pa je `bundle.utcOffsetSeconds` uvijek
+ * bio `undefined` i traka je padala na sat uređaja.
+ *
+ * Pouka je stara pouka projekta: popravak u funkciji koju nitko ne zove
+ * prolazi testove i ne radi. Ovaj test drži CIJELI lanac, ne komad.
+ */
+describe("buildBundle nosi zonu mjesta", () => {
+  const args = {
+    place: { id: "x", name: "Sidney", lat: 40.284, lon: -84.155 },
+    current: {},
+    hourly: [],
+    hourlyAll: [],
+    daily: [],
+  } as unknown as Parameters<typeof buildBundle>[0];
+
+  it("prepisuje utcOffsetSeconds u paket", () => {
+    expect(buildBundle({ ...args, utcOffsetSeconds: -4 * 3600 }).utcOffsetSeconds).toBe(-14400);
+  });
+
+  it("bez zone ostaje undefined — domaći gradovi i stari keš", () => {
+    expect(buildBundle(args).utcOffsetSeconds).toBeUndefined();
   });
 });

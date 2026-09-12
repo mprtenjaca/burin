@@ -1,5 +1,6 @@
 import type { PollenGraded, PollenLevels } from "@/utils/weatherLook";
 
+import { placeNow } from "@/utils/format";
 import { fetchJson } from "./client";
 import type { CurrentWeather, DailyPoint, HourlyPoint, Place } from "./types";
 import { placeId } from "./types";
@@ -251,7 +252,16 @@ export async function fetchCurrentBatch(
   }
 }
 
-type OmForecastResponse = { hourly: OmRawHourly; daily: OmRawDaily };
+type OmForecastResponse = {
+  hourly: OmRawHourly;
+  daily: OmRawDaily;
+  /**
+   * Pomak zone MJESTA (`timezone=auto`). Nosi se dalje kroz paket jer
+   * satni unosi dolaze u vremenu grada, a uređaj je može imati drugu —
+   * vidi `placeNow` u `utils/format.ts` (Markov nalaz na Ohiju).
+   */
+  utc_offset_seconds?: number;
+};
 
 /**
  * Spaja dva izvora: temperature i oborine iz ECMWF-a (izmjereno točnijeg),
@@ -265,6 +275,7 @@ export async function fetchForecast(
   hourly: HourlyPoint[];
   hourlyAll: HourlyPoint[];
   daily: DailyPoint[];
+  utcOffsetSeconds?: number;
 }> {
   const base = `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}&hourly=${HOURLY_PARAMS}&daily=${DAILY_PARAMS}&forecast_days=16&timezone=auto`;
 
@@ -276,17 +287,60 @@ export async function fetchForecast(
   ]);
 
   const merged = mergeForecasts(primary, fallback);
+  /*
+   * Pomak je isti u oba odgovora (ista točka, isti `timezone=auto`), pa
+   * se uzima onaj koji je stigao — `fallback` uvijek postoji.
+   */
+  const utcOffsetSeconds = fallback.utc_offset_seconds ?? primary?.utc_offset_seconds;
+  /*
+   * Rez „od tekućeg sata" mora biti u vremenu MJESTA: za Ohio je u
+   * 08:11 po mjestu app rezala prema hrvatskih 14:12 i gubila šest sati.
+   */
+  const nowThere = placeNow(new Date(), utcOffsetSeconds);
   return {
     // `hourly`: sljedeća 24 h za traku na početnoj.
-    hourly: mapHourly(merged.hourly),
+    hourly: mapHourly(merged.hourly, nowThere),
     // `hourlyAll`: cijeli raspon, za detalje pojedinog dana.
     hourlyAll: mapHourly(merged.hourly, new Date(0), Number.POSITIVE_INFINITY),
     daily: mapDaily(merged.daily),
+    utcOffsetSeconds,
   };
 }
 
-/** Polja koja ECMWF ne daje pa se uzimaju iz zadanog miksa. */
-const HOURLY_FROM_FALLBACK = ["uv_index", "visibility"] as const;
+/**
+ * Polja koja se uzimaju iz zadanog miksa (`best_match`), ne iz ECMWF-a.
+ *
+ * `uv_index` i `visibility`: ECMWF ih uopće NE DAJE.
+ *
+ * `precipitation_probability` (12.9.2026., Markov nalaz: „jako puno se
+ * razlikujemo od ostatka aplikacija i to za 10ke posto"): ECMWF ga daje,
+ * ali je SUSTAVNO NAPUHAN. Izmjereno na 12 mjesta × 24 h (288 sati) u
+ * pojasu gdje se modeli razlikuju:
+ *
+ *   ECMWF VIŠI u 173 sata, NIŽI u 36, isti u 79
+ *   prosječna razlika +18.2 postotna boda, median +7
+ *   razlika ≥ 30 bodova u 84 sata (29 %)
+ *
+ * Danilovgrad 12.9. je bio najjasniji: ECMWF 96/100/100/98 % za 14–17 h,
+ * dok best_match daje 53/60/70/68, AccuWeather 43/47/51/52, vrijemeradar
+ * 80/50/50/40, WeatherAPI 37/39/8/36. **ECMWF je jedini koji ide na
+ * 100 %.** Uzrok je poznat: na mreži od 25 km je njegova „vjerojatnost"
+ * bliža pitanju „koliki dio ćelije dobije kap" nego „kolika je šansa nad
+ * tvojom točkom", pa nad planinom gdje pljusak pokrije cijelu ćeliju ode
+ * na 100.
+ *
+ * Slaganje s WeatherAPI na 192 buduća sata: best_match 6.5 bodova
+ * razlike, ECMWF 9.2. Točnost na prošlim satima (istina = radar) je
+ * IZJEDNAČENA — Brier 0.0791 prema 0.0765, i oba hvataju 5/5 mokrih
+ * sati. Dakle mijenja se KALIBRACIJA, ne sposobnost pogađanja: ECMWF
+ * dobro zna KADA pada (yr to potvrđuje milimetrima), samo pretjeruje s
+ * time koliko je siguran.
+ *
+ * Mijenja se SAMO vjerojatnost. Temperatura, količina oborine i kod
+ * ostaju ECMWF-ovi — za temperaturu je ECMWF izmjereno bolji (0.97 °C
+ * prema 1.42), i to se ovim ne dira.
+ */
+const HOURLY_FROM_FALLBACK = ["uv_index", "visibility", "precipitation_probability"] as const;
 
 /**
  * Za svaki sat/dan uzima vrijednost primarnog modela, a gdje je ona

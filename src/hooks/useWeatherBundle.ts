@@ -8,6 +8,7 @@ import {
   findNearestStation,
 } from "@/api/dhmz";
 import {
+  currentHourIso,
   fetchAirQuality,
   fetchCurrent,
   fetchForecast,
@@ -28,10 +29,11 @@ import {
   withPastCodes,
 } from "@/api/weather";
 import { useLastWeather } from "@/store/lastWeather";
+import { placeNow } from "@/utils/format";
 import { mark } from "@/utils/perf";
 import { useRadarEcho } from "@/hooks/useRadarEcho";
 import { useRadarFrames } from "@/hooks/useRadarFrames";
-import { DBZ_DRY, cloudCodeFromCover, judgeCurrentCode, precipCodeFromDbz, stationAgeMinutes } from "@/utils/radarJudge";
+import { DBZ_DRY, cloudCodeFromCover, isPrecip, judgeCurrentCode, precipCodeFromDbz, stationAgeMinutes } from "@/utils/radarJudge";
 import { judgeCurrentCodeV2, modelAgeMinutes } from "@/utils/currentWeatherV2";
 import { clutterScore, radarTemporal } from "@/utils/radarFeatures";
 import { dhmzTextToCode } from "@/utils/weatherCodes";
@@ -272,6 +274,16 @@ export function useWeatherBundle(place: Place | null) {
      * postaja u istom trenutku (44/46).
      */
     const nowMs = Date.now();
+    /*
+     * „SADA" U ZONI MJESTA (12.9.2026., Markov nalaz na Sidneyju u Ohiju).
+     *
+     * Satni ključevi dolaze u vremenu grada (`timezone=auto`), pa svaka
+     * usporedba s uređajevim satom gađa krivi stupac: u Ohiju je bilo
+     * 08:11 po mjestu, a app je rezala prema hrvatskih 14:12 i gubila
+     * šest sati prognoze. Za domaće gradove je pomak nula i ništa se ne
+     * mijenja. Vidi `placeNow` u `utils/format.ts`.
+     */
+    const nowThere = placeNow(new Date(nowMs), forecast.data.utcOffsetSeconds);
 
     /*
      * PROŠLI SATI TRAKE IZ RADARA (11.9.2026.) — vidi `withPastCodes`.
@@ -287,6 +299,15 @@ export function useWeatherBundle(place: Place | null) {
       }
     }
 
+    /*
+     * ŠTIT ZA TEKUĆI SAT (12.9.2026.) — vidi `dropImpossiblePrecip`.
+     *
+     * Koristi se PRESUDA sudca, ne sirovi dBZ: sudac je taj koji je
+     * odvagnuo širinu, postojanost, median i postaju, pa bi drugo
+     * pravilo ovdje moglo reći suprotno od onoga što heroj piše. Ovako
+     * traka i heroj ne mogu ispasti u neskladu — ako heroj kaže da pada,
+     * tekući stupac se ne čisti.
+     */
     const judged = judgeCurrentCode({
       stationCode: measuredCode,
       stationAgeMin: stationAgeMinutes(dhmzObs?.measuredAt, nowMs),
@@ -305,6 +326,16 @@ export function useWeatherBundle(place: Place | null) {
       covered: radar.covered,
       nowMs,
     });
+    /*
+     * Sat koji radar štiti od čišćenja: samo kad je presuda OBORINA i
+     * kad ju je donio RADAR. Presuda s postaje ili modela ovdje ne
+     * vrijedi — model je upravo taj koji zna izmisliti kišu iz vedra
+     * neba, pa bi njome štitio vlastitu grešku.
+     */
+    const wetNowIso =
+      judged.source === "radar" && isPrecip(judged.code)
+        ? currentHourIso(nowThere)
+        : undefined;
     if (__DEV__) {
       const age = radar.echo ? Math.round((nowMs / 1000 - radar.echo.frameTime) / 60) : null;
       // eslint-disable-next-line no-console
@@ -388,16 +419,19 @@ export function useWeatherBundle(place: Place | null) {
       },
       // Prvi stupac trake (tekući sat) nosi isti kod kao heroj.
       hourly: withPastCodes(
-        withCurrentCode(dropImpossiblePrecip(correctHourly(debiasedHourly, delta)), judged.code, new Date(nowMs)),
+        withCurrentCode(dropImpossiblePrecip(correctHourly(debiasedHourly, delta), wetNowIso), judged.code, nowThere),
         pastCodes,
         new Date(nowMs),
       ),
       hourlyAll: withPastCodes(
-        withCurrentCode(dropImpossiblePrecip(correctHourly(debiasedAll, delta)), judged.code, new Date(nowMs)),
+        withCurrentCode(dropImpossiblePrecip(correctHourly(debiasedAll, delta), wetNowIso), judged.code, nowThere),
         pastCodes,
         new Date(nowMs),
       ),
       daily: debiasDaily(forecast.data.daily, modelBias),
+      // Zona MJESTA — svaka usporedba „je li sat prošao" ide kroz nju
+      // (`placeNow`), inače se strani grad reže po satu uređaja.
+      utcOffsetSeconds: forecast.data.utcOffsetSeconds,
       dhmz: dhmzObs,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

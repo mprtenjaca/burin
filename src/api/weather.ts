@@ -256,6 +256,8 @@ export function buildBundle(args: {
   pollen?: WeatherBundle["pollen"];
   pollenDays?: WeatherBundle["pollenDays"];
   seaTemp?: number;
+  /** Pomak zone MJESTA — bez njega se strani grad reže po satu uređaja. */
+  utcOffsetSeconds?: number;
 }): WeatherBundle {
   return {
     place: args.place,
@@ -268,6 +270,7 @@ export function buildBundle(args: {
     pollen: args.pollen,
     pollenDays: args.pollenDays,
     seaTemp: args.seaTemp,
+    utcOffsetSeconds: args.utcOffsetSeconds,
     fetchedAt: Date.now(),
   };
 }
@@ -352,9 +355,40 @@ export function clearSkyProbCap(cloudCover: number): number {
   return Math.round(cloudCover / 3);
 }
 
-export function dropImpossiblePrecip(hourly: HourlyPoint[]): HourlyPoint[] {
+/**
+ * RADAR ŠTITI TEKUĆI SAT OD ČIŠĆENJA (12.9.2026., Markov nalaz
+ * Budva/Danilovgrad: „jako puno se razlikujemo od ostatka aplikacija").
+ *
+ * Pravilo je 11.9. izvedeno iz JEDNOG zadarskog slučaja, gdje je niska
+ * naoblaka bila TOČNA (14 % neba, yr `clearsky_day`, stvarno suho). Nad
+ * planinama je ista niska naoblaka GREŠKA MODELA, a ne dokaz suhoće:
+ * ćelija nastane nad vrhom i mreža od 25 km je razmaže, pa nad samom
+ * točkom ispadne 6 % neba uz 94 % vjerojatnosti — dvije brojke koje si
+ * proturječe, a pravilo je vjerovalo krivoj.
+ *
+ * IZMJERENO 12.9. na 14 jadranskih mjesta (istina = radar nad točkom):
+ * pravilo je očistilo 10 mjesta, 7 ispravno i 3 POGREŠNO — Danilovgrad
+ * (92 % → 4 %, radar 31 dBZ na 100 % kruga), Cetinje (92 % → 4 %),
+ * Herceg Novi (84 % → 5 %, 33 dBZ). Naoblaka i mm kod te tri skupine su
+ * praktički isti kao kod sedam ispravnih (9–22 % neba, 0–0.6 mm), pa ih
+ * NE MOGU razlikovati. Jedino što ih razlikuje je vidi li radar odjek:
+ * kod sve tri greške vidi, kod svih sedam pogodaka ne vidi.
+ *
+ * Zato radar dobiva pravo veta, i to SAMO na tekućem satu — jedino za
+ * njega radar uopće govori. Ostali sati su budućnost i ostaju kakvi su
+ * bili; ondje je razlika prema drugim aplikacijama i dalje otvorena
+ * (vidi zapis od 12.9.).
+ *
+ * `wetNowIso` je ISO tekućeg sata (isti oblik kao `HourlyPoint.time`)
+ * kad radar nad mjestom vidi oborinu; `undefined` kad radar šuti, nije
+ * pokriven ili je okvir prestar — tada pravilo radi kao dosad.
+ */
+export function dropImpossiblePrecip(hourly: HourlyPoint[], wetNowIso?: string): HourlyPoint[] {
   let changed = false;
   const out = hourly.map((h) => {
+    // Radar nad ovom točkom vidi oborinu U OVOM SATU: model nije izmislio
+    // kišu iz vedra neba, nego je model pogriješio NAOBLAKU. Ne diramo.
+    if (wetNowIso !== undefined && h.time === wetNowIso) return h;
     /*
      * SUH SAT S VISOKIM POSTOTKOM (11.9.2026., Markov nalaz: „piše mi u 3
      * 80 % padalina za Zadar i tako dalje se smanjuje… je li to istina").
