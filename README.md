@@ -149,6 +149,11 @@ se ista greška ispravlja dvaput.
 15. Hrvatsko obrazloženje lokacije na Androidu prikazuje se **u aplikaciji**
     (Android nema string dozvole na razini manifesta); iOS ga dobiva kroz
     expo-location plugin.
+16. `@expo/fingerprint` je zakrpan (`patches/`, `postinstall: patch-package`):
+    mape se sortiraju po kodnim točkama umjesto `localeCompare`, jer hrvatski
+    locale na Windowsima („nj" je jedno slovo) daje drugi fingerprint od EAS
+    poslužitelja i ruši build s `fingerprint` runtime politikom. Pri dizanju
+    `expo` paketa zakrpu regenerirati.
 
 ## Što radi
 

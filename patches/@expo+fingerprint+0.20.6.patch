@@ -1,0 +1,13 @@
+diff --git a/node_modules/@expo/fingerprint/build/hash/Hash.js b/node_modules/@expo/fingerprint/build/hash/Hash.js
+index 8b39e5a..88ce199 100644
+--- a/node_modules/@expo/fingerprint/build/hash/Hash.js
++++ b/node_modules/@expo/fingerprint/build/hash/Hash.js
+@@ -156,7 +156,7 @@ async function createDirHashResultsAsync(dirPath, limiter, projectRoot, options,
+     if ((0, Path_1.isIgnoredPathWithMatchObjects)(dirPath, options.ignoreDirMatchObjects)) {
+         return null;
+     }
+-    const dirents = (await promises_1.default.readdir(path_1.default.join(projectRoot, dirPath), { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
++    const dirents = (await promises_1.default.readdir(path_1.default.join(projectRoot, dirPath), { withFileTypes: true })).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+     const results = (await Promise.all(dirents.map(async (dirent) => {
+         if (dirent.isDirectory()) {
+             const filePath = (0, Path_1.toPosixPath)(path_1.default.join(dirPath, dirent.name));
